@@ -11,19 +11,33 @@ import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
-  const PaintScreen({super.key});
+  const PaintScreen({
+    super.key,
+    this.initialStrokes = const [],
+    this.initialColorIndex = 0,
+  });
+
+  final List<Stroke> initialStrokes;
+  final int initialColorIndex;
 
   @override
   State<PaintScreen> createState() => _PaintScreenState();
 }
 
 class _PaintScreenState extends State<PaintScreen> {
-  final _strokes = <Stroke>[];
+  late final List<Stroke> _strokes;
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
-  int _selectedColorIndex = 0;
+  late int _selectedColorIndex;
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
+
+  @override
+  void initState() {
+    super.initState();
+    _strokes = List<Stroke>.from(widget.initialStrokes);
+    _selectedColorIndex = widget.initialColorIndex;
+  }
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
 

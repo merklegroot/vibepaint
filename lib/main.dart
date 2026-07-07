@@ -7,7 +7,9 @@ void main() {
 }
 
 class VibePaintApp extends StatelessWidget {
-  const VibePaintApp({super.key});
+  const VibePaintApp({super.key, this.home});
+
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +20,7 @@ class VibePaintApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
       ),
-      home: const PaintScreen(),
+      home: home ?? const PaintScreen(),
     );
   }
 }
