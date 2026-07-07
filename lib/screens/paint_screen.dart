@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/models/paint_tool.dart';
+import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/models/stroke_history.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
@@ -37,7 +38,12 @@ class _PaintScreenState extends State<PaintScreen> {
   late int _selectedColorIndex;
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
+  ShapeStyle _shapeStyle = ShapeStyle.outline;
   Size _canvasSize = Size.zero;
+
+  bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
+
+  bool get _altPressed => HardwareKeyboard.instance.isAltPressed;
 
   @override
   void initState() {
@@ -60,6 +66,21 @@ class _PaintScreenState extends State<PaintScreen> {
   String get _primaryHex {
     final value = _primaryColor.toARGB32() & 0xFFFFFF;
     return '#${value.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
+  String get _statusHint {
+    if (!_activeTool.isDragShape) {
+      return 'Drag on the canvas to paint';
+    }
+
+    final hints = <String>['Drag to draw'];
+    if (_activeTool == PaintTool.line) {
+      hints.add('Shift: 45°');
+    } else {
+      hints.add('Shift: square/circle');
+      hints.add('Alt: from center');
+    }
+    return hints.join(' · ');
   }
 
   bool _isInsideCanvas(Offset position, Rect bounds) {
@@ -264,6 +285,7 @@ class _PaintScreenState extends State<PaintScreen> {
         brushSize: _brushSize,
         points: [position, position],
         shape: shape,
+        style: _shapeStyle,
       );
     });
   }
@@ -274,10 +296,12 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     final start = _currentStroke!.points.first;
-    final corners = clippedRectangleCorners(
+    final corners = clippedShapeBounds(
       start: start,
       end: position,
       bounds: bounds,
+      constrainSquare: _shiftPressed,
+      fromCenter: _altPressed,
     );
     if (corners == null) {
       return;
@@ -315,7 +339,12 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     final start = _currentStroke!.points.first;
-    final end = clippedLineEnd(start: start, end: position, bounds: bounds);
+    final end = clippedLineEnd(
+      start: start,
+      end: position,
+      bounds: bounds,
+      constrainAngle: _shiftPressed,
+    );
     if (end == null) {
       return;
     }
@@ -540,6 +569,15 @@ class _PaintScreenState extends State<PaintScreen> {
                               onBrushSizeChanged: (size) {
                                 setState(() => _brushSize = size);
                               },
+                              shapeStyle: _activeTool.supportsFillStyle
+                                  ? _shapeStyle
+                                  : null,
+                              onShapeStyleChanged:
+                                  _activeTool.supportsFillStyle
+                                      ? (style) {
+                                          setState(() => _shapeStyle = style);
+                                        }
+                                      : null,
                               canUndo: _history.canUndo,
                               canRedo: _history.canRedo,
                               canSave: _canvasSize != Size.zero,
@@ -615,7 +653,7 @@ class _PaintScreenState extends State<PaintScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  Drag on the canvas to paint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  $_statusHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(

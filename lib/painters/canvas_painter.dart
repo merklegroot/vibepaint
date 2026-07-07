@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 
 class CanvasPainter extends CustomPainter {
@@ -69,17 +70,25 @@ class CanvasPainter extends CustomPainter {
         return;
       case StrokeShape.rectangle:
         if (stroke.points.length >= 2) {
-          canvas.drawRect(
-            Rect.fromPoints(stroke.points[0], stroke.points[1]),
-            line,
+          final rect = Rect.fromPoints(stroke.points[0], stroke.points[1]);
+          _paintBoundedShape(
+            canvas: canvas,
+            draw: (paint) => canvas.drawRect(rect, paint),
+            fill: fill,
+            line: line,
+            style: stroke.style,
           );
         }
         return;
       case StrokeShape.ellipse:
         if (stroke.points.length >= 2) {
-          canvas.drawOval(
-            Rect.fromPoints(stroke.points[0], stroke.points[1]),
-            line,
+          final rect = Rect.fromPoints(stroke.points[0], stroke.points[1]);
+          _paintBoundedShape(
+            canvas: canvas,
+            draw: (paint) => canvas.drawOval(rect, paint),
+            fill: fill,
+            line: line,
+            style: stroke.style,
           );
         }
         return;
@@ -97,6 +106,21 @@ class CanvasPainter extends CustomPainter {
     }
 
     canvas.drawCircle(stroke.points.last, stroke.brushSize / 2, fill);
+  }
+
+  static void _paintBoundedShape({
+    required Canvas canvas,
+    required void Function(Paint paint) draw,
+    required Paint fill,
+    required Paint line,
+    required ShapeStyle style,
+  }) {
+    if (style.drawsFill) {
+      draw(fill);
+    }
+    if (style.drawsOutline) {
+      draw(line);
+    }
   }
 
   @override

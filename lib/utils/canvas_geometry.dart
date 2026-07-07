@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 bool isInsideCanvas(Offset position, double width, double height) {
@@ -122,16 +123,94 @@ Offset? clippedLineEnd({
   required Offset start,
   required Offset end,
   required Rect bounds,
+  bool constrainAngle = false,
 }) {
-  if (bounds.contains(end)) {
-    return end;
+  final target = constrainAngle
+      ? constrainedLineEnd(start: start, end: end)
+      : end;
+
+  if (bounds.contains(target)) {
+    return target;
   }
 
   if (!bounds.contains(start)) {
     return null;
   }
 
-  return segmentBoundaryCrossing(start, end, bounds) ?? end;
+  return segmentBoundaryCrossing(start, target, bounds) ?? target;
+}
+
+/// Snaps a line segment to the nearest 45° angle while keeping its length.
+Offset constrainedLineEnd({
+  required Offset start,
+  required Offset end,
+}) {
+  final dx = end.dx - start.dx;
+  final dy = end.dy - start.dy;
+  final distance = sqrt(dx * dx + dy * dy);
+  if (distance < 1e-9) {
+    return end;
+  }
+
+  const quarterTurn = pi / 4;
+  final angle = atan2(dy, dx);
+  final snapped = (angle / quarterTurn).round() * quarterTurn;
+  return Offset(
+    start.dx + cos(snapped) * distance,
+    start.dy + sin(snapped) * distance,
+  );
+}
+
+/// Bounding box for rectangle and ellipse drags.
+Rect shapeBoundingRect({
+  required Offset start,
+  required Offset end,
+  bool constrainSquare = false,
+  bool fromCenter = false,
+}) {
+  var dx = end.dx - start.dx;
+  var dy = end.dy - start.dy;
+
+  if (constrainSquare) {
+    final size = max(dx.abs(), dy.abs());
+    dx = dx >= 0 ? size : -size;
+    dy = dy >= 0 ? size : -size;
+  }
+
+  if (fromCenter) {
+    return Rect.fromCenter(
+      center: start,
+      width: dx.abs() * 2,
+      height: dy.abs() * 2,
+    );
+  }
+
+  return Rect.fromPoints(start, Offset(start.dx + dx, start.dy + dy));
+}
+
+/// Opposite corners of a bounding-box shape clipped to [bounds].
+({Offset topLeft, Offset bottomRight})? clippedShapeBounds({
+  required Offset start,
+  required Offset end,
+  required Rect bounds,
+  bool constrainSquare = false,
+  bool fromCenter = false,
+}) {
+  if (!bounds.contains(start)) {
+    return null;
+  }
+
+  final rect = shapeBoundingRect(
+    start: start,
+    end: end,
+    constrainSquare: constrainSquare,
+    fromCenter: fromCenter,
+  ).intersect(bounds);
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+
+  return (topLeft: rect.topLeft, bottomRight: rect.bottomRight);
 }
 
 /// Opposite corners of a rectangle clipped to [bounds].
@@ -140,14 +219,5 @@ Offset? clippedLineEnd({
   required Offset end,
   required Rect bounds,
 }) {
-  if (!bounds.contains(start)) {
-    return null;
-  }
-
-  final rect = Rect.fromPoints(start, end).intersect(bounds);
-  if (rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-
-  return (topLeft: rect.topLeft, bottomRight: rect.bottomRight);
+  return clippedShapeBounds(start: start, end: end, bounds: bounds);
 }

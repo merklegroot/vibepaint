@@ -7,7 +7,9 @@ A vibe coded paint app.
 ## Features
 
 - **Canvas** — white document that fills the space between the toolbar and color bar
-- **Brush, line, rectangle, ellipse & eraser** — freehand paint, straight segments, outlined shapes, or erase to white
+- **Brush, line, rectangle, ellipse & eraser** — freehand paint, straight segments, and outlined or filled shapes
+- **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
+- **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)

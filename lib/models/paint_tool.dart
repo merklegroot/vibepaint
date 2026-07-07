@@ -21,4 +21,7 @@ extension PaintToolLabel on PaintTool {
       this == PaintTool.line ||
       this == PaintTool.rectangle ||
       this == PaintTool.ellipse;
+
+  bool get supportsFillStyle =>
+      this == PaintTool.rectangle || this == PaintTool.ellipse;
 }

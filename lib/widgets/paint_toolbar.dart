@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
+import 'package:vibepaint/widgets/shape_style_control.dart';
 
 class PaintToolbar extends StatelessWidget {
   const PaintToolbar({
     super.key,
     required this.brushSize,
     required this.onBrushSizeChanged,
+    this.shapeStyle,
+    this.onShapeStyleChanged,
     required this.canUndo,
     required this.canRedo,
     required this.canSave,
@@ -20,6 +24,8 @@ class PaintToolbar extends StatelessWidget {
 
   final double brushSize;
   final ValueChanged<double> onBrushSizeChanged;
+  final ShapeStyle? shapeStyle;
+  final ValueChanged<ShapeStyle>? onShapeStyleChanged;
   final bool canUndo;
   final bool canRedo;
   final bool canSave;
@@ -46,6 +52,13 @@ class PaintToolbar extends StatelessWidget {
             brushSize: brushSize,
             onChanged: onBrushSizeChanged,
           ),
+          if (shapeStyle != null && onShapeStyleChanged != null) ...[
+            const SizedBox(width: 16),
+            ShapeStyleControl(
+              style: shapeStyle!,
+              onChanged: onShapeStyleChanged!,
+            ),
+          ],
           const Spacer(),
           _ToolbarIconButton(
             icon: Icons.folder_open_outlined,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:vibepaint/models/shape_style.dart';
+
 enum StrokeShape {
   freehand,
   line,
@@ -13,12 +15,14 @@ class Stroke {
     required this.brushSize,
     List<Offset>? points,
     this.shape = StrokeShape.freehand,
+    this.style = ShapeStyle.outline,
   }) : points = points ?? [];
 
   final Color color;
   final double brushSize;
   final List<Offset> points;
   final StrokeShape shape;
+  final ShapeStyle style;
 
   bool get isEmpty => points.isEmpty;
 
@@ -27,12 +31,14 @@ class Stroke {
     double? brushSize,
     List<Offset>? points,
     StrokeShape? shape,
+    ShapeStyle? style,
   }) {
     return Stroke(
       color: color ?? this.color,
       brushSize: brushSize ?? this.brushSize,
       points: points ?? List<Offset>.from(this.points),
       shape: shape ?? this.shape,
+      style: style ?? this.style,
     );
   }
 }
