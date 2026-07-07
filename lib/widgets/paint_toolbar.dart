@@ -13,13 +13,8 @@ class PaintToolbar extends StatelessWidget {
     this.onShapeStyleChanged,
     required this.canUndo,
     required this.canRedo,
-    required this.canSave,
-    required this.canClear,
     required this.onUndo,
     required this.onRedo,
-    required this.onOpen,
-    required this.onSave,
-    required this.onClear,
   });
 
   final double brushSize;
@@ -28,13 +23,8 @@ class PaintToolbar extends StatelessWidget {
   final ValueChanged<ShapeStyle>? onShapeStyleChanged;
   final bool canUndo;
   final bool canRedo;
-  final bool canSave;
-  final bool canClear;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
-  final VoidCallback onOpen;
-  final VoidCallback onSave;
-  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -60,27 +50,6 @@ class PaintToolbar extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          _ToolbarIconButton(
-            icon: Icons.folder_open_outlined,
-            tooltip: 'Open PNG',
-            enabled: true,
-            onPressed: onOpen,
-          ),
-          const SizedBox(width: 4),
-          _ToolbarIconButton(
-            icon: Icons.save_outlined,
-            tooltip: 'Save PNG',
-            enabled: canSave,
-            onPressed: onSave,
-          ),
-          const SizedBox(width: 4),
-          _ToolbarIconButton(
-            icon: Icons.note_add_outlined,
-            tooltip: 'Clear canvas',
-            enabled: canClear,
-            onPressed: onClear,
-          ),
-          const SizedBox(width: 4),
           _ToolbarIconButton(
             icon: Icons.undo,
             tooltip: 'Undo',

@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibepaint/menus/menu_shortcuts.dart';
+import 'package:vibepaint/menus/platform_file_menus.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
@@ -11,6 +13,7 @@ import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
+import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
@@ -168,11 +171,11 @@ class _PaintScreenState extends State<PaintScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.palettePanel,
         title: const Text(
-          'Clear canvas?',
+          'New image?',
           style: TextStyle(color: AppColors.statusText),
         ),
         content: const Text(
-          'This removes all strokes. This cannot be undone.',
+          'Discard the current canvas? This cannot be undone.',
           style: TextStyle(color: AppColors.paletteLabel),
         ),
         actions: [
@@ -182,7 +185,7 @@ class _PaintScreenState extends State<PaintScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
+            child: const Text('New'),
           ),
         ],
       ),
@@ -490,8 +493,12 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return CallbackShortcuts(
-      bindings: {
+    final canNew = _history.canUndo ||
+        _currentStroke != null ||
+        _backgroundImage != null;
+
+    final body = CallbackShortcuts(
+        bindings: {
         const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
             _changeBrushSize(-2),
         const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
@@ -532,16 +539,10 @@ class _PaintScreenState extends State<PaintScreen> {
             _openCanvas(),
         const SingleActivator(LogicalKeyboardKey.keyO, control: true): () =>
             _openCanvas(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyN,
-          meta: true,
-          shift: true,
-        ): () => _clearCanvas(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyN,
-          control: true,
-          shift: true,
-        ): () => _clearCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () =>
+            _clearCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
+            _clearCanvas(),
       },
       child: Focus(
         autofocus: true,
@@ -570,6 +571,12 @@ class _PaintScreenState extends State<PaintScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            AppMenuBar(
+                              canNew: canNew,
+                              onNew: () => _clearCanvas(),
+                              onOpen: _openCanvas,
+                              onSave: () => _saveCanvas(),
+                            ),
                             PaintToolbar(
                               brushSize: _brushSize,
                               onBrushSizeChanged: (size) {
@@ -586,25 +593,18 @@ class _PaintScreenState extends State<PaintScreen> {
                                       : null,
                               canUndo: _history.canUndo,
                               canRedo: _history.canRedo,
-                              canSave: _canvasSize != Size.zero,
-                              canClear: _history.canUndo ||
-                                  _currentStroke != null ||
-                                  _backgroundImage != null,
                               onUndo: _undo,
                               onRedo: _redo,
-                              onOpen: () => _openCanvas(),
-                              onSave: () => _saveCanvas(),
-                              onClear: () => _clearCanvas(),
                             ),
                             Expanded(
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
-                                  final bounds = Offset.zero &
-                                      Size(
-                                        constraints.maxWidth,
-                                        constraints.maxHeight,
-                                      );
-                                  _canvasSize = bounds.size;
+                                  final size = Size(
+                                    constraints.maxWidth,
+                                    constraints.maxHeight,
+                                  );
+                                  _canvasSize = size;
+                                  final bounds = Offset.zero & size;
 
                                   return ClipRect(
                                     child: GestureDetector(
@@ -673,5 +673,18 @@ class _PaintScreenState extends State<PaintScreen> {
         ),
       ),
     );
+
+    if (usePlatformFileMenu) {
+      return PlatformMenuBar(
+        menus: buildMacosPlatformMenus(
+          onNew: canNew ? () => _clearCanvas() : null,
+          onOpen: _openCanvas,
+          onSave: _saveCanvas,
+        ),
+        child: body,
+      );
+    }
+
+    return body;
   }
 }
