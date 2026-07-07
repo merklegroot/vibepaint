@@ -48,6 +48,6 @@ Edit `lib/demo/screenshot_demo.dart` to change sample strokes. Adjust `initialCo
 
 ## Troubleshooting
 
-- **Blank or partial image**: ensure `await tester.pump()` runs before the golden capture.
+- **Gray boxes instead of text/icons**: widget tests need fonts loaded — see `test/test_fonts.dart` and `setUpAll` in the screenshot test.
 - **Missing file**: run from repo root so the relative `docs/screenshot.png` path resolves correctly.
 - **Layout changed**: update stroke coordinates in `screenshot_demo.dart` if the left toolbar or canvas size shifted.
