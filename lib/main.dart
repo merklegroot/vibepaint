@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:vibepaint/bootstrap/file_picker_init.dart';
 import 'package:vibepaint/screens/paint_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  ensureFilePickerInitialized();
   runApp(const VibePaintApp());
 }
 

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/models/paint_tool.dart';
@@ -5,7 +7,9 @@ import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/models/stroke_history.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
+import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
@@ -28,16 +32,24 @@ class PaintScreen extends StatefulWidget {
 class _PaintScreenState extends State<PaintScreen> {
   late final StrokeHistory _history;
   Stroke? _currentStroke;
+  ui.Image? _backgroundImage;
   Offset? _lastPanPosition;
   late int _selectedColorIndex;
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
+  Size _canvasSize = Size.zero;
 
   @override
   void initState() {
     super.initState();
     _history = StrokeHistory(widget.initialStrokes);
     _selectedColorIndex = widget.initialColorIndex;
+  }
+
+  @override
+  void dispose() {
+    _backgroundImage?.dispose();
+    super.dispose();
   }
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
@@ -109,7 +121,9 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   Future<void> _clearCanvas() async {
-    if (!_history.canUndo && _currentStroke == null) {
+    if (!_history.canUndo &&
+        _currentStroke == null &&
+        _backgroundImage == null) {
       return;
     }
 
@@ -146,7 +160,69 @@ class _PaintScreenState extends State<PaintScreen> {
       _history.clear();
       _currentStroke = null;
       _lastPanPosition = null;
+      _backgroundImage?.dispose();
+      _backgroundImage = null;
     });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _saveCanvas() async {
+    if (_currentStroke != null) {
+      setState(_commitCurrentStroke);
+    }
+
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    try {
+      final bytes = await renderCanvasToPng(
+        size: _canvasSize,
+        strokes: _history.strokes,
+        backgroundImage: _backgroundImage,
+      );
+      final path = await savePngFile(bytes);
+      if (!mounted) {
+        return;
+      }
+      if (path != null) {
+        _showMessage('Saved $path');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showMessage('Save failed: $error');
+      }
+    }
+  }
+
+  Future<void> _openCanvas() async {
+    try {
+      final image = await pickPngImage();
+      if (!mounted || image == null) {
+        return;
+      }
+
+      setState(() {
+        _history.clear();
+        _currentStroke = null;
+        _lastPanPosition = null;
+        _backgroundImage?.dispose();
+        _backgroundImage = image;
+      });
+      _showMessage('Opened PNG');
+    } catch (error) {
+      if (mounted) {
+        _showMessage('Open failed: $error');
+      }
+    }
   }
 
   void _extendStroke(Offset position, Rect bounds) {
@@ -263,6 +339,14 @@ class _PaintScreenState extends State<PaintScreen> {
           shift: true,
         ): _redo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () =>
+            _saveCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+            _saveCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyO, meta: true): () =>
+            _openCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () =>
+            _openCanvas(),
         const SingleActivator(
           LogicalKeyboardKey.keyN,
           meta: true,
@@ -308,10 +392,14 @@ class _PaintScreenState extends State<PaintScreen> {
                               },
                               canUndo: _history.canUndo,
                               canRedo: _history.canRedo,
-                              canClear:
-                                  _history.canUndo || _currentStroke != null,
+                              canSave: _canvasSize != Size.zero,
+                              canClear: _history.canUndo ||
+                                  _currentStroke != null ||
+                                  _backgroundImage != null,
                               onUndo: _undo,
                               onRedo: _redo,
+                              onOpen: () => _openCanvas(),
+                              onSave: () => _saveCanvas(),
                               onClear: () => _clearCanvas(),
                             ),
                             Expanded(
@@ -322,6 +410,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                         constraints.maxWidth,
                                         constraints.maxHeight,
                                       );
+                                  _canvasSize = bounds.size;
 
                                   return ClipRect(
                                     child: GestureDetector(
@@ -340,6 +429,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                         painter: CanvasPainter(
                                           strokes: _history.strokes,
                                           currentStroke: _currentStroke,
+                                          backgroundImage: _backgroundImage,
                                         ),
                                         child: const SizedBox.expand(),
                                       ),

@@ -11,8 +11,8 @@ A vibe coded paint app.
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
+- **Save & open** — export and import PNG images (toolbar buttons or ⌘S / ⌘O)
 - **Clear canvas** — wipe all strokes (toolbar button or ⌘⇧N)
-- **Status bar** — shows active tool and current color
 - **Desktop** — macOS, Windows, and Linux
 
 ## Roadmap
@@ -24,7 +24,7 @@ Rough order of obvious next steps:
 - [x] **Eraser** — paint back to white
 - [x] **Undo / redo** — history for brush strokes
 - [x] **New / clear** — reset the canvas
-- [ ] **Save & open** — PNG export and import
+- [x] **Save & open** — PNG export and import
 - [ ] **More tools** — line, rectangle, ellipse, fill bucket
 - [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases

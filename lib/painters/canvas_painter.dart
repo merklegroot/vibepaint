@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/stroke.dart';
 
@@ -5,25 +7,46 @@ class CanvasPainter extends CustomPainter {
   CanvasPainter({
     required this.strokes,
     this.currentStroke,
+    this.backgroundImage,
   });
 
   final List<Stroke> strokes;
   final Stroke? currentStroke;
+  final ui.Image? backgroundImage;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+  static void paintCanvas({
+    required Canvas canvas,
+    required Size size,
+    required List<Stroke> strokes,
+    Stroke? currentStroke,
+    ui.Image? backgroundImage,
+  }) {
+    if (backgroundImage != null) {
+      canvas.drawImageRect(
+        backgroundImage,
+        Rect.fromLTWH(
+          0,
+          0,
+          backgroundImage.width.toDouble(),
+          backgroundImage.height.toDouble(),
+        ),
+        Offset.zero & size,
+        Paint(),
+      );
+    } else {
+      canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+    }
 
     for (final stroke in strokes) {
       _paintStroke(canvas, stroke);
     }
 
     if (currentStroke != null) {
-      _paintStroke(canvas, currentStroke!);
+      _paintStroke(canvas, currentStroke);
     }
   }
 
-  void _paintStroke(Canvas canvas, Stroke stroke) {
+  static void _paintStroke(Canvas canvas, Stroke stroke) {
     if (stroke.points.isEmpty) {
       return;
     }
@@ -47,15 +70,26 @@ class CanvasPainter extends CustomPainter {
       canvas.drawLine(stroke.points[i], stroke.points[i + 1], line);
     }
 
-    canvas.drawCircle(
-      stroke.points.last,
-      stroke.brushSize / 2,
-      fill,
+    canvas.drawCircle(stroke.points.last, stroke.brushSize / 2, fill);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    paintCanvas(
+      canvas: canvas,
+      size: size,
+      strokes: strokes,
+      currentStroke: currentStroke,
+      backgroundImage: backgroundImage,
     );
   }
 
   @override
   bool shouldRepaint(covariant CanvasPainter oldDelegate) {
+    if (oldDelegate.backgroundImage != backgroundImage) {
+      return true;
+    }
+
     if (oldDelegate.strokes.length != strokes.length) {
       return true;
     }
