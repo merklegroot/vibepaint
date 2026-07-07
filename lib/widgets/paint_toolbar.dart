@@ -7,10 +7,18 @@ class PaintToolbar extends StatelessWidget {
     super.key,
     required this.brushSize,
     required this.onBrushSizeChanged,
+    required this.canUndo,
+    required this.canRedo,
+    required this.onUndo,
+    required this.onRedo,
   });
 
   final double brushSize;
   final ValueChanged<double> onBrushSizeChanged;
+  final bool canUndo;
+  final bool canRedo;
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +30,59 @@ class PaintToolbar extends StatelessWidget {
           bottom: BorderSide(color: AppColors.paletteBorder),
         ),
       ),
-      child: BrushSizeControl(
-        brushSize: brushSize,
-        onChanged: onBrushSizeChanged,
+      child: Row(
+        children: [
+          BrushSizeControl(
+            brushSize: brushSize,
+            onChanged: onBrushSizeChanged,
+          ),
+          const Spacer(),
+          _HistoryButton(
+            icon: Icons.undo,
+            tooltip: 'Undo',
+            enabled: canUndo,
+            onPressed: onUndo,
+          ),
+          const SizedBox(width: 4),
+          _HistoryButton(
+            icon: Icons.redo,
+            tooltip: 'Redo',
+            enabled: canRedo,
+            onPressed: onRedo,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryButton extends StatelessWidget {
+  const _HistoryButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon, size: 20),
+        color: AppColors.statusText,
+        disabledColor: AppColors.paletteBorder,
+        style: IconButton.styleFrom(
+          minimumSize: const Size(32, 32),
+          padding: EdgeInsets.zero,
+          backgroundColor: AppColors.workspace,
+        ),
       ),
     );
   }

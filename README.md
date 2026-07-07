@@ -10,6 +10,7 @@ A vibe coded paint app, built with Flutter.
 - **Brush & eraser** — paint with color or erase back to white
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
+- **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
 - **Status bar** — shows active tool and current color
 - **Desktop** — macOS, Windows, and Linux
 
@@ -20,7 +21,7 @@ Rough order of obvious next steps:
 - [x] **Color picker** — primary color swatch (and eventually secondary)
 - [x] **Brush size** — adjustable width
 - [x] **Eraser** — paint back to white
-- [ ] **Undo / redo** — history for brush strokes
+- [x] **Undo / redo** — history for brush strokes
 - [ ] **New / clear** — reset the canvas
 - [ ] **Save & open** — PNG export and import
 - [ ] **More tools** — line, rectangle, ellipse, fill bucket

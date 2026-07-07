@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/models/stroke_history.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
@@ -25,7 +26,7 @@ class PaintScreen extends StatefulWidget {
 }
 
 class _PaintScreenState extends State<PaintScreen> {
-  late final List<Stroke> _strokes;
+  late final StrokeHistory _history;
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
   late int _selectedColorIndex;
@@ -35,7 +36,7 @@ class _PaintScreenState extends State<PaintScreen> {
   @override
   void initState() {
     super.initState();
-    _strokes = List<Stroke>.from(widget.initialStrokes);
+    _history = StrokeHistory(widget.initialStrokes);
     _selectedColorIndex = widget.initialColorIndex;
   }
 
@@ -87,8 +88,24 @@ class _PaintScreenState extends State<PaintScreen> {
       return;
     }
 
-    _strokes.add(_currentStroke!);
+    _history.add(_currentStroke!);
     _currentStroke = null;
+  }
+
+  void _undo() {
+    if (!_history.canUndo) {
+      return;
+    }
+
+    setState(_history.undo);
+  }
+
+  void _redo() {
+    if (!_history.canRedo) {
+      return;
+    }
+
+    setState(_history.redo);
   }
 
   void _extendStroke(Offset position, Rect bounds) {
@@ -192,6 +209,19 @@ class _PaintScreenState extends State<PaintScreen> {
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
         },
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          meta: true,
+          shift: true,
+        ): _redo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
       },
       child: Focus(
         autofocus: true,
@@ -225,6 +255,10 @@ class _PaintScreenState extends State<PaintScreen> {
                               onBrushSizeChanged: (size) {
                                 setState(() => _brushSize = size);
                               },
+                              canUndo: _history.canUndo,
+                              canRedo: _history.canRedo,
+                              onUndo: _undo,
+                              onRedo: _redo,
                             ),
                             Expanded(
                               child: LayoutBuilder(
@@ -250,7 +284,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                       onPanCancel: () => _endStroke(),
                                       child: CustomPaint(
                                         painter: CanvasPainter(
-                                          strokes: _strokes,
+                                          strokes: _history.strokes,
                                           currentStroke: _currentStroke,
                                         ),
                                         child: const SizedBox.expand(),
