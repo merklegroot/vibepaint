@@ -101,6 +101,12 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -108,7 +114,12 @@ jobs:
         shell: bash
         run: |
           BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
-          sed -i "s/^version: .*/version: ${{ needs.prepare.outputs.version }}+${BUILD}/" pubspec.yaml
+          VERSION_LINE="version: ${{ needs.prepare.outputs.version }}+${BUILD}"
+          if [ "$(uname)" = "Darwin" ]; then
+            sed -i '' "s/^version: .*/${VERSION_LINE}/" pubspec.yaml
+          else
+            sed -i "s/^version: .*/${VERSION_LINE}/" pubspec.yaml
+          fi
 
       - name: Build
         run: flutter build ${{ matrix.platform }} --release
