@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
@@ -21,8 +22,12 @@ class _PaintScreenState extends State<PaintScreen> {
   Offset? _lastPanPosition;
   int _selectedColorIndex = 0;
   double _brushSize = 6;
+  PaintTool _activeTool = PaintTool.brush;
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
+
+  Color get _strokeColor =>
+      _activeTool == PaintTool.eraser ? Colors.white : _primaryColor;
 
   String get _primaryHex {
     final value = _primaryColor.toARGB32() & 0xFFFFFF;
@@ -54,7 +59,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
     setState(() {
       _currentStroke = Stroke(
-        color: _primaryColor,
+        color: _strokeColor,
         brushSize: _brushSize,
         points: [position],
       );
@@ -118,7 +123,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
       setState(() {
         _currentStroke = Stroke(
-          color: _primaryColor,
+          color: _strokeColor,
           brushSize: _brushSize,
           points: points,
         );
@@ -166,6 +171,12 @@ class _PaintScreenState extends State<PaintScreen> {
             _changeBrushSize(-2),
         const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
             _changeBrushSize(2),
+        const SingleActivator(LogicalKeyboardKey.keyB): () {
+          setState(() => _activeTool = PaintTool.brush);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyE): () {
+          setState(() => _activeTool = PaintTool.eraser);
+        },
       },
       child: Focus(
         autofocus: true,
@@ -185,6 +196,10 @@ class _PaintScreenState extends State<PaintScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       PaintToolbar(
+                        activeTool: _activeTool,
+                        onToolChanged: (tool) {
+                          setState(() => _activeTool = tool);
+                        },
                         brushSize: _brushSize,
                         onBrushSizeChanged: (size) {
                           setState(() => _brushSize = size);
@@ -223,11 +238,17 @@ class _PaintScreenState extends State<PaintScreen> {
                           },
                         ),
                       ),
-                      ColorPalettePanel(
-                        selectedIndex: _selectedColorIndex,
-                        onSelected: (index) {
-                          setState(() => _selectedColorIndex = index);
-                        },
+                      Opacity(
+                        opacity: _activeTool == PaintTool.brush ? 1 : 0.45,
+                        child: IgnorePointer(
+                          ignoring: _activeTool == PaintTool.eraser,
+                          child: ColorPalettePanel(
+                            selectedIndex: _selectedColorIndex,
+                            onSelected: (index) {
+                              setState(() => _selectedColorIndex = index);
+                            },
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -239,7 +260,7 @@ class _PaintScreenState extends State<PaintScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  'Brush ${_brushSize.round()}px  |  $_primaryHex  |  Drag on the canvas to paint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  Drag on the canvas to paint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(
