@@ -108,6 +108,47 @@ class _PaintScreenState extends State<PaintScreen> {
     setState(_history.redo);
   }
 
+  Future<void> _clearCanvas() async {
+    if (!_history.canUndo && _currentStroke == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.palettePanel,
+        title: const Text(
+          'Clear canvas?',
+          style: TextStyle(color: AppColors.statusText),
+        ),
+        content: const Text(
+          'This removes all strokes. This cannot be undone.',
+          style: TextStyle(color: AppColors.paletteLabel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _history.clear();
+      _currentStroke = null;
+      _lastPanPosition = null;
+    });
+  }
+
   void _extendStroke(Offset position, Rect bounds) {
     final inside = _isInsideCanvas(position, bounds);
 
@@ -222,6 +263,16 @@ class _PaintScreenState extends State<PaintScreen> {
           shift: true,
         ): _redo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          meta: true,
+          shift: true,
+        ): () => _clearCanvas(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          control: true,
+          shift: true,
+        ): () => _clearCanvas(),
       },
       child: Focus(
         autofocus: true,
@@ -257,8 +308,11 @@ class _PaintScreenState extends State<PaintScreen> {
                               },
                               canUndo: _history.canUndo,
                               canRedo: _history.canRedo,
+                              canClear:
+                                  _history.canUndo || _currentStroke != null,
                               onUndo: _undo,
                               onRedo: _redo,
+                              onClear: () => _clearCanvas(),
                             ),
                             Expanded(
                               child: LayoutBuilder(

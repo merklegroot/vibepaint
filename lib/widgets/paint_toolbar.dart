@@ -9,16 +9,20 @@ class PaintToolbar extends StatelessWidget {
     required this.onBrushSizeChanged,
     required this.canUndo,
     required this.canRedo,
+    required this.canClear,
     required this.onUndo,
     required this.onRedo,
+    required this.onClear,
   });
 
   final double brushSize;
   final ValueChanged<double> onBrushSizeChanged;
   final bool canUndo;
   final bool canRedo;
+  final bool canClear;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +41,21 @@ class PaintToolbar extends StatelessWidget {
             onChanged: onBrushSizeChanged,
           ),
           const Spacer(),
-          _HistoryButton(
+          _ToolbarIconButton(
+            icon: Icons.note_add_outlined,
+            tooltip: 'Clear canvas',
+            enabled: canClear,
+            onPressed: onClear,
+          ),
+          const SizedBox(width: 4),
+          _ToolbarIconButton(
             icon: Icons.undo,
             tooltip: 'Undo',
             enabled: canUndo,
             onPressed: onUndo,
           ),
           const SizedBox(width: 4),
-          _HistoryButton(
+          _ToolbarIconButton(
             icon: Icons.redo,
             tooltip: 'Redo',
             enabled: canRedo,
@@ -56,8 +67,8 @@ class PaintToolbar extends StatelessWidget {
   }
 }
 
-class _HistoryButton extends StatelessWidget {
-  const _HistoryButton({
+class _ToolbarIconButton extends StatelessWidget {
+  const _ToolbarIconButton({
     required this.icon,
     required this.tooltip,
     required this.enabled,

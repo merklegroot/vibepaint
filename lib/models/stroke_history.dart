@@ -36,4 +36,9 @@ class StrokeHistory {
     _strokes.add(_redoStack.removeLast());
     return true;
   }
+
+  void clear() {
+    _strokes.clear();
+    _redoStack.clear();
+  }
 }

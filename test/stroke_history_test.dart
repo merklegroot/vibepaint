@@ -39,4 +39,16 @@ void main() {
     expect(history.strokes, hasLength(1));
     expect(history.strokes.first.color, Colors.blue);
   });
+
+  test('clear removes all strokes and redo history', () {
+    final history = StrokeHistory();
+    history.add(Stroke(color: Colors.red, brushSize: 4));
+    history.undo();
+
+    history.clear();
+
+    expect(history.strokes, isEmpty);
+    expect(history.canUndo, isFalse);
+    expect(history.canRedo, isFalse);
+  });
 }
