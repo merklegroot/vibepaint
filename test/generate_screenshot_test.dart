@@ -11,7 +11,9 @@ void main() {
     await loadTestFonts();
   });
 
-  testWidgets('generate README screenshot', (tester) async {
+  testWidgets(
+    'generate README screenshot',
+    (tester) async {
     const size = Size(1280, 720);
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -33,5 +35,5 @@ void main() {
       find.byKey(const Key('screenshot')),
       matchesGoldenFile('../docs/screenshot.png'),
     );
-  });
+  }, tags: 'golden');
 }

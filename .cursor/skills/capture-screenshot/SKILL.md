@@ -22,11 +22,13 @@ Or:
 flutter test --update-goldens test/generate_screenshot_test.dart
 ```
 
-To verify without updating:
+To verify without updating (local only — excluded from CI due to cross-platform rendering):
 
 ```bash
 flutter test test/generate_screenshot_test.dart
 ```
+
+CI runs `flutter test --exclude-tags golden` so Linux font differences do not fail the build.
 
 Output: `docs/screenshot.png` (1280×720).
 

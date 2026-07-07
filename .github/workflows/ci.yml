@@ -30,7 +30,7 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --exclude-tags golden
 
       - name: Build Linux
         run: flutter build linux --release
