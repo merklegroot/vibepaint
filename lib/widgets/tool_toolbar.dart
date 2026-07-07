@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/widgets/eraser_icon.dart';
 
 class ToolToolbar extends StatelessWidget {
   const ToolToolbar({
@@ -51,9 +52,13 @@ class _ToolButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onPressed;
 
-  IconData get _icon => switch (tool) {
-        PaintTool.brush => Icons.brush,
-        PaintTool.eraser => Icons.auto_fix_normal,
+  Widget _buildIcon() => switch (tool) {
+        PaintTool.brush => const Icon(
+            Icons.brush,
+            size: 20,
+            color: AppColors.statusText,
+          ),
+        PaintTool.eraser => const EraserIcon(color: AppColors.statusText),
       };
 
   String get _tooltip => tool.label;
@@ -81,11 +86,7 @@ class _ToolButton extends StatelessWidget {
                       : Colors.transparent,
                 ),
               ),
-              child: Icon(
-                _icon,
-                size: 20,
-                color: AppColors.statusText,
-              ),
+              child: _buildIcon(),
             ),
           ),
         ),

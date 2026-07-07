@@ -1,6 +1,6 @@
 # Vibe Paint
 
-A vibe coded paint app, built with Flutter.
+A vibe coded paint app.
 
 ![VibePaint screenshot](docs/screenshot.png)
 
