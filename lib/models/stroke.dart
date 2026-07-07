@@ -4,6 +4,7 @@ enum StrokeShape {
   freehand,
   line,
   rectangle,
+  ellipse,
 }
 
 class Stroke {

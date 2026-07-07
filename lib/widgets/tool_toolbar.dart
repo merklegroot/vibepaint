@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/eraser_icon.dart';
+import 'package:vibepaint/widgets/ellipse_icon.dart';
 import 'package:vibepaint/widgets/line_icon.dart';
 import 'package:vibepaint/widgets/rectangle_icon.dart';
 
@@ -63,6 +64,7 @@ class _ToolButton extends StatelessWidget {
         PaintTool.line => const LineIcon(color: AppColors.statusText),
         PaintTool.rectangle =>
           const RectangleIcon(color: AppColors.statusText),
+        PaintTool.ellipse => const EllipseIcon(color: AppColors.statusText),
         PaintTool.eraser => const EraserIcon(color: AppColors.statusText),
       };
 

@@ -75,6 +75,14 @@ class CanvasPainter extends CustomPainter {
           );
         }
         return;
+      case StrokeShape.ellipse:
+        if (stroke.points.length >= 2) {
+          canvas.drawOval(
+            Rect.fromPoints(stroke.points[0], stroke.points[1]),
+            line,
+          );
+        }
+        return;
       case StrokeShape.freehand:
         break;
     }

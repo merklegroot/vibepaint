@@ -81,7 +81,9 @@ class _PaintScreenState extends State<PaintScreen> {
       case PaintTool.line:
         _startLine(position, bounds);
       case PaintTool.rectangle:
-        _startRectangle(position, bounds);
+        _startBoundingShape(position, bounds, StrokeShape.rectangle);
+      case PaintTool.ellipse:
+        _startBoundingShape(position, bounds, StrokeShape.ellipse);
       default:
         _startStroke(position, bounds);
     }
@@ -247,7 +249,11 @@ class _PaintScreenState extends State<PaintScreen> {
     });
   }
 
-  void _startRectangle(Offset position, Rect bounds) {
+  void _startBoundingShape(
+    Offset position,
+    Rect bounds,
+    StrokeShape shape,
+  ) {
     if (!_isInsideCanvas(position, bounds)) {
       return;
     }
@@ -257,12 +263,12 @@ class _PaintScreenState extends State<PaintScreen> {
         color: _strokeColor,
         brushSize: _brushSize,
         points: [position, position],
-        shape: StrokeShape.rectangle,
+        shape: shape,
       );
     });
   }
 
-  void _extendRectangle(Offset position, Rect bounds) {
+  void _extendBoundingShape(Offset position, Rect bounds) {
     if (_currentStroke == null || _currentStroke!.points.isEmpty) {
       return;
     }
@@ -284,7 +290,7 @@ class _PaintScreenState extends State<PaintScreen> {
     });
   }
 
-  void _endRectangle() {
+  void _endBoundingShape() {
     _lastPanPosition = null;
     if (_currentStroke == null || _currentStroke!.points.length < 2) {
       _currentStroke = null;
@@ -342,7 +348,8 @@ class _PaintScreenState extends State<PaintScreen> {
         _extendLine(position, bounds);
         return;
       case PaintTool.rectangle:
-        _extendRectangle(position, bounds);
+      case PaintTool.ellipse:
+        _extendBoundingShape(position, bounds);
         return;
       default:
         break;
@@ -430,7 +437,8 @@ class _PaintScreenState extends State<PaintScreen> {
         _endLine();
         return;
       case PaintTool.rectangle:
-        _endRectangle();
+      case PaintTool.ellipse:
+        _endBoundingShape();
         return;
       default:
         break;
@@ -461,6 +469,9 @@ class _PaintScreenState extends State<PaintScreen> {
         },
         const SingleActivator(LogicalKeyboardKey.keyR): () {
           setState(() => _activeTool = PaintTool.rectangle);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyC): () {
+          setState(() => _activeTool = PaintTool.ellipse);
         },
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
