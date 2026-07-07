@@ -8,6 +8,7 @@ import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
+import 'package:vibepaint/widgets/tool_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
   const PaintScreen({super.key});
@@ -185,73 +186,85 @@ class _PaintScreenState extends State<PaintScreen> {
           body: Column(
             children: [
               Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: AppColors.canvasBorder,
-                      width: 2,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ToolToolbar(
+                      selected: _activeTool,
+                      onSelected: (tool) {
+                        setState(() => _activeTool = tool);
+                      },
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      PaintToolbar(
-                        activeTool: _activeTool,
-                        onToolChanged: (tool) {
-                          setState(() => _activeTool = tool);
-                        },
-                        brushSize: _brushSize,
-                        onBrushSizeChanged: (size) {
-                          setState(() => _brushSize = size);
-                        },
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final bounds = Offset.zero &
-                                Size(
-                                  constraints.maxWidth,
-                                  constraints.maxHeight,
-                                );
-
-                            return ClipRect(
-                              child: GestureDetector(
-                                onPanStart: (details) => _beginPan(
-                                  details.localPosition,
-                                  bounds,
-                                ),
-                                onPanUpdate: (details) => _extendStroke(
-                                  details.localPosition,
-                                  bounds,
-                                ),
-                                onPanEnd: (_) => _endStroke(),
-                                onPanCancel: () => _endStroke(),
-                                child: CustomPaint(
-                                  painter: CanvasPainter(
-                                    strokes: _strokes,
-                                    currentStroke: _currentStroke,
-                                  ),
-                                  child: const SizedBox.expand(),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Opacity(
-                        opacity: _activeTool == PaintTool.brush ? 1 : 0.45,
-                        child: IgnorePointer(
-                          ignoring: _activeTool == PaintTool.eraser,
-                          child: ColorPalettePanel(
-                            selectedIndex: _selectedColorIndex,
-                            onSelected: (index) {
-                              setState(() => _selectedColorIndex = index);
-                            },
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: AppColors.canvasBorder,
+                            width: 2,
                           ),
                         ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            PaintToolbar(
+                              brushSize: _brushSize,
+                              onBrushSizeChanged: (size) {
+                                setState(() => _brushSize = size);
+                              },
+                            ),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final bounds = Offset.zero &
+                                      Size(
+                                        constraints.maxWidth,
+                                        constraints.maxHeight,
+                                      );
+
+                                  return ClipRect(
+                                    child: GestureDetector(
+                                      onPanStart: (details) => _beginPan(
+                                        details.localPosition,
+                                        bounds,
+                                      ),
+                                      onPanUpdate: (details) =>
+                                          _extendStroke(
+                                        details.localPosition,
+                                        bounds,
+                                      ),
+                                      onPanEnd: (_) => _endStroke(),
+                                      onPanCancel: () => _endStroke(),
+                                      child: CustomPaint(
+                                        painter: CanvasPainter(
+                                          strokes: _strokes,
+                                          currentStroke: _currentStroke,
+                                        ),
+                                        child: const SizedBox.expand(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            Opacity(
+                              opacity:
+                                  _activeTool == PaintTool.brush ? 1 : 0.45,
+                              child: IgnorePointer(
+                                ignoring: _activeTool == PaintTool.eraser,
+                                child: ColorPalettePanel(
+                                  selectedIndex: _selectedColorIndex,
+                                  onSelected: (index) {
+                                    setState(
+                                        () => _selectedColorIndex = index);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               Container(

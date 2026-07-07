@@ -8,7 +8,7 @@ A vibe coded paint app, built with Flutter.
 
 - **Canvas** — white document that fills the space between the toolbar and color bar
 - **Brush & eraser** — paint with color or erase back to white
-- **Toolbar** — tool picker and brush width above the canvas
+- **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Status bar** — shows active tool and current color
 - **Desktop** — macOS, Windows, and Linux
@@ -24,7 +24,7 @@ Rough order of obvious next steps:
 - [ ] **New / clear** — reset the canvas
 - [ ] **Save & open** — PNG export and import
 - [ ] **More tools** — line, rectangle, ellipse, fill bucket
-- [ ] **Toolbar** — tool buttons on the side
+- [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases
 - [ ] **Layers** — stack and edit images independently
 
