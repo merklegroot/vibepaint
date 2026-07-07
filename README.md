@@ -44,12 +44,16 @@ CI runs on every push and pull request to `master`.
 
 To publish a release with Windows, Linux, and macOS binaries:
 
+**Automatic (recommended):** open **Actions → Release → Run workflow** and click **Run workflow**. The version auto-increments the patch number from the latest `v*` tag (or uses `pubspec.yaml` for the first release), updates `pubspec.yaml`, and creates the GitHub release.
+
+You can optionally enter a specific version (e.g. `0.2.0`) to override auto-increment.
+
+**Manual tag:**
+
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
-
-Or open **Actions → Release → Run workflow**, enter a version like `0.1.0`, and GitHub will build the archives and create the release.
 
 ## License
 
