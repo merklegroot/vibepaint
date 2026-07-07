@@ -77,10 +77,13 @@ class _PaintScreenState extends State<PaintScreen> {
 
   void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
-    if (_activeTool == PaintTool.line) {
-      _startLine(position, bounds);
-    } else {
-      _startStroke(position, bounds);
+    switch (_activeTool) {
+      case PaintTool.line:
+        _startLine(position, bounds);
+      case PaintTool.rectangle:
+        _startRectangle(position, bounds);
+      default:
+        _startStroke(position, bounds);
     }
   }
 
@@ -239,8 +242,65 @@ class _PaintScreenState extends State<PaintScreen> {
         color: _strokeColor,
         brushSize: _brushSize,
         points: [position, position],
+        shape: StrokeShape.line,
       );
     });
+  }
+
+  void _startRectangle(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    setState(() {
+      _currentStroke = Stroke(
+        color: _strokeColor,
+        brushSize: _brushSize,
+        points: [position, position],
+        shape: StrokeShape.rectangle,
+      );
+    });
+  }
+
+  void _extendRectangle(Offset position, Rect bounds) {
+    if (_currentStroke == null || _currentStroke!.points.isEmpty) {
+      return;
+    }
+
+    final start = _currentStroke!.points.first;
+    final corners = clippedRectangleCorners(
+      start: start,
+      end: position,
+      bounds: bounds,
+    );
+    if (corners == null) {
+      return;
+    }
+
+    setState(() {
+      _currentStroke = _currentStroke!.copyWith(
+        points: [corners.topLeft, corners.bottomRight],
+      );
+    });
+  }
+
+  void _endRectangle() {
+    _lastPanPosition = null;
+    if (_currentStroke == null || _currentStroke!.points.length < 2) {
+      _currentStroke = null;
+      return;
+    }
+
+    final rect = Rect.fromPoints(
+      _currentStroke!.points.first,
+      _currentStroke!.points.last,
+    );
+    if (rect.width <= 0 || rect.height <= 0) {
+      _currentStroke = null;
+      return;
+    }
+
+    setState(_commitCurrentStroke);
   }
 
   void _extendLine(Offset position, Rect bounds) {
@@ -277,9 +337,15 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   void _extendStroke(Offset position, Rect bounds) {
-    if (_activeTool == PaintTool.line) {
-      _extendLine(position, bounds);
-      return;
+    switch (_activeTool) {
+      case PaintTool.line:
+        _extendLine(position, bounds);
+        return;
+      case PaintTool.rectangle:
+        _extendRectangle(position, bounds);
+        return;
+      default:
+        break;
     }
 
     final inside = _isInsideCanvas(position, bounds);
@@ -359,9 +425,15 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   void _endStroke() {
-    if (_activeTool == PaintTool.line) {
-      _endLine();
-      return;
+    switch (_activeTool) {
+      case PaintTool.line:
+        _endLine();
+        return;
+      case PaintTool.rectangle:
+        _endRectangle();
+        return;
+      default:
+        break;
     }
 
     _lastPanPosition = null;
@@ -386,6 +458,9 @@ class _PaintScreenState extends State<PaintScreen> {
         },
         const SingleActivator(LogicalKeyboardKey.keyL): () {
           setState(() => _activeTool = PaintTool.line);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyR): () {
+          setState(() => _activeTool = PaintTool.rectangle);
         },
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);

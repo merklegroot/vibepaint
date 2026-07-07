@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
@@ -60,6 +60,24 @@ class CanvasPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
+
+    switch (stroke.shape) {
+      case StrokeShape.line:
+        if (stroke.points.length >= 2) {
+          canvas.drawLine(stroke.points[0], stroke.points[1], line);
+        }
+        return;
+      case StrokeShape.rectangle:
+        if (stroke.points.length >= 2) {
+          canvas.drawRect(
+            Rect.fromPoints(stroke.points[0], stroke.points[1]),
+            line,
+          );
+        }
+        return;
+      case StrokeShape.freehand:
+        break;
+    }
 
     if (stroke.points.length == 1) {
       canvas.drawCircle(stroke.points.first, stroke.brushSize / 2, fill);

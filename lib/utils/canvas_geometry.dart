@@ -133,3 +133,21 @@ Offset? clippedLineEnd({
 
   return segmentBoundaryCrossing(start, end, bounds) ?? end;
 }
+
+/// Opposite corners of a rectangle clipped to [bounds].
+({Offset topLeft, Offset bottomRight})? clippedRectangleCorners({
+  required Offset start,
+  required Offset end,
+  required Rect bounds,
+}) {
+  if (!bounds.contains(start)) {
+    return null;
+  }
+
+  final rect = Rect.fromPoints(start, end).intersect(bounds);
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+
+  return (topLeft: rect.topLeft, bottomRight: rect.bottomRight);
+}

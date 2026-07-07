@@ -54,4 +54,27 @@ void main() {
     expect(end!.dx, closeTo(1024, 0.01));
     expect(end.dy, closeTo(300, 0.01));
   });
+
+  test('clipped rectangle corners stay inside canvas', () {
+    final corners = clippedRectangleCorners(
+      start: const Offset(500, 300),
+      end: const Offset(1100, 500),
+      bounds: bounds,
+    );
+
+    expect(corners, isNotNull);
+    expect(corners!.topLeft, const Offset(500, 300));
+    expect(corners.bottomRight.dx, closeTo(1024, 0.01));
+    expect(corners.bottomRight.dy, closeTo(500, 0.01));
+  });
+
+  test('clipped rectangle rejects zero-area drag', () {
+    final corners = clippedRectangleCorners(
+      start: const Offset(500, 300),
+      end: const Offset(500, 300),
+      bounds: bounds,
+    );
+
+    expect(corners, isNull);
+  });
 }
