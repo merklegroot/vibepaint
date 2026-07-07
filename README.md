@@ -6,7 +6,7 @@ A vibe coded paint app, built with Flutter.
 
 ## Features
 
-- **Canvas** — white document (1024×576) on a gray workspace
+- **Canvas** — white document that fills the space between the toolbar and color bar
 - **Brush tool** — click and drag to paint
 - **Toolbar** — brush width control above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)

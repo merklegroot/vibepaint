@@ -16,11 +16,6 @@ class PaintScreen extends StatefulWidget {
 }
 
 class _PaintScreenState extends State<PaintScreen> {
-  static const canvasWidth = 1024.0;
-  static const canvasHeight = 576.0;
-
-  static final _canvasBounds = Rect.fromLTWH(0, 0, canvasWidth, canvasHeight);
-
   final _strokes = <Stroke>[];
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
@@ -34,8 +29,8 @@ class _PaintScreenState extends State<PaintScreen> {
     return '#${value.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 
-  bool _isInsideCanvas(Offset position) {
-    return isInsideCanvas(position, canvasWidth, canvasHeight);
+  bool _isInsideCanvas(Offset position, Rect bounds) {
+    return isInsideCanvas(position, bounds.width, bounds.height);
   }
 
   void _changeBrushSize(double delta) {
@@ -47,13 +42,13 @@ class _PaintScreenState extends State<PaintScreen> {
     });
   }
 
-  void _beginPan(Offset position) {
+  void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
-    _startStroke(position);
+    _startStroke(position, bounds);
   }
 
-  void _startStroke(Offset position) {
-    if (!_isInsideCanvas(position)) {
+  void _startStroke(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
       return;
     }
 
@@ -76,8 +71,8 @@ class _PaintScreenState extends State<PaintScreen> {
     _currentStroke = null;
   }
 
-  void _extendStroke(Offset position) {
-    final inside = _isInsideCanvas(position);
+  void _extendStroke(Offset position, Rect bounds) {
+    final inside = _isInsideCanvas(position, bounds);
 
     if (!inside) {
       if (_currentStroke == null || _currentStroke!.points.isEmpty) {
@@ -86,7 +81,7 @@ class _PaintScreenState extends State<PaintScreen> {
       }
 
       final last = _currentStroke!.points.last;
-      if (!_isInsideCanvas(last)) {
+      if (!_isInsideCanvas(last, bounds)) {
         _lastPanPosition = position;
         return;
       }
@@ -94,7 +89,7 @@ class _PaintScreenState extends State<PaintScreen> {
       final exitPoints = strokeExtensionPoints(
         from: last,
         to: position,
-        bounds: _canvasBounds,
+        bounds: bounds,
         maxStep: _brushSize / 2,
       );
 
@@ -116,7 +111,7 @@ class _PaintScreenState extends State<PaintScreen> {
           ? strokeReentryPoints(
               from: from,
               to: position,
-              bounds: _canvasBounds,
+              bounds: bounds,
               maxStep: _brushSize / 2,
             )
           : [position];
@@ -136,7 +131,7 @@ class _PaintScreenState extends State<PaintScreen> {
     final newPoints = strokeExtensionPoints(
       from: last,
       to: position,
-      bounds: _canvasBounds,
+      bounds: bounds,
       maxStep: _brushSize / 2,
     );
 
@@ -179,60 +174,62 @@ class _PaintScreenState extends State<PaintScreen> {
           body: Column(
             children: [
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.canvasBorder,
-                          width: 2,
-                        ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.canvasBorder,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PaintToolbar(
+                        brushSize: _brushSize,
+                        onBrushSizeChanged: (size) {
+                          setState(() => _brushSize = size);
+                        },
                       ),
-                      child: SizedBox(
-                        width: canvasWidth,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PaintToolbar(
-                              brushSize: _brushSize,
-                              onBrushSizeChanged: (size) {
-                                setState(() => _brushSize = size);
-                              },
-                            ),
-                            SizedBox(
-                              width: canvasWidth,
-                              height: canvasHeight,
-                              child: ClipRect(
-                                child: GestureDetector(
-                                  onPanStart: (details) =>
-                                      _beginPan(details.localPosition),
-                                  onPanUpdate: (details) =>
-                                      _extendStroke(details.localPosition),
-                                  onPanEnd: (_) => _endStroke(),
-                                  onPanCancel: () => _endStroke(),
-                                  child: CustomPaint(
-                                    painter: CanvasPainter(
-                                      strokes: _strokes,
-                                      currentStroke: _currentStroke,
-                                    ),
-                                    child: const SizedBox.expand(),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final bounds = Offset.zero &
+                                Size(
+                                  constraints.maxWidth,
+                                  constraints.maxHeight,
+                                );
+
+                            return ClipRect(
+                              child: GestureDetector(
+                                onPanStart: (details) => _beginPan(
+                                  details.localPosition,
+                                  bounds,
+                                ),
+                                onPanUpdate: (details) => _extendStroke(
+                                  details.localPosition,
+                                  bounds,
+                                ),
+                                onPanEnd: (_) => _endStroke(),
+                                onPanCancel: () => _endStroke(),
+                                child: CustomPaint(
+                                  painter: CanvasPainter(
+                                    strokes: _strokes,
+                                    currentStroke: _currentStroke,
                                   ),
+                                  child: const SizedBox.expand(),
                                 ),
                               ),
-                            ),
-                            ColorPalettePanel(
-                              selectedIndex: _selectedColorIndex,
-                              onSelected: (index) {
-                                setState(() => _selectedColorIndex = index);
-                              },
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
-                    ),
+                      ColorPalettePanel(
+                        selectedIndex: _selectedColorIndex,
+                        onSelected: (index) {
+                          setState(() => _selectedColorIndex = index);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
