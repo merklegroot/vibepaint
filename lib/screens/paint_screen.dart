@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 
 class PaintScreen extends StatefulWidget {
@@ -16,8 +17,11 @@ class _PaintScreenState extends State<PaintScreen> {
   static const canvasHeight = 576.0;
   static const brushSize = 6.0;
 
+  static final _canvasBounds = Rect.fromLTWH(0, 0, canvasWidth, canvasHeight);
+
   final _strokes = <Stroke>[];
   Stroke? _currentStroke;
+  Offset? _lastPanPosition;
   int _selectedColorIndex = 0;
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
@@ -28,10 +32,12 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   bool _isInsideCanvas(Offset position) {
-    return position.dx >= 0 &&
-        position.dy >= 0 &&
-        position.dx <= canvasWidth &&
-        position.dy <= canvasHeight;
+    return isInsideCanvas(position, canvasWidth, canvasHeight);
+  }
+
+  void _beginPan(Offset position) {
+    _lastPanPosition = position;
+    _startStroke(position);
   }
 
   void _startStroke(Offset position) {
@@ -48,28 +54,101 @@ class _PaintScreenState extends State<PaintScreen> {
     });
   }
 
-  void _extendStroke(Offset position) {
-    if (_currentStroke == null || !_isInsideCanvas(position)) {
-      return;
-    }
-
-    setState(() {
-      _currentStroke = _currentStroke!.copyWith(
-        points: [..._currentStroke!.points, position],
-      );
-    });
-  }
-
-  void _endStroke() {
+  void _commitCurrentStroke() {
     if (_currentStroke == null || _currentStroke!.isEmpty) {
       _currentStroke = null;
       return;
     }
 
+    _strokes.add(_currentStroke!);
+    _currentStroke = null;
+  }
+
+  void _extendStroke(Offset position) {
+    final inside = _isInsideCanvas(position);
+
+    if (!inside) {
+      if (_currentStroke == null || _currentStroke!.points.isEmpty) {
+        _lastPanPosition = position;
+        return;
+      }
+
+      final last = _currentStroke!.points.last;
+      if (!_isInsideCanvas(last)) {
+        _lastPanPosition = position;
+        return;
+      }
+
+      final exitPoints = strokeExtensionPoints(
+        from: last,
+        to: position,
+        bounds: _canvasBounds,
+        maxStep: brushSize / 2,
+      );
+
+      setState(() {
+        if (exitPoints.isNotEmpty) {
+          _currentStroke = _currentStroke!.copyWith(
+            points: [..._currentStroke!.points, ...exitPoints],
+          );
+        }
+        _commitCurrentStroke();
+      });
+      _lastPanPosition = position;
+      return;
+    }
+
+    if (_currentStroke == null) {
+      final from = _lastPanPosition;
+      final points = from != null
+          ? strokeReentryPoints(
+              from: from,
+              to: position,
+              bounds: _canvasBounds,
+              maxStep: brushSize / 2,
+            )
+          : [position];
+
+      setState(() {
+        _currentStroke = Stroke(
+          color: _primaryColor,
+          brushSize: brushSize,
+          points: points,
+        );
+      });
+      _lastPanPosition = position;
+      return;
+    }
+
+    final last = _currentStroke!.points.last;
+    final newPoints = strokeExtensionPoints(
+      from: last,
+      to: position,
+      bounds: _canvasBounds,
+      maxStep: brushSize / 2,
+    );
+
+    if (newPoints.isEmpty) {
+      _lastPanPosition = position;
+      return;
+    }
+
     setState(() {
-      _strokes.add(_currentStroke!);
-      _currentStroke = null;
+      _currentStroke = _currentStroke!.copyWith(
+        points: [..._currentStroke!.points, ...newPoints],
+      );
     });
+    _lastPanPosition = position;
+  }
+
+  void _endStroke() {
+    _lastPanPosition = null;
+    if (_currentStroke == null || _currentStroke!.isEmpty) {
+      _currentStroke = null;
+      return;
+    }
+
+    setState(_commitCurrentStroke);
   }
 
   @override
@@ -108,7 +187,7 @@ class _PaintScreenState extends State<PaintScreen> {
                         child: ClipRect(
                           child: GestureDetector(
                             onPanStart: (details) =>
-                                _startStroke(details.localPosition),
+                                _beginPan(details.localPosition),
                             onPanUpdate: (details) =>
                                 _extendStroke(details.localPosition),
                             onPanEnd: (_) => _endStroke(),
