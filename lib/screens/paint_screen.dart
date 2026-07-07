@@ -21,10 +21,14 @@ class PaintScreen extends StatefulWidget {
     super.key,
     this.initialStrokes = const [],
     this.initialColorIndex = 0,
+    this.initialTool = PaintTool.brush,
+    this.initialShapeStyle = ShapeStyle.outline,
   });
 
   final List<Stroke> initialStrokes;
   final int initialColorIndex;
+  final PaintTool initialTool;
+  final ShapeStyle initialShapeStyle;
 
   @override
   State<PaintScreen> createState() => _PaintScreenState();
@@ -50,6 +54,8 @@ class _PaintScreenState extends State<PaintScreen> {
     super.initState();
     _history = StrokeHistory(widget.initialStrokes);
     _selectedColorIndex = widget.initialColorIndex;
+    _activeTool = widget.initialTool;
+    _shapeStyle = widget.initialShapeStyle;
   }
 
   @override

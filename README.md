@@ -1,4 +1,4 @@
-# Vibe Paint
+# VibePaint
 
 A vibe coded paint app.
 

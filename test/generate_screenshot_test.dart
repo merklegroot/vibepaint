@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vibepaint/demo/screenshot_demo.dart';
 import 'package:vibepaint/main.dart';
+import 'package:vibepaint/models/paint_tool.dart';
+import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/screens/paint_screen.dart';
 
 import 'test_fonts.dart';
@@ -25,6 +27,8 @@ void main() {
           home: PaintScreen(
             initialStrokes: screenshotDemoStrokes(),
             initialColorIndex: 3,
+            initialTool: PaintTool.rectangle,
+            initialShapeStyle: ShapeStyle.filledOutline,
           ),
         ),
       ),
