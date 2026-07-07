@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
+import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
+import 'package:vibepaint/widgets/paint_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
   const PaintScreen({super.key});
@@ -15,7 +18,6 @@ class PaintScreen extends StatefulWidget {
 class _PaintScreenState extends State<PaintScreen> {
   static const canvasWidth = 1024.0;
   static const canvasHeight = 576.0;
-  static const brushSize = 6.0;
 
   static final _canvasBounds = Rect.fromLTWH(0, 0, canvasWidth, canvasHeight);
 
@@ -23,6 +25,7 @@ class _PaintScreenState extends State<PaintScreen> {
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
   int _selectedColorIndex = 0;
+  double _brushSize = 6;
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
 
@@ -33,6 +36,15 @@ class _PaintScreenState extends State<PaintScreen> {
 
   bool _isInsideCanvas(Offset position) {
     return isInsideCanvas(position, canvasWidth, canvasHeight);
+  }
+
+  void _changeBrushSize(double delta) {
+    setState(() {
+      _brushSize = (_brushSize + delta).clamp(
+        BrushSizeControl.minSize,
+        BrushSizeControl.maxSize,
+      );
+    });
   }
 
   void _beginPan(Offset position) {
@@ -48,7 +60,7 @@ class _PaintScreenState extends State<PaintScreen> {
     setState(() {
       _currentStroke = Stroke(
         color: _primaryColor,
-        brushSize: brushSize,
+        brushSize: _brushSize,
         points: [position],
       );
     });
@@ -83,7 +95,7 @@ class _PaintScreenState extends State<PaintScreen> {
         from: last,
         to: position,
         bounds: _canvasBounds,
-        maxStep: brushSize / 2,
+        maxStep: _brushSize / 2,
       );
 
       setState(() {
@@ -105,14 +117,14 @@ class _PaintScreenState extends State<PaintScreen> {
               from: from,
               to: position,
               bounds: _canvasBounds,
-              maxStep: brushSize / 2,
+              maxStep: _brushSize / 2,
             )
           : [position];
 
       setState(() {
         _currentStroke = Stroke(
           color: _primaryColor,
-          brushSize: brushSize,
+          brushSize: _brushSize,
           points: points,
         );
       });
@@ -125,7 +137,7 @@ class _PaintScreenState extends State<PaintScreen> {
       from: last,
       to: position,
       bounds: _canvasBounds,
-      maxStep: brushSize / 2,
+      maxStep: _brushSize / 2,
     );
 
     if (newPoints.isEmpty) {
@@ -153,28 +165,26 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.workspace,
-      body: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ColorPalettePanel(
-                      selectedIndex: _selectedColorIndex,
-                      onSelected: (index) {
-                        setState(() => _selectedColorIndex = index);
-                      },
-                    ),
-                    const SizedBox(width: 16),
-                    DecoratedBox(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
+            _changeBrushSize(-2),
+        const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
+            _changeBrushSize(2),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: AppColors.workspace,
+          body: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: AppColors.canvasBorder,
@@ -183,46 +193,67 @@ class _PaintScreenState extends State<PaintScreen> {
                       ),
                       child: SizedBox(
                         width: canvasWidth,
-                        height: canvasHeight,
-                        child: ClipRect(
-                          child: GestureDetector(
-                            onPanStart: (details) =>
-                                _beginPan(details.localPosition),
-                            onPanUpdate: (details) =>
-                                _extendStroke(details.localPosition),
-                            onPanEnd: (_) => _endStroke(),
-                            onPanCancel: () => _endStroke(),
-                            child: CustomPaint(
-                              painter: CanvasPainter(
-                                strokes: _strokes,
-                                currentStroke: _currentStroke,
-                              ),
-                              child: const SizedBox.expand(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PaintToolbar(
+                              brushSize: _brushSize,
+                              onBrushSizeChanged: (size) {
+                                setState(() => _brushSize = size);
+                              },
                             ),
-                          ),
+                            SizedBox(
+                              width: canvasWidth,
+                              height: canvasHeight,
+                              child: ClipRect(
+                                child: GestureDetector(
+                                  onPanStart: (details) =>
+                                      _beginPan(details.localPosition),
+                                  onPanUpdate: (details) =>
+                                      _extendStroke(details.localPosition),
+                                  onPanEnd: (_) => _endStroke(),
+                                  onPanCancel: () => _endStroke(),
+                                  child: CustomPaint(
+                                    painter: CanvasPainter(
+                                      strokes: _strokes,
+                                      currentStroke: _currentStroke,
+                                    ),
+                                    child: const SizedBox.expand(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            ColorPalettePanel(
+                              selectedIndex: _selectedColorIndex,
+                              onSelected: (index) {
+                                setState(() => _selectedColorIndex = index);
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            color: AppColors.statusBar,
-            child: Text(
-              'Brush  |  $_primaryHex  |  Drag on the canvas to paint',
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: const TextStyle(
-                color: AppColors.statusText,
-                fontSize: 16,
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                color: AppColors.statusBar,
+                child: Text(
+                  'Brush ${_brushSize.round()}px  |  $_primaryHex  |  Drag on the canvas to paint',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: AppColors.statusText,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -8,7 +8,8 @@ A vibe coded paint app, built with Flutter.
 
 - **Canvas** — white document (1024×576) on a gray workspace
 - **Brush tool** — click and drag to paint
-- **Color palette** — primary swatch and 12 preset colors (left panel)
+- **Toolbar** — brush width control above the canvas
+- **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Status bar** — shows active tool and current color
 - **Desktop** — macOS, Windows, and Linux
 
@@ -17,7 +18,7 @@ A vibe coded paint app, built with Flutter.
 Rough order of obvious next steps:
 
 - [x] **Color picker** — primary color swatch (and eventually secondary)
-- [ ] **Brush size** — adjustable width
+- [x] **Brush size** — adjustable width
 - [ ] **Eraser** — paint back to white
 - [ ] **Undo / redo** — history for brush strokes
 - [ ] **New / clear** — reset the canvas

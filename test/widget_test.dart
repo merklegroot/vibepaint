@@ -9,7 +9,7 @@ void main() {
 
     await tester.pumpWidget(const VibePaintApp());
 
-    expect(find.textContaining('Brush'), findsOneWidget);
     expect(find.text('Colors'), findsOneWidget);
+    expect(find.textContaining('Drag on the canvas to paint'), findsOneWidget);
   });
 }
