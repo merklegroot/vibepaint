@@ -7,7 +7,7 @@ A vibe coded paint app.
 ## Features
 
 - **Canvas** — white document that fills the space between the toolbar and color bar
-- **Brush & eraser** — paint with color or erase back to white
+- **Brush, line & eraser** — freehand paint, straight segments, or erase to white
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
@@ -25,7 +25,7 @@ Rough order of obvious next steps:
 - [x] **Undo / redo** — history for brush strokes
 - [x] **New / clear** — reset the canvas
 - [x] **Save & open** — PNG export and import
-- [ ] **More tools** — line, rectangle, ellipse, fill bucket
+- [ ] **More tools** — rectangle, ellipse, fill bucket (line done)
 - [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases
 - [ ] **Layers** — stack and edit images independently

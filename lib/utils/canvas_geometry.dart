@@ -116,3 +116,20 @@ List<Offset> strokeReentryPoints({
 
   return [entry, ...interpolateSegment(entry, to, maxStep: maxStep)];
 }
+
+/// Clips [end] to the canvas edge along the segment from [start].
+Offset? clippedLineEnd({
+  required Offset start,
+  required Offset end,
+  required Rect bounds,
+}) {
+  if (bounds.contains(end)) {
+    return end;
+  }
+
+  if (!bounds.contains(start)) {
+    return null;
+  }
+
+  return segmentBoundaryCrossing(start, end, bounds) ?? end;
+}

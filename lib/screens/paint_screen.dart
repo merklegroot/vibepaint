@@ -77,7 +77,11 @@ class _PaintScreenState extends State<PaintScreen> {
 
   void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
-    _startStroke(position, bounds);
+    if (_activeTool == PaintTool.line) {
+      _startLine(position, bounds);
+    } else {
+      _startStroke(position, bounds);
+    }
   }
 
   void _startStroke(Offset position, Rect bounds) {
@@ -225,7 +229,59 @@ class _PaintScreenState extends State<PaintScreen> {
     }
   }
 
+  void _startLine(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    setState(() {
+      _currentStroke = Stroke(
+        color: _strokeColor,
+        brushSize: _brushSize,
+        points: [position, position],
+      );
+    });
+  }
+
+  void _extendLine(Offset position, Rect bounds) {
+    if (_currentStroke == null || _currentStroke!.points.isEmpty) {
+      return;
+    }
+
+    final start = _currentStroke!.points.first;
+    final end = clippedLineEnd(start: start, end: position, bounds: bounds);
+    if (end == null) {
+      return;
+    }
+
+    setState(() {
+      _currentStroke = _currentStroke!.copyWith(points: [start, end]);
+    });
+  }
+
+  void _endLine() {
+    _lastPanPosition = null;
+    if (_currentStroke == null || _currentStroke!.points.length < 2) {
+      _currentStroke = null;
+      return;
+    }
+
+    final start = _currentStroke!.points.first;
+    final end = _currentStroke!.points.last;
+    if (start == end) {
+      _currentStroke = null;
+      return;
+    }
+
+    setState(_commitCurrentStroke);
+  }
+
   void _extendStroke(Offset position, Rect bounds) {
+    if (_activeTool == PaintTool.line) {
+      _extendLine(position, bounds);
+      return;
+    }
+
     final inside = _isInsideCanvas(position, bounds);
 
     if (!inside) {
@@ -303,6 +359,11 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   void _endStroke() {
+    if (_activeTool == PaintTool.line) {
+      _endLine();
+      return;
+    }
+
     _lastPanPosition = null;
     if (_currentStroke == null || _currentStroke!.isEmpty) {
       _currentStroke = null;
@@ -322,6 +383,9 @@ class _PaintScreenState extends State<PaintScreen> {
             _changeBrushSize(2),
         const SingleActivator(LogicalKeyboardKey.keyB): () {
           setState(() => _activeTool = PaintTool.brush);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyL): () {
+          setState(() => _activeTool = PaintTool.line);
         },
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
@@ -440,7 +504,7 @@ class _PaintScreenState extends State<PaintScreen> {
                             ),
                             Opacity(
                               opacity:
-                                  _activeTool == PaintTool.brush ? 1 : 0.45,
+                                  _activeTool == PaintTool.eraser ? 0.45 : 1,
                               child: IgnorePointer(
                                 ignoring: _activeTool == PaintTool.eraser,
                                 child: ColorPalettePanel(

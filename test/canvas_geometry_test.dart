@@ -41,4 +41,17 @@ void main() {
     expect(points.first.dx, closeTo(1024, 0.01));
     expect(points.last.dx, closeTo(900, 0.01));
   });
+
+  test('clipped line end stops at canvas edge', () {
+    const bounds = Rect.fromLTWH(0, 0, 1024, 576);
+    final end = clippedLineEnd(
+      start: const Offset(500, 300),
+      end: const Offset(1100, 300),
+      bounds: bounds,
+    );
+
+    expect(end, isNotNull);
+    expect(end!.dx, closeTo(1024, 0.01));
+    expect(end.dy, closeTo(300, 0.01));
+  });
 }
