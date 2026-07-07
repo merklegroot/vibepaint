@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=VibePaint
+Comment=A vibe coded paint app
+Exec=vibepaint
+Icon=com.merklegroot.vibepaint
+Terminal=false
+Type=Application
+Categories=Graphics;
+StartupNotify=true
