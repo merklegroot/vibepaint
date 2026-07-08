@@ -157,9 +157,32 @@ class _PaintScreenState extends State<PaintScreen> {
       return 'Eraser';
     }
     if (_colorTarget == ColorWellTarget.canvasBackground) {
-      return 'Canvas ${colorWellHex(_layerStack.backgroundColor)}';
+      return 'Background ${colorWellHex(_layerStack.backgroundColor)}';
     }
     return colorWellHex(_primaryColor);
+  }
+
+  void _swapColors() {
+    setState(() {
+      final primary = _primaryColor;
+      final canvas = _layerStack.backgroundColor;
+      _layerStack.setBackgroundColor(primary);
+      if (isTransparentCanvasBackground(canvas)) {
+        _selectedColorIndex = defaultPrimaryColorIndex;
+      } else {
+        _selectedColorIndex =
+            presetColorIndex(canvas) ?? defaultPrimaryColorIndex;
+      }
+    });
+    _noteDocumentEdited();
+  }
+
+  void _resetColors() {
+    setState(() {
+      _selectedColorIndex = defaultPrimaryColorIndex;
+      _layerStack.setBackgroundColor(defaultCanvasBackground);
+    });
+    _noteDocumentEdited();
   }
 
   String get _statusHint {
@@ -883,6 +906,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                     );
                                     _noteDocumentEdited();
                                   },
+                                  onSwapColors: _swapColors,
+                                  onResetColors: _resetColors,
                                 ),
                               ),
                             ),

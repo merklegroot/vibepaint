@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
+import 'package:vibepaint/widgets/color_wells_control.dart';
 
 class ColorPalettePanel extends StatelessWidget {
   const ColorPalettePanel({
@@ -11,6 +12,8 @@ class ColorPalettePanel extends StatelessWidget {
     required this.colorTarget,
     required this.onColorTargetChanged,
     required this.onCanvasBackgroundChanged,
+    required this.onSwapColors,
+    required this.onResetColors,
   });
 
   final int selectedIndex;
@@ -19,10 +22,11 @@ class ColorPalettePanel extends StatelessWidget {
   final ColorWellTarget colorTarget;
   final ValueChanged<ColorWellTarget> onColorTargetChanged;
   final ValueChanged<Color> onCanvasBackgroundChanged;
+  final VoidCallback onSwapColors;
+  final VoidCallback onResetColors;
 
   @override
   Widget build(BuildContext context) {
-    const primarySize = 36.0;
     const swatchSize = 24.0;
     const gap = 4.0;
 
@@ -36,20 +40,15 @@ class ColorPalettePanel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _ColorWell(
-            label: 'Primary',
-            color: AppColors.presetColors[selectedIndex],
-            size: primarySize,
-            selected: colorTarget == ColorWellTarget.primary,
-            onTap: () => onColorTargetChanged(ColorWellTarget.primary),
-          ),
-          const SizedBox(width: 12),
-          _ColorWell(
-            label: 'Canvas',
-            color: canvasBackgroundColor,
-            size: primarySize,
-            selected: colorTarget == ColorWellTarget.canvasBackground,
-            onTap: () => onColorTargetChanged(ColorWellTarget.canvasBackground),
+          ColorWellsControl(
+            primaryColor: AppColors.presetColors[selectedIndex],
+            secondaryColor: canvasBackgroundColor,
+            activeTarget: colorTarget,
+            onPrimaryTap: () => onColorTargetChanged(ColorWellTarget.primary),
+            onSecondaryTap: () =>
+                onColorTargetChanged(ColorWellTarget.canvasBackground),
+            onSwap: onSwapColors,
+            onReset: onResetColors,
           ),
           const SizedBox(width: 16),
           for (var i = 0; i < AppColors.presetColors.length; i++) ...[
@@ -92,46 +91,6 @@ class ColorPalettePanel extends StatelessWidget {
       case ColorWellTarget.canvasBackground:
         onCanvasBackgroundChanged(AppColors.presetColors[index]);
     }
-  }
-}
-
-class _ColorWell extends StatelessWidget {
-  const _ColorWell({
-    required this.label,
-    required this.color,
-    required this.size,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final Color color;
-  final double size;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Swatch(
-          color: color,
-          size: size,
-          selected: selected,
-          checkerboard: isTransparentCanvasBackground(color),
-          onTap: onTap,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.paletteLabel,
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
   }
 }
 
