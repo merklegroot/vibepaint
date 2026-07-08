@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/canvas_selection.dart';
+import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
-import 'package:vibepaint/widgets/ellipse_select_icon.dart';
-import 'package:vibepaint/widgets/rect_select_icon.dart';
+import 'package:vibepaint/widgets/tool_svg_icon.dart';
 
 class SelectionShapeControl extends StatelessWidget {
   const SelectionShapeControl({
@@ -20,14 +20,22 @@ class SelectionShapeControl extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ShapeButton(
-          icon: const RectSelectIcon(size: 18, color: AppColors.statusText),
+          icon: const ToolSvgIcon(
+            tool: PaintTool.rectSelect,
+            size: 18,
+            color: AppColors.statusText,
+          ),
           tooltip: 'Rectangle selection',
           selected: shape == SelectionShape.rectangle,
           onPressed: () => onChanged(SelectionShape.rectangle),
         ),
         const SizedBox(width: 4),
         _ShapeButton(
-          icon: const EllipseSelectIcon(size: 18, color: AppColors.statusText),
+          icon: const ToolSvgIcon(
+            tool: PaintTool.ellipseSelect,
+            size: 18,
+            color: AppColors.statusText,
+          ),
           tooltip: 'Ellipse selection',
           selected: shape == SelectionShape.ellipse,
           onPressed: () => onChanged(SelectionShape.ellipse),

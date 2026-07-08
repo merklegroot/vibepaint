@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
-import 'package:vibepaint/widgets/eraser_icon.dart';
-import 'package:vibepaint/widgets/ellipse_icon.dart';
-import 'package:vibepaint/widgets/ellipse_select_icon.dart';
-import 'package:vibepaint/widgets/eyedropper_icon.dart';
-import 'package:vibepaint/widgets/lasso_select_icon.dart';
-import 'package:vibepaint/widgets/line_icon.dart';
-import 'package:vibepaint/widgets/pencil_icon.dart';
-import 'package:vibepaint/widgets/rect_select_icon.dart';
-import 'package:vibepaint/widgets/rectangle_icon.dart';
+import 'package:vibepaint/widgets/tool_svg_icon.dart';
 
 class ToolToolbar extends StatelessWidget {
   const ToolToolbar({
@@ -66,36 +58,12 @@ class _ToolButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onPressed;
 
-  Widget _buildIcon() => switch (tool) {
-        PaintTool.brush => const Icon(
-            Icons.brush,
-            size: 20,
-            color: AppColors.statusText,
-          ),
-        PaintTool.pencil => const PencilIcon(color: AppColors.statusText),
-        PaintTool.line => const LineIcon(color: AppColors.statusText),
-        PaintTool.rectangle =>
-          const RectangleIcon(color: AppColors.statusText),
-        PaintTool.ellipse => const EllipseIcon(color: AppColors.statusText),
-        PaintTool.eraser => const EraserIcon(color: AppColors.statusText),
-        PaintTool.eyedropper =>
-          const EyedropperIcon(color: AppColors.statusText),
-        PaintTool.rectSelect =>
-          const RectSelectIcon(color: AppColors.statusText),
-        PaintTool.ellipseSelect =>
-          const EllipseSelectIcon(color: AppColors.statusText),
-        PaintTool.lassoSelect =>
-          const LassoSelectIcon(color: AppColors.statusText),
-      };
-
-  String get _tooltip => tool.label;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Tooltip(
-        message: _tooltip,
+        message: tool.label,
         child: Material(
           color: selected ? AppColors.workspace : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
@@ -113,7 +81,12 @@ class _ToolButton extends StatelessWidget {
                       : Colors.transparent,
                 ),
               ),
-              child: _buildIcon(),
+              child: Center(
+                child: ToolSvgIcon(
+                  tool: tool,
+                  color: AppColors.statusText,
+                ),
+              ),
             ),
           ),
         ),
