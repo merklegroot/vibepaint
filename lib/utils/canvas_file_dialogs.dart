@@ -23,7 +23,7 @@ Future<ui.Image?> pickPngImage() async {
 
 Future<String?> savePngFile(
   Uint8List bytes, {
-  String fileName = 'vibepaint.png',
+  String fileName = 'Untitled.png',
 }) async {
   final path = await FilePicker.platform.saveFile(
     fileName: fileName,
