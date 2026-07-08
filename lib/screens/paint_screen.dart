@@ -14,6 +14,7 @@ import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
+import 'package:vibepaint/utils/ai_enhance.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
@@ -28,6 +29,7 @@ import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
+import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/canvas_text_editor.dart';
@@ -78,6 +80,7 @@ class _PaintScreenState extends State<PaintScreen>
   Offset? _selectionDragStart;
   List<Offset>? _lassoPoints;
   bool _movingSelection = false;
+  bool _aiEnhanceBusy = false;
   Offset? _moveStart;
   List<Stroke>? _strokesBeforeMove;
   bool _resizingSelection = false;
@@ -1563,6 +1566,109 @@ class _PaintScreenState extends State<PaintScreen>
     );
   }
 
+  Future<void> _aiEnhance() async {
+    if (_aiEnhanceBusy || _documentSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _aiEnhanceBusy = true);
+    try {
+      final availability = await checkAiEnhanceAvailability();
+      if (!mounted) {
+        return;
+      }
+
+      switch (availability) {
+        case AiEnhanceAvailability.unsupportedPlatform:
+          _showMessage('AI Enhance is only available on macOS.');
+          return;
+        case AiEnhanceAvailability.unavailableOnDevice:
+          _showMessage(
+            'AI Enhance needs Apple Intelligence / Image Playground '
+            '(macOS 15.1+ on a supported Mac, with image generation enabled).',
+          );
+          return;
+        case AiEnhanceAvailability.unknown:
+          _showMessage('Could not check AI Enhance availability.');
+          return;
+        case AiEnhanceAvailability.available:
+          break;
+      }
+
+      final source = await captureAiEnhanceSource(
+        documentSize: _documentSize,
+        strokes: _layerStack.activeHistory.strokes,
+        selection: _selection,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (source == null) {
+        _showMessage(
+          _selection != null
+              ? 'Nothing to enhance in the selection on the active layer.'
+              : 'Draw something on the active layer first.',
+        );
+        return;
+      }
+
+      while (mounted) {
+        final generated = await presentAiEnhance(sourcePng: source.pngBytes);
+        if (!mounted) {
+          return;
+        }
+        if (generated == null) {
+          return;
+        }
+
+        final action = await showAiEnhancePreviewDialog(
+          context: context,
+          pngBytes: generated.pngBytes,
+          width: generated.width,
+          height: generated.height,
+        );
+        if (!mounted) {
+          return;
+        }
+
+        if (action == null) {
+          return;
+        }
+        if (action == false) {
+          continue;
+        }
+
+        final stroke = await strokeFromAiEnhanceResult(
+          result: generated,
+          placement: source.placement,
+        );
+        if (!mounted) {
+          stroke.rasterImage?.dispose();
+          return;
+        }
+
+        setState(() {
+          _layerStack.activeHistory.add(stroke);
+          _noteDocumentEdited();
+        });
+        _showMessage('AI Enhance applied (⌘Z to undo).');
+        return;
+      }
+    } on AiEnhanceException catch (error) {
+      if (mounted) {
+        _showMessage(error.message);
+      }
+    } catch (error) {
+      if (mounted) {
+        _showMessage('AI Enhance failed: $error');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _aiEnhanceBusy = false);
+      }
+    }
+  }
+
   Future<void> _openCanvas() async {
     try {
       final picked = await pickImageFile();
@@ -2142,6 +2248,13 @@ class _PaintScreenState extends State<PaintScreen>
                                   _selection?.canReshape == true
                                       ? _changeSelectionShape
                                       : null,
+                              onAiEnhance:
+                                  !kIsWeb &&
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.macOS
+                                      ? _aiEnhance
+                                      : null,
+                              aiEnhanceEnabled: !_aiEnhanceBusy,
                             ),
                             Expanded(
                               child: Row(

@@ -32,6 +32,7 @@ A vibe coded paint app.
 
 ### Image
 - **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
+- **AI Enhance** — macOS toolbar sparkle button sends the active layer (or current selection) to Apple Image Playground / Apple Intelligence; preview with Apply, Regenerate, or Cancel; Apply adds an undoable raster to the layer. Requires a supported Mac with image generation enabled; older systems show a fallback message
 
 ### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)

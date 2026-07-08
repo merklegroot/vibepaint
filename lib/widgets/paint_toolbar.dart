@@ -28,6 +28,8 @@ class PaintToolbar extends StatelessWidget {
     this.canReshapeSelection = false,
     this.selectionShape,
     this.onSelectionShapeChanged,
+    this.onAiEnhance,
+    this.aiEnhanceEnabled = true,
   });
 
   final double brushSize;
@@ -48,6 +50,8 @@ class PaintToolbar extends StatelessWidget {
   final bool canReshapeSelection;
   final SelectionShape? selectionShape;
   final ValueChanged<SelectionShape>? onSelectionShapeChanged;
+  final VoidCallback? onAiEnhance;
+  final bool aiEnhanceEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +126,15 @@ class PaintToolbar extends StatelessWidget {
             SelectionShapeControl(
               shape: selectionShape!,
               onChanged: onSelectionShapeChanged!,
+            ),
+          ],
+          if (onAiEnhance != null) ...[
+            const SizedBox(width: 16),
+            _ToolbarIconButton(
+              icon: Icons.auto_awesome,
+              tooltip: 'AI Enhance',
+              enabled: aiEnhanceEnabled,
+              onPressed: onAiEnhance!,
             ),
           ],
           const Spacer(),

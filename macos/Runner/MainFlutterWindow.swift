@@ -15,6 +15,9 @@ class MainFlutterWindow: NSWindow {
     SelectionCursorPlugin.register(
       with: flutterViewController.registrar(forPlugin: "SelectionCursorPlugin")
     )
+    AiEnhancePlugin.register(
+      with: flutterViewController.registrar(forPlugin: "AiEnhancePlugin")
+    )
 
     super.awakeFromNib()
 
