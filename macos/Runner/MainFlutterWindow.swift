@@ -17,5 +17,9 @@ class MainFlutterWindow: NSWindow {
     )
 
     super.awakeFromNib()
+
+    DispatchQueue.main.async {
+      MenuSanitizer.stripInjectedItems()
+    }
   }
 }

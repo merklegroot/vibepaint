@@ -28,3 +28,8 @@ MenuSerializableShortcut platformMenuShortcut(
 bool get useInWindowFileMenu => defaultTargetPlatform != TargetPlatform.macOS;
 
 bool get usePlatformFileMenu => defaultTargetPlatform == TargetPlatform.macOS;
+
+/// macOS injects AutoFill, Dictation, and Emoji items into any menu titled
+/// exactly "Edit". A zero-width space keeps the label visually identical.
+String get platformEditMenuLabel =>
+    defaultTargetPlatform == TargetPlatform.macOS ? 'Edit\u200B' : 'Edit';

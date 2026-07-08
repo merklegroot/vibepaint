@@ -101,7 +101,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
       ],
     ),
     PlatformMenu(
-      label: 'Edit',
+      label: platformEditMenuLabel,
       menus: [
         PlatformMenuItemGroup(
           members: buildEditPlatformMenuItems(
