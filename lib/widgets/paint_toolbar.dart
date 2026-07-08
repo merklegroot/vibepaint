@@ -5,7 +5,7 @@ import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/selection_shape_control.dart';
 import 'package:vibepaint/widgets/shape_style_control.dart';
-import 'package:vibepaint/widgets/text_style_control.dart';
+import 'package:vibepaint/widgets/text_tool_options_control.dart';
 
 class PaintToolbar extends StatelessWidget {
   const PaintToolbar({
@@ -14,10 +14,8 @@ class PaintToolbar extends StatelessWidget {
     required this.onBrushSizeChanged,
     this.shapeStyle,
     this.onShapeStyleChanged,
-    this.textBold,
-    this.textItalic,
-    this.onTextBoldChanged,
-    this.onTextItalicChanged,
+    this.textOptions,
+    this.onTextOptionsChanged,
     required this.canUndo,
     required this.canRedo,
     required this.onUndo,
@@ -36,10 +34,8 @@ class PaintToolbar extends StatelessWidget {
   final ValueChanged<double> onBrushSizeChanged;
   final ShapeStyle? shapeStyle;
   final ValueChanged<ShapeStyle>? onShapeStyleChanged;
-  final bool? textBold;
-  final bool? textItalic;
-  final ValueChanged<bool>? onTextBoldChanged;
-  final ValueChanged<bool>? onTextItalicChanged;
+  final TextToolOptions? textOptions;
+  final ValueChanged<TextToolOptions>? onTextOptionsChanged;
   final bool canUndo;
   final bool canRedo;
   final VoidCallback onUndo;
@@ -55,6 +51,8 @@ class PaintToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showBrushSize = textOptions == null;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: const BoxDecoration(
@@ -65,10 +63,11 @@ class PaintToolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          BrushSizeControl(
-            brushSize: brushSize,
-            onChanged: onBrushSizeChanged,
-          ),
+          if (showBrushSize)
+            BrushSizeControl(
+              brushSize: brushSize,
+              onChanged: onBrushSizeChanged,
+            ),
           if (shapeStyle != null && onShapeStyleChanged != null) ...[
             const SizedBox(width: 16),
             ShapeStyleControl(
@@ -76,16 +75,16 @@ class PaintToolbar extends StatelessWidget {
               onChanged: onShapeStyleChanged!,
             ),
           ],
-          if (textBold != null &&
-              textItalic != null &&
-              onTextBoldChanged != null &&
-              onTextItalicChanged != null) ...[
-            const SizedBox(width: 16),
-            TextStyleControl(
-              bold: textBold!,
-              italic: textItalic!,
-              onBoldChanged: onTextBoldChanged!,
-              onItalicChanged: onTextItalicChanged!,
+          if (textOptions != null && onTextOptionsChanged != null) ...[
+            if (showBrushSize) const SizedBox(width: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: TextToolOptionsControl(
+                  options: textOptions!,
+                  onChanged: onTextOptionsChanged!,
+                ),
+              ),
             ),
           ],
           const SizedBox(width: 16),

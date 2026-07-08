@@ -38,6 +38,7 @@ import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
+import 'package:vibepaint/widgets/text_tool_options_control.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
@@ -97,8 +98,7 @@ class _PaintScreenState extends State<PaintScreen>
   double? _panZoomStartScale;
   Offset? _panZoomFocal;
   TextRun? _textDraft;
-  bool _textBold = false;
-  bool _textItalic = false;
+  TextToolOptions _textOptions = const TextToolOptions();
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
@@ -301,7 +301,7 @@ class _PaintScreenState extends State<PaintScreen>
       if (_textDraft != null) {
         return 'Type text · Enter: finish · Shift+Enter: new line · Esc: cancel';
       }
-      return 'Click to place text · Font size uses brush size';
+      return 'Click to place text · Font tools control family, size, style, and alignment';
     }
 
     if (!_activeTool.isDragShape) {
@@ -541,9 +541,12 @@ class _PaintScreenState extends State<PaintScreen>
         text: '',
         position: position,
         color: _primaryColor,
-        fontSize: _brushSize.clamp(8, BrushSizeControl.maxSize),
-        bold: _textBold,
-        italic: _textItalic,
+        fontSize: _textOptions.fontSize,
+        fontFamily: _textOptions.fontFamily,
+        bold: _textOptions.bold,
+        italic: _textOptions.italic,
+        underline: _textOptions.underline,
+        align: _textOptions.align,
       );
     });
   }
@@ -590,11 +593,20 @@ class _PaintScreenState extends State<PaintScreen>
     setState(() {
       _textDraft = draft.copyWith(
         color: _primaryColor,
-        fontSize: _brushSize.clamp(8, BrushSizeControl.maxSize),
-        bold: _textBold,
-        italic: _textItalic,
+        fontSize: _textOptions.fontSize,
+        fontFamily: _textOptions.fontFamily,
+        clearFontFamily: _textOptions.fontFamily == null,
+        bold: _textOptions.bold,
+        italic: _textOptions.italic,
+        underline: _textOptions.underline,
+        align: _textOptions.align,
       );
     });
+  }
+
+  void _onTextOptionsChanged(TextToolOptions options) {
+    setState(() => _textOptions = options);
+    _syncTextDraftStyleFromToolbar();
   }
 
   void _invertSelection() {
@@ -2097,9 +2109,6 @@ class _PaintScreenState extends State<PaintScreen>
                               brushSize: _brushSize,
                               onBrushSizeChanged: (size) {
                                 setState(() => _brushSize = size);
-                                if (_textDraft != null) {
-                                  _syncTextDraftStyleFromToolbar();
-                                }
                               },
                               shapeStyle: _activeTool.supportsFillStyle
                                   ? _shapeStyle
@@ -2110,20 +2119,10 @@ class _PaintScreenState extends State<PaintScreen>
                                           setState(() => _shapeStyle = style);
                                         }
                                       : null,
-                              textBold: _activeTool.isTextTool ? _textBold : null,
-                              textItalic:
-                                  _activeTool.isTextTool ? _textItalic : null,
-                              onTextBoldChanged: _activeTool.isTextTool
-                                  ? (value) {
-                                      setState(() => _textBold = value);
-                                      _syncTextDraftStyleFromToolbar();
-                                    }
-                                  : null,
-                              onTextItalicChanged: _activeTool.isTextTool
-                                  ? (value) {
-                                      setState(() => _textItalic = value);
-                                      _syncTextDraftStyleFromToolbar();
-                                    }
+                              textOptions:
+                                  _activeTool.isTextTool ? _textOptions : null,
+                              onTextOptionsChanged: _activeTool.isTextTool
+                                  ? _onTextOptionsChanged
                                   : null,
                               canUndo: _layerStack.canUndo,
                               canRedo: _layerStack.canRedo,

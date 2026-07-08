@@ -88,7 +88,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
       fontSize: (style.fontSize ?? 16) * widget.scale,
       height: style.height,
     );
-    final minWidth = 24.0 * widget.scale;
+    final minWidth = 48.0 * widget.scale;
     final minHeight = ((style.fontSize ?? 16) * 1.2 + 8) * widget.scale;
 
     return Positioned(
@@ -113,6 +113,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
                 focusNode: _focusNode,
                 style: scaledStyle,
                 cursorColor: widget.draft.color,
+                textAlign: widget.draft.align,
                 maxLines: null,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,

@@ -37,9 +37,18 @@ void main() {
       color: Color(0xFF000000),
       fontSize: 16,
     );
-    final bold = run.copyWith(bold: true, italic: true);
-    expect(bold.bold, isTrue);
-    expect(bold.italic, isTrue);
-    expect(bold.text, 'A');
+    final styled = run.copyWith(
+      bold: true,
+      italic: true,
+      underline: true,
+      align: TextAlign.center,
+      fontFamily: 'Arial',
+    );
+    expect(styled.bold, isTrue);
+    expect(styled.italic, isTrue);
+    expect(styled.underline, isTrue);
+    expect(styled.align, TextAlign.center);
+    expect(styled.fontFamily, 'Arial');
+    expect(styled.text, 'A');
   });
 }

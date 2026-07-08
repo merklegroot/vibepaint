@@ -8,7 +8,7 @@ A vibe coded paint app.
 
 ### Drawing
 - **Brush, pencil, line, rectangle, ellipse, eraser, paint bucket, text, magic wand & color picker** — soft brush strokes, crisp pencil lines, straight segments, outlined or filled shapes, flood-fill on the active layer, in-place text, color-based selection, and an eyedropper (K) to sample colors from the canvas
-- **Text tool** — click to place (T); type in place; Enter finishes, Shift+Enter inserts a new line, Esc cancels; brush size controls font size; bold/italic toggles in the toolbar
+- **Text tool** — click to place (T); type in place; Enter finishes, Shift+Enter inserts a new line, Esc cancels; toolbar supports font family, size, bold/italic/underline, and left/center/right alignment
 - **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
