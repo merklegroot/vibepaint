@@ -98,6 +98,28 @@ abstract final class PaintTextFonts {
     (label: 'Verdana', family: 'Verdana'),
   ];
 
+  /// Label for [family], or [systemLabel] when null.
+  static String labelFor(String? family) {
+    for (final option in options) {
+      if (option.family == family) {
+        return option.label;
+      }
+    }
+    return family ?? systemLabel;
+  }
+
+  /// Options whose labels contain [query] (case-insensitive).
+  static List<({String label, String? family})> matching(String query) {
+    final trimmed = query.trim().toLowerCase();
+    if (trimmed.isEmpty) {
+      return options;
+    }
+    return [
+      for (final option in options)
+        if (option.label.toLowerCase().contains(trimmed)) option,
+    ];
+  }
+
   static const sizes = <double>[
     8,
     9,

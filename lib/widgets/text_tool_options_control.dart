@@ -117,40 +117,18 @@ class _TextToolOptionsControlState extends State<TextToolOptionsControl> {
       children: [
         const Text('Font', style: labelStyle),
         const SizedBox(width: 6),
-        SizedBox(
-          width: 148,
-          height: 32,
-          child: DropdownButtonFormField<String?>(
-            initialValue: widget.options.fontFamily,
-            isExpanded: true,
-            dropdownColor: AppColors.palettePanel,
-            style: fieldStyle,
-            iconEnabledColor: AppColors.statusText,
-            decoration: _fieldDecoration(),
-            items: [
-              for (final option in PaintTextFonts.options)
-                DropdownMenuItem<String?>(
-                  value: option.family,
-                  child: Text(
-                    option.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.statusText,
-                      fontFamily: option.family,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-            ],
-            onChanged: (value) {
-              widget.onChanged(
-                widget.options.copyWith(
-                  fontFamily: value,
-                  clearFontFamily: value == null,
-                ),
-              );
-            },
-          ),
+        _FontPickerButton(
+          selectedFamily: widget.options.fontFamily,
+          selectedSize: widget.options.fontSize,
+          onSelected: (family, size) {
+            widget.onChanged(
+              widget.options.copyWith(
+                fontFamily: family,
+                clearFontFamily: family == null,
+                fontSize: size,
+              ),
+            );
+          },
         ),
         const SizedBox(width: 10),
         SizedBox(
@@ -264,6 +242,324 @@ class _TextToolOptionsControlState extends State<TextToolOptionsControl> {
       focusedBorder: OutlineInputBorder(
         borderSide: BorderSide(color: AppColors.statusText),
       ),
+    );
+  }
+}
+
+class _FontPickerSelection {
+  const _FontPickerSelection({
+    required this.family,
+    required this.fontSize,
+  });
+
+  /// Empty string means System (null family).
+  final String family;
+  final double fontSize;
+}
+
+class _FontPickerButton extends StatelessWidget {
+  const _FontPickerButton({
+    required this.selectedFamily,
+    required this.selectedSize,
+    required this.onSelected,
+  });
+
+  final String? selectedFamily;
+  final double selectedSize;
+  final void Function(String? family, double fontSize) onSelected;
+
+  Future<void> _openPicker(BuildContext context) async {
+    final selected = await showDialog<_FontPickerSelection>(
+      context: context,
+      builder: (context) => _FontSearchDialog(
+        selectedFamily: selectedFamily,
+        selectedSize: selectedSize,
+      ),
+    );
+    if (!context.mounted || selected == null) {
+      return;
+    }
+    onSelected(
+      selected.family.isEmpty ? null : selected.family,
+      selected.fontSize,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = PaintTextFonts.labelFor(selectedFamily);
+    return SizedBox(
+      width: 168,
+      height: 32,
+      child: OutlinedButton(
+        onPressed: () => _openPicker(context),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          foregroundColor: AppColors.statusText,
+          side: const BorderSide(color: AppColors.paletteBorder),
+          backgroundColor: AppColors.workspace,
+          alignment: Alignment.centerLeft,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.statusText,
+                  fontFamily: selectedFamily,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FontSearchDialog extends StatefulWidget {
+  const _FontSearchDialog({
+    required this.selectedFamily,
+    required this.selectedSize,
+  });
+
+  final String? selectedFamily;
+  final double selectedSize;
+
+  @override
+  State<_FontSearchDialog> createState() => _FontSearchDialogState();
+}
+
+class _FontSearchDialogState extends State<_FontSearchDialog> {
+  late final TextEditingController _searchController;
+  late final TextEditingController _sizeController;
+  late List<({String label, String? family})> _matches;
+  late String? _family;
+  late double _fontSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _sizeController = TextEditingController(
+      text: widget.selectedSize.round().toString(),
+    );
+    _matches = PaintTextFonts.options;
+    _family = widget.selectedFamily;
+    _fontSize = widget.selectedSize.clamp(
+      TextToolOptionsControl.minFontSize,
+      TextToolOptionsControl.maxFontSize,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _sizeController.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String query) {
+    setState(() => _matches = PaintTextFonts.matching(query));
+  }
+
+  void _setFontSize(double size) {
+    final clamped = size.clamp(
+      TextToolOptionsControl.minFontSize,
+      TextToolOptionsControl.maxFontSize,
+    );
+    setState(() {
+      _fontSize = clamped;
+      _sizeController.text = clamped.round().toString();
+    });
+  }
+
+  void _applySizeInput() {
+    final parsed = int.tryParse(_sizeController.text.trim());
+    if (parsed == null) {
+      _sizeController.text = _fontSize.round().toString();
+      return;
+    }
+    _setFontSize(parsed.toDouble());
+  }
+
+  void _confirm() {
+    _applySizeInput();
+    Navigator.of(context).pop(
+      _FontPickerSelection(
+        family: _family ?? '',
+        fontSize: _fontSize,
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    String? hintText,
+    Widget? prefixIcon,
+  }) {
+    return InputDecoration(
+      isDense: true,
+      hintText: hintText,
+      hintStyle: const TextStyle(color: AppColors.paletteLabel),
+      prefixIcon: prefixIcon,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      filled: true,
+      fillColor: AppColors.workspace,
+      border: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.paletteBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.paletteBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.statusText),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.palettePanel,
+      title: const Text(
+        'Font',
+        style: TextStyle(color: AppColors.statusText, fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: const TextStyle(color: AppColors.statusText, fontSize: 14),
+              cursorColor: AppColors.statusText,
+              decoration: _fieldDecoration(
+                hintText: 'Search fonts',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.paletteLabel,
+                  size: 20,
+                ),
+              ),
+              onChanged: _onQueryChanged,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text(
+                  'Size',
+                  style: TextStyle(
+                    color: AppColors.paletteLabel,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 56,
+                  child: TextField(
+                    controller: _sizeController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.statusText,
+                      fontSize: 13,
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: _fieldDecoration(),
+                    onSubmitted: (_) => _applySizeInput(),
+                    onEditingComplete: _applySizeInput,
+                    onTapOutside: (_) => _applySizeInput(),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                PopupMenuButton<double>(
+                  tooltip: 'Font size',
+                  color: AppColors.palettePanel,
+                  onSelected: _setFontSize,
+                  itemBuilder: (context) => [
+                    for (final size in PaintTextFonts.sizes)
+                      PopupMenuItem(
+                        value: size,
+                        child: Text(
+                          size.round().toString(),
+                          style: const TextStyle(color: AppColors.statusText),
+                        ),
+                      ),
+                  ],
+                  child: const Icon(
+                    Icons.arrow_drop_down,
+                    color: AppColors.statusText,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 260,
+              child: _matches.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No fonts match',
+                        style: TextStyle(color: AppColors.paletteLabel),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _matches.length,
+                      itemBuilder: (context, index) {
+                        final option = _matches[index];
+                        final selected = option.family == _family;
+                        return ListTile(
+                          dense: true,
+                          selected: selected,
+                          selectedTileColor: AppColors.workspace,
+                          title: Text(
+                            option.label,
+                            style: TextStyle(
+                              color: AppColors.statusText,
+                              fontFamily: option.family,
+                              fontSize: 14,
+                            ),
+                          ),
+                          trailing: selected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: AppColors.statusText,
+                                  size: 18,
+                                )
+                              : null,
+                          onTap: () {
+                            setState(() => _family = option.family);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: AppColors.paletteLabel),
+          ),
+        ),
+        TextButton(
+          onPressed: _confirm,
+          child: const Text(
+            'OK',
+            style: TextStyle(color: AppColors.statusText),
+          ),
+        ),
+      ],
     );
   }
 }

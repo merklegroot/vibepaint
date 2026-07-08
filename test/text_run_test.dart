@@ -51,4 +51,14 @@ void main() {
     expect(styled.fontFamily, 'Arial');
     expect(styled.text, 'A');
   });
+
+  test('PaintTextFonts.matching filters by label substring', () {
+    final hits = PaintTextFonts.matching('time');
+    expect(hits.map((o) => o.label), ['Times New Roman']);
+
+    final empty = PaintTextFonts.matching('zzzz');
+    expect(empty, isEmpty);
+
+    expect(PaintTextFonts.matching('').length, PaintTextFonts.options.length);
+  });
 }
