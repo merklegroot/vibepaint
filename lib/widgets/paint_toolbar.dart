@@ -143,7 +143,7 @@ class PaintToolbar extends StatelessWidget {
             const SizedBox(width: 4),
             _ToolbarIconButton(
               icon: Icons.settings,
-              tooltip: 'Grok Settings',
+              tooltip: 'AI Enhance Settings',
               enabled: true,
               onPressed: onOpenSettings!,
             ),

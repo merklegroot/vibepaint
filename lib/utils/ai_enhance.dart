@@ -1,63 +1,24 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/models/stroke.dart';
-import 'package:vibepaint/services/grok_api_key_storage.dart';
-import 'package:vibepaint/services/grok_client.dart';
+import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
+import 'package:vibepaint/services/ai_enhance/ai_enhance_service.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 
-/// Default prompt for Grok sketch enhancement.
-const defaultAiEnhancePrompt =
-    'Enhance this sketch into a vibrant, clean, professional illustration';
+export 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
 
 enum AiEnhanceAvailability {
   available,
-  missingApiKey,
+  notConfigured,
   unsupportedPlatform,
   unknown,
 }
 
-/// Live status updates during Grok image editing.
-class AiEnhanceProgress {
-  const AiEnhanceProgress({
-    required this.message,
-    this.phase = 'working',
-    this.bytesDone,
-    this.bytesTotal,
-    this.elapsedSeconds = 0,
-  });
-
-  final String message;
-  final String phase;
-  final int? bytesDone;
-  final int? bytesTotal;
-  final int elapsedSeconds;
-
-  double? get progressFraction {
-    if (bytesDone == null || bytesTotal == null || bytesTotal! <= 0) {
-      return null;
-    }
-    return (bytesDone! / bytesTotal!).clamp(0.0, 1.0);
-  }
-}
-
-class AiEnhanceResult {
-  const AiEnhanceResult({
-    required this.pngBytes,
-    required this.width,
-    required this.height,
-  });
-
-  final Uint8List pngBytes;
-  final int width;
-  final int height;
-}
-
-/// Crop of the active layer (or selection) prepared as Grok input.
+/// Crop of the active layer (or selection) prepared as AI input.
 class AiEnhanceSource {
   const AiEnhanceSource({
     required this.pngBytes,
@@ -70,23 +31,22 @@ class AiEnhanceSource {
   final Rect placement;
 }
 
-final _keyStorage = GrokApiKeyStorage();
-final _grokClient = GrokClient();
+final _service = AiEnhanceService();
 
 final _progressController = StreamController<AiEnhanceProgress>.broadcast();
 
-/// Whether AI Enhance can run (requires a stored Grok API key).
+/// Whether AI Enhance can run for the active provider.
 Future<AiEnhanceAvailability> checkAiEnhanceAvailability() async {
   if (kIsWeb) {
     return AiEnhanceAvailability.unsupportedPlatform;
   }
 
   try {
-    final hasKey = await _keyStorage.hasKey();
-    if (hasKey) {
+    final configured = await _service.isConfigured();
+    if (configured) {
       return AiEnhanceAvailability.available;
     }
-    return AiEnhanceAvailability.missingApiKey;
+    return AiEnhanceAvailability.notConfigured;
   } on Object {
     return AiEnhanceAvailability.unknown;
   }
@@ -102,7 +62,7 @@ void _emitProgress(AiEnhanceProgress progress) {
   }
 }
 
-/// Sends [sourcePng] to Grok Imagine for enhancement.
+/// Sends [sourcePng] to the configured AI provider for enhancement.
 Future<AiEnhanceResult?> enhanceSketch({
   required Uint8List sourcePng,
   String prompt = defaultAiEnhancePrompt,
@@ -111,47 +71,11 @@ Future<AiEnhanceResult?> enhanceSketch({
     return null;
   }
 
-  final apiKey = await _keyStorage.read();
-  if (apiKey == null || apiKey.trim().isEmpty) {
-    throw AiEnhanceException(
-      'missing_api_key',
-      'Grok API key is not set. Open Settings to add your key.',
-    );
-  }
-
-  try {
-    return await _grokClient.enhanceSketch(
-      apiKey: apiKey,
-      sourcePng: sourcePng,
-      prompt: prompt,
-      onProgress: _emitProgress,
-    );
-  } on AiEnhanceException {
-    rethrow;
-  } on Exception catch (error) {
-    throw AiEnhanceException(
-      'network_error',
-      'Could not reach Grok API.',
-      details: error.toString(),
-    );
-  }
-}
-
-class AiEnhanceException implements Exception {
-  AiEnhanceException(this.code, this.message, {this.details});
-
-  final String code;
-  final String message;
-  final String? details;
-
-  @override
-  String toString() {
-    final detail = details?.trim();
-    if (detail == null || detail.isEmpty) {
-      return message;
-    }
-    return '$message\n$detail';
-  }
+  return _service.enhanceSketch(
+    sourcePng: sourcePng,
+    prompt: prompt,
+    onProgress: _emitProgress,
+  );
 }
 
 /// Renders the active layer strokes and optionally crops to [selection].
@@ -225,7 +149,7 @@ Future<AiEnhanceSource?> captureAiEnhanceSource({
     return null;
   }
 
-  // Grok works best with opaque sketches on a white background.
+  // AI providers work best with opaque sketches on a white background.
   final prepared = _flattenOntoWhite(cropped);
 
   return AiEnhanceSource(

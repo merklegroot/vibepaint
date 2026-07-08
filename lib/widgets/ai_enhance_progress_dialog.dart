@@ -12,7 +12,7 @@ Future<T> showAiEnhanceProgressDialog<T>({
   final navigator = Navigator.of(context, rootNavigator: true);
   final status = ValueNotifier<AiEnhanceProgress>(
     const AiEnhanceProgress(
-      message: 'Starting Grok enhancement…',
+      message: 'Starting AI enhancement…',
       phase: 'start',
     ),
   );
@@ -107,8 +107,8 @@ class _AiEnhanceProgressDialogState extends State<_AiEnhanceProgressDialog> {
 
     final subtitle = switch (progress.phase) {
       'prepare' => 'Preparing sketch · ${_formatElapsed(elapsed)}',
-      'upload' => 'Uploading to Grok · ${_formatElapsed(elapsed)}',
-      'generate' => 'Generating illustration · ${_formatElapsed(elapsed)}',
+      'upload' => 'Uploading · ${_formatElapsed(elapsed)}',
+      'generate' => 'Generating · ${_formatElapsed(elapsed)}',
       'decode' => 'Downloading result · ${_formatElapsed(elapsed)}',
       'done' => 'Complete · ${_formatElapsed(elapsed)}',
       _ => 'Elapsed ${_formatElapsed(elapsed)}',

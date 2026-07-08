@@ -32,7 +32,7 @@ A vibe coded paint app.
 
 ### Image
 - **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
-- **AI Enhance** — toolbar sparkle button enhances the active layer (or selection) via Grok Imagine (xAI cloud). Preview before apply; undoable. Requires a Grok API key in Settings (stored securely).
+- **AI Enhance** — toolbar sparkle button enhances the active layer (or selection) via **Grok** (xAI cloud) or **Ollama** (local / SSH tunnel). Preview before apply; undoable. Configure provider and credentials in Settings.
 
 ### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
@@ -101,14 +101,16 @@ flutter build macos --release
 open build/macos/Build/Products/Release/VibePaint.app
 ```
 
-### AI Enhance (Grok / xAI)
+### AI Enhance (Grok or Ollama)
 
 1. Open **Settings** (VibePaint menu on macOS, File menu on Windows/Linux, or the gear toolbar button).
-2. Enter your [xAI API key](https://console.x.ai/), save, and use **Test Connection**.
-3. Draw on the active layer, then click the sparkle **AI Enhance** toolbar button.
-4. Review the preview — **Apply**, **Regenerate**, or **Cancel**.
+2. Choose **Grok** or **Ollama** as the default provider.
+3. **Grok:** enter your [xAI API key](https://console.x.ai/), save, and test.
+4. **Ollama:** run an SSH tunnel if needed (`ssh -L 11434:localhost:11434 user@server`), set base URL (`http://localhost:11434`), model name, and test.
+5. Draw on the active layer, then click the sparkle **AI Enhance** toolbar button.
+6. Review the preview — **Apply**, **Regenerate**, or **Cancel**.
 
-Enhancement uses the `grok-imagine-image-quality` model via `POST /v1/images/edits`.
+Grok uses `grok-imagine-image-quality` via `POST /v1/images/edits`. Ollama uses `/api/generate` and `/api/chat` with vision/image models.
 
 Optional DMG (`create-dmg` via Homebrew for a nicer layout; otherwise `hdiutil`):
 

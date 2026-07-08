@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:vibepaint/utils/ai_enhance.dart';
+import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
 
 const grokApiBaseUrl = 'https://api.x.ai/v1';
 const grokImageEditModel = 'grok-imagine-image-quality';

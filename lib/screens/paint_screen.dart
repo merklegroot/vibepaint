@@ -14,10 +14,11 @@ import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
+import 'package:vibepaint/services/ai_enhance/ai_enhance_service.dart';
 import 'package:vibepaint/utils/ai_enhance.dart';
 import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_progress_dialog.dart';
-import 'package:vibepaint/widgets/grok_settings_dialog.dart';
+import 'package:vibepaint/widgets/ai_enhance_settings_dialog.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
@@ -1611,20 +1612,25 @@ class _PaintScreenState extends State<PaintScreen>
     );
   }
 
-  Future<void> _openGrokSettings() => showGrokSettingsDialog(context);
+  Future<void> _openAiEnhanceSettings() =>
+      showAiEnhanceSettingsDialog(context);
 
-  Future<bool> _promptForGrokApiKey() async {
+  Future<bool> _promptForAiEnhanceSetup() async {
     if (!mounted) {
       return false;
     }
+
+    final settings = await AiEnhanceService().loadSettings();
+    final providerName = settings.activeProviderLabel;
 
     final openSettings = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Grok API key required'),
-          content: const Text(
-            'AI Enhance uses Grok. Add your xAI API key in Settings to continue.',
+          title: Text('$providerName not configured'),
+          content: Text(
+            'AI Enhance uses $providerName. '
+            'Open Settings to finish setup.',
           ),
           actions: [
             TextButton(
@@ -1641,7 +1647,7 @@ class _PaintScreenState extends State<PaintScreen>
     );
 
     if (openSettings == true && mounted) {
-      await _openGrokSettings();
+      await _openAiEnhanceSettings();
       final availability = await checkAiEnhanceAvailability();
       return availability == AiEnhanceAvailability.available;
     }
@@ -1666,8 +1672,8 @@ class _PaintScreenState extends State<PaintScreen>
             'AI Enhance is not available on this platform.',
           );
           return;
-        case AiEnhanceAvailability.missingApiKey:
-          final configured = await _promptForGrokApiKey();
+        case AiEnhanceAvailability.notConfigured:
+          final configured = await _promptForAiEnhanceSetup();
           if (!configured) {
             return;
           }
@@ -2287,7 +2293,7 @@ class _PaintScreenState extends State<PaintScreen>
                               onSave: () => _saveCanvas(),
                               onSaveAs: () => _saveCanvasAs(),
                               onOpenSettings:
-                                  !kIsWeb ? _openGrokSettings : null,
+                                  !kIsWeb ? _openAiEnhanceSettings : null,
                               onSelectAll: _selectAll,
                               onDeselect: _deselect,
                               onInvertSelection: _invertSelection,
@@ -2345,7 +2351,8 @@ class _PaintScreenState extends State<PaintScreen>
                                       : null,
                               onAiEnhance: !kIsWeb ? _aiEnhance : null,
                               aiEnhanceEnabled: !_aiEnhanceBusy,
-                              onOpenSettings: !kIsWeb ? _openGrokSettings : null,
+                              onOpenSettings:
+                                  !kIsWeb ? _openAiEnhanceSettings : null,
                             ),
                             Expanded(
                               child: Row(
@@ -2652,7 +2659,7 @@ class _PaintScreenState extends State<PaintScreen>
           onOpen: _openCanvas,
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,
-          onOpenSettings: !kIsWeb ? _openGrokSettings : null,
+          onOpenSettings: !kIsWeb ? _openAiEnhanceSettings : null,
           onSelectAll: _selectAll,
           onDeselect: _deselect,
           onInvertSelection: _invertSelection,
