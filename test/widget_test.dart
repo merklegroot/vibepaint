@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vibepaint/main.dart';
 
 void main() {
   testWidgets('VibePaint renders the canvas workspace', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+
     await tester.binding.setSurfaceSize(const Size(1280, 720));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -11,5 +14,7 @@ void main() {
 
     expect(find.byTooltip('Swap colors'), findsOneWidget);
     expect(find.textContaining('Drag on the canvas to paint'), findsOneWidget);
+
+    debugDefaultTargetPlatformOverride = null;
   });
 }

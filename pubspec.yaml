@@ -25,6 +25,8 @@ dev_dependencies:
 
 flutter_launcher_icons:
   image_path: assets/app_icon.png
+  android:
+    generate: true
   macos:
     generate: true
   windows:
