@@ -13,6 +13,8 @@ import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
+import 'package:vibepaint/utils/document_title.dart';
+import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
@@ -48,6 +50,10 @@ class _PaintScreenState extends State<PaintScreen> {
   ShapeStyle _shapeStyle = ShapeStyle.outline;
   Size _canvasSize = Size.zero;
   String? _documentPath;
+  int _editGeneration = 0;
+  int _savedGeneration = 0;
+
+  bool get _isDirty => _editGeneration != _savedGeneration;
 
   bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
@@ -60,6 +66,36 @@ class _PaintScreenState extends State<PaintScreen> {
     _selectedColorIndex = widget.initialColorIndex;
     _activeTool = widget.initialTool;
     _shapeStyle = widget.initialShapeStyle;
+    if (widget.initialStrokes.isNotEmpty) {
+      _editGeneration = 1;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncWindowTitle());
+  }
+
+  void _syncWindowTitle() {
+    syncNativeWindowTitle(
+      formatDocumentTitle(
+        documentPath: _documentPath,
+        isDirty: _isDirty,
+      ),
+    );
+  }
+
+  void _noteDocumentEdited() {
+    _editGeneration++;
+    _syncWindowTitle();
+  }
+
+  void _noteDocumentSaved() {
+    _savedGeneration = _editGeneration;
+    _syncWindowTitle();
+  }
+
+  void _resetDocumentTracking({String? path, bool edited = false}) {
+    _documentPath = path;
+    _editGeneration = edited ? 1 : 0;
+    _savedGeneration = 0;
+    _syncWindowTitle();
   }
 
   @override
@@ -142,6 +178,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
     _history.add(_currentStroke!);
     _currentStroke = null;
+    _noteDocumentEdited();
   }
 
   void _undo() {
@@ -150,6 +187,7 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     setState(_history.undo);
+    _noteDocumentEdited();
   }
 
   void _redo() {
@@ -158,6 +196,7 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     setState(_history.redo);
+    _noteDocumentEdited();
   }
 
   Future<void> _clearCanvas() async {
@@ -202,8 +241,8 @@ class _PaintScreenState extends State<PaintScreen> {
       _lastPanPosition = null;
       _backgroundImage?.dispose();
       _backgroundImage = null;
-      _documentPath = null;
     });
+    _resetDocumentTracking();
   }
 
   Future<Uint8List?> _renderCanvasBytes() async {
@@ -247,6 +286,7 @@ class _PaintScreenState extends State<PaintScreen> {
       }
 
       setState(() => _documentPath = path);
+      _noteDocumentSaved();
       _showMessage('Saved $path');
     } catch (error) {
       if (mounted) {
@@ -264,6 +304,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
       await writePngFile(path, bytes);
       if (mounted) {
+        _noteDocumentSaved();
         _showMessage('Saved $path');
       }
     } catch (error) {
@@ -295,8 +336,8 @@ class _PaintScreenState extends State<PaintScreen> {
         _lastPanPosition = null;
         _backgroundImage?.dispose();
         _backgroundImage = picked.image;
-        _documentPath = picked.path;
       });
+      _resetDocumentTracking(path: picked.path);
       _showMessage('Opened ${picked.path}');
     } catch (error) {
       if (mounted) {
