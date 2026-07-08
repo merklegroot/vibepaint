@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Downloads toolbar SVGs tracked in assets/ATTRIBUTIONS.yaml (tabler-toolbar-icons).
+# See ATTRIBUTIONS.md for license and attribution requirements.
+
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="$root/assets/icons/tools"
 mkdir -p "$out"
@@ -28,3 +31,5 @@ for name in "${!icons[@]}"; do
     > "$out/${name}.svg"
   echo "wrote ${name}.svg"
 done
+
+"$root/scripts/check_attributions.sh"

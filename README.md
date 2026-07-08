@@ -39,7 +39,7 @@ A vibe coded paint app.
 ### Platform
 - **Desktop** — macOS, Windows, and Linux
 
-Toolbar icons are from [Tabler Icons](https://tabler.io/icons) (MIT). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Third-party assets are tracked in [ATTRIBUTIONS.md](ATTRIBUTIONS.md) and [`assets/ATTRIBUTIONS.yaml`](assets/ATTRIBUTIONS.yaml).
 
 ## Roadmap
 

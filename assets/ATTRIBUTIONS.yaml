@@ -1,0 +1,59 @@
+# Registry of third-party assets vendored into this repository.
+#
+# When adding icons, fonts, sounds, images, or other pulled-in files:
+#   1. Add a collection entry below.
+#   2. Document each file and its upstream source.
+#   3. Record the license and attribution requirements.
+#   4. Add a fetch or import script when the assets can be re-downloaded.
+#   5. Update ATTRIBUTIONS.md (summary for humans).
+#
+# Run scripts/check_attributions.sh to verify tracked paths.
+
+version: 1
+
+collections:
+  - id: tabler-toolbar-icons
+    title: Tabler Icons — toolbar
+    type: icons
+    license:
+      spdx: MIT
+      name: MIT License
+      url: https://github.com/tabler/tabler-icons/blob/main/LICENSE
+    attribution:
+      name: Tabler Icons
+      copyright: Copyright (c) 2020-2025 Tabler
+      url: https://tabler.io/icons
+      repository: https://github.com/tabler/tabler-icons
+    paths:
+      - assets/icons/tools/
+    upstream:
+      repository: tabler/tabler-icons
+      branch: main
+      icon_set: icons/outline
+      base_url: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline
+      fetch_script: scripts/fetch_tool_icons.sh
+    modifications:
+      - Removed HTML comment headers from upstream SVG files.
+      - Set stroke-width to 1.75 for 20px toolbar rendering.
+    files:
+      - asset: brush.svg
+        upstream: brush.svg
+      - asset: pencil.svg
+        upstream: ballpen.svg
+      - asset: line.svg
+        upstream: line.svg
+      - asset: rectangle.svg
+        upstream: rectangle.svg
+      - asset: ellipse.svg
+        upstream: oval.svg
+      - asset: eraser.svg
+        upstream: eraser.svg
+      - asset: eyedropper.svg
+        upstream: color-picker.svg
+      - asset: rect_select.svg
+        upstream: square.svg
+      - asset: ellipse_select.svg
+        upstream: circle-dashed.svg
+      - asset: lasso.svg
+        upstream: lasso.svg
+    added: 2026-07-08
