@@ -97,6 +97,48 @@ class _PaintScreenState extends State<PaintScreen> {
     _syncWindowTitle();
   }
 
+  Future<void> _deleteLayer(int index) async {
+    final layer = _layerStack.layers[index];
+    if (layer.history.canUndo) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.palettePanel,
+          title: const Text(
+            'Delete layer?',
+            style: TextStyle(color: AppColors.statusText),
+          ),
+          content: Text(
+            'Delete "${layer.name}"? This cannot be undone.',
+            style: const TextStyle(color: AppColors.paletteLabel),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
+
+    setState(() => _layerStack.deleteLayer(index));
+    _noteDocumentEdited();
+  }
+
+  Future<void> _mergeDownLayer(int index) async {
+    setState(() => _layerStack.mergeDown(index));
+    _noteDocumentEdited();
+  }
+
   @override
   void dispose() {
     _layerStack.dispose();
@@ -105,8 +147,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
 
-  Color get _strokeColor =>
-      _activeTool == PaintTool.eraser ? Colors.white : _primaryColor;
+  bool get _isErasing => _activeTool == PaintTool.eraser;
 
   String get _primaryHex {
     final value = _primaryColor.toARGB32() & 0xFFFFFF;
@@ -162,9 +203,10 @@ class _PaintScreenState extends State<PaintScreen> {
 
     setState(() {
       _currentStroke = Stroke(
-        color: _strokeColor,
+        color: _primaryColor,
         brushSize: _brushSize,
         points: [position],
+        isEraser: _isErasing,
       );
     });
   }
@@ -376,10 +418,11 @@ class _PaintScreenState extends State<PaintScreen> {
 
     setState(() {
       _currentStroke = Stroke(
-        color: _strokeColor,
+        color: _primaryColor,
         brushSize: _brushSize,
         points: [position, position],
         shape: StrokeShape.line,
+        isEraser: _isErasing,
       );
     });
   }
@@ -395,11 +438,12 @@ class _PaintScreenState extends State<PaintScreen> {
 
     setState(() {
       _currentStroke = Stroke(
-        color: _strokeColor,
+        color: _primaryColor,
         brushSize: _brushSize,
         points: [position, position],
         shape: shape,
         style: _shapeStyle,
+        isEraser: _isErasing,
       );
     });
   }
@@ -544,9 +588,10 @@ class _PaintScreenState extends State<PaintScreen> {
 
       setState(() {
         _currentStroke = Stroke(
-          color: _strokeColor,
+          color: _primaryColor,
           brushSize: _brushSize,
           points: points,
+          isEraser: _isErasing,
         );
       });
       _lastPanPosition = position;
@@ -740,6 +785,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                             child: CustomPaint(
                                               painter: CanvasPainter(
                                                 layers: _layerStack.layers,
+                                                activeLayerIndex:
+                                                    _layerStack.activeIndex,
                                                 currentStroke: _currentStroke,
                                                 backgroundImage:
                                                     _layerStack.backgroundImage,
@@ -754,8 +801,11 @@ class _PaintScreenState extends State<PaintScreen> {
                                   LayersPanel(
                                     layers: _layerStack.layers,
                                     activeIndex: _layerStack.activeIndex,
-                                    canDeleteLayer:
-                                        _layerStack.canDeleteActiveLayer,
+                                    canDeleteLayer: _layerStack.canDeleteLayer,
+                                    canMoveLayerUp: _layerStack.canMoveLayerUp,
+                                    canMoveLayerDown:
+                                        _layerStack.canMoveLayerDown,
+                                    canMergeDown: _layerStack.canMergeDown,
                                     onLayerSelected: (index) {
                                       setState(
                                         () => _layerStack.setActiveLayer(index),
@@ -771,9 +821,47 @@ class _PaintScreenState extends State<PaintScreen> {
                                       setState(_layerStack.addLayer);
                                       _noteDocumentEdited();
                                     },
-                                    onDeleteLayer: (index) {
+                                    onDuplicateLayer: (index) {
                                       setState(
-                                        () => _layerStack.deleteLayer(index),
+                                        () => _layerStack.duplicateLayer(index),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onDeleteLayer: _deleteLayer,
+                                    onMoveLayerUp: (index) {
+                                      setState(
+                                        () => _layerStack.moveLayerUp(index),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onMoveLayerDown: (index) {
+                                      setState(
+                                        () => _layerStack.moveLayerDown(index),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onMergeDown: _mergeDownLayer,
+                                    onRenameLayer: (index, name) {
+                                      setState(
+                                        () => _layerStack.renameLayer(index, name),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onOpacityChanged: (opacity) {
+                                      setState(
+                                        () => _layerStack.setLayerOpacity(
+                                          _layerStack.activeIndex,
+                                          opacity,
+                                        ),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onBlendModeChanged: (mode) {
+                                      setState(
+                                        () => _layerStack.setLayerBlendMode(
+                                          _layerStack.activeIndex,
+                                          mode,
+                                        ),
                                       );
                                       _noteDocumentEdited();
                                     },
@@ -808,7 +896,7 @@ class _PaintScreenState extends State<PaintScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_isErasing ? 'Eraser' : _primaryHex}  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(

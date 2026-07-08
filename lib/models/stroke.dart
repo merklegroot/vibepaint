@@ -16,6 +16,7 @@ class Stroke {
     List<Offset>? points,
     this.shape = StrokeShape.freehand,
     this.style = ShapeStyle.outline,
+    this.isEraser = false,
   }) : points = points ?? [];
 
   final Color color;
@@ -23,6 +24,7 @@ class Stroke {
   final List<Offset> points;
   final StrokeShape shape;
   final ShapeStyle style;
+  final bool isEraser;
 
   bool get isEmpty => points.isEmpty;
 
@@ -32,6 +34,7 @@ class Stroke {
     List<Offset>? points,
     StrokeShape? shape,
     ShapeStyle? style,
+    bool? isEraser,
   }) {
     return Stroke(
       color: color ?? this.color,
@@ -39,6 +42,7 @@ class Stroke {
       points: points ?? List<Offset>.from(this.points),
       shape: shape ?? this.shape,
       style: style ?? this.style,
+      isEraser: isEraser ?? this.isEraser,
     );
   }
 }

@@ -19,6 +19,7 @@ Future<ui.Image> renderCanvasToUiImage({
     canvas: canvas,
     size: size,
     layers: layers,
+    activeLayerIndex: 0,
     backgroundImage: backgroundImage,
   );
 

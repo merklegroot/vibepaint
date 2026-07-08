@@ -41,4 +41,9 @@ class StrokeHistory {
     _strokes.clear();
     _redoStack.clear();
   }
+
+  void appendAll(Iterable<Stroke> strokes) {
+    _strokes.addAll(strokes);
+    _redoStack.clear();
+  }
 }

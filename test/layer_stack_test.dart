@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vibepaint/models/layer_blend_mode.dart';
 import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/stroke.dart';
 
@@ -8,20 +9,20 @@ void main() {
     final stack = LayerStack();
 
     expect(stack.layers, hasLength(1));
-    expect(stack.layers.first.name, 'Layer 1');
+    expect(stack.layers.first.name, 'Background');
     expect(stack.activeIndex, 0);
     expect(stack.canUndo, isFalse);
     expect(stack.hasContent, isFalse);
   });
 
-  test('add layer selects the new layer', () {
+  test('add layer inserts above active layer', () {
     final stack = LayerStack();
 
     stack.addLayer();
 
     expect(stack.layers, hasLength(2));
     expect(stack.activeIndex, 1);
-    expect(stack.layers.last.name, 'Layer 2');
+    expect(stack.layers[1].name, 'Layer 2');
   });
 
   test('undo and redo operate on active layer only', () {
@@ -42,6 +43,58 @@ void main() {
     expect(stack.activeHistory.undo(), isTrue);
     expect(stack.layers[1].history.strokes, isEmpty);
     expect(stack.layers[0].history.strokes, hasLength(1));
+  });
+
+  test('duplicate layer copies strokes above source', () {
+    final stack = LayerStack();
+    stack.activeHistory.add(
+      Stroke(color: Colors.red, brushSize: 4, points: const [Offset(1, 1)]),
+    );
+
+    stack.duplicateLayer(0);
+
+    expect(stack.layers, hasLength(2));
+    expect(stack.activeIndex, 1);
+    expect(stack.layers[1].history.strokes, hasLength(1));
+    expect(stack.layers[1].name, 'Background copy');
+  });
+
+  test('move layer up increases z-index', () {
+    final stack = LayerStack();
+    stack.addLayer();
+
+    stack.moveLayerUp(0);
+
+    expect(stack.layers[0].name, 'Layer 2');
+    expect(stack.layers[1].name, 'Background');
+  });
+
+  test('merge down combines strokes into lower layer', () {
+    final stack = LayerStack();
+    stack.addLayer();
+    stack.layers[0].history.add(
+          Stroke(color: Colors.red, brushSize: 4, points: const [Offset(1, 1)]),
+        );
+    stack.layers[1].history.add(
+          Stroke(color: Colors.blue, brushSize: 4, points: const [Offset(2, 2)]),
+        );
+
+    stack.mergeDown(1);
+
+    expect(stack.layers, hasLength(1));
+    expect(stack.layers[0].history.strokes, hasLength(2));
+  });
+
+  test('rename and opacity update layer properties', () {
+    final stack = LayerStack();
+
+    stack.renameLayer(0, 'Background');
+    stack.setLayerOpacity(0, 0.5);
+    stack.setLayerBlendMode(0, LayerBlendMode.multiply);
+
+    expect(stack.layers[0].name, 'Background');
+    expect(stack.layers[0].opacity, 0.5);
+    expect(stack.layers[0].blendMode, LayerBlendMode.multiply);
   });
 
   test('delete layer adjusts active index', () {
@@ -74,7 +127,7 @@ void main() {
     stack.clear();
 
     expect(stack.layers, hasLength(1));
-    expect(stack.layers.first.name, 'Layer 1');
+    expect(stack.layers.first.name, 'Background');
     expect(stack.layers.first.history.strokes, isEmpty);
     expect(stack.backgroundImage, isNull);
     expect(stack.hasContent, isFalse);

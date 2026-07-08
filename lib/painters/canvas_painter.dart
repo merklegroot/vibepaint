@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/layer_blend_mode.dart';
 import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
@@ -8,11 +9,13 @@ import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
     required this.layers,
+    required this.activeLayerIndex,
     this.currentStroke,
     this.backgroundImage,
   });
 
   final List<PaintLayer> layers;
+  final int activeLayerIndex;
   final Stroke? currentStroke;
   final ui.Image? backgroundImage;
 
@@ -20,9 +23,12 @@ class CanvasPainter extends CustomPainter {
     required Canvas canvas,
     required Size size,
     required List<PaintLayer> layers,
+    required int activeLayerIndex,
     Stroke? currentStroke,
     ui.Image? backgroundImage,
   }) {
+    final bounds = Offset.zero & size;
+
     if (backgroundImage != null) {
       canvas.drawImageRect(
         backgroundImage,
@@ -32,26 +38,49 @@ class CanvasPainter extends CustomPainter {
           backgroundImage.width.toDouble(),
           backgroundImage.height.toDouble(),
         ),
-        Offset.zero & size,
+        bounds,
         Paint(),
       );
     } else {
-      canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+      canvas.drawRect(bounds, Paint()..color = Colors.white);
     }
 
-    for (final layer in layers) {
-      if (!layer.visible) {
-        continue;
-      }
+    for (var i = 0; i < layers.length; i++) {
+      _paintLayer(
+        canvas: canvas,
+        bounds: bounds,
+        layer: layers[i],
+        currentStroke: i == activeLayerIndex ? currentStroke : null,
+      );
+    }
+  }
 
-      for (final stroke in layer.history.strokes) {
-        _paintStroke(canvas, stroke);
-      }
+  static void _paintLayer({
+    required Canvas canvas,
+    required Rect bounds,
+    required PaintLayer layer,
+    Stroke? currentStroke,
+  }) {
+    if (!layer.visible) {
+      return;
+    }
+
+    canvas.saveLayer(
+      bounds,
+      Paint()
+        ..blendMode = layer.blendMode.paintBlendMode
+        ..color = Color.fromRGBO(255, 255, 255, layer.opacity),
+    );
+
+    for (final stroke in layer.history.strokes) {
+      _paintStroke(canvas, stroke);
     }
 
     if (currentStroke != null) {
       _paintStroke(canvas, currentStroke);
     }
+
+    canvas.restore();
   }
 
   static void _paintStroke(Canvas canvas, Stroke stroke) {
@@ -59,15 +88,19 @@ class CanvasPainter extends CustomPainter {
       return;
     }
 
+    final blendMode =
+        stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
     final fill = Paint()
-      ..color = stroke.color
-      ..style = PaintingStyle.fill;
+      ..color = stroke.isEraser ? Colors.transparent : stroke.color
+      ..style = PaintingStyle.fill
+      ..blendMode = blendMode;
     final line = Paint()
-      ..color = stroke.color
+      ..color = stroke.isEraser ? Colors.transparent : stroke.color
       ..strokeWidth = stroke.brushSize
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..blendMode = blendMode;
 
     switch (stroke.shape) {
       case StrokeShape.line:
@@ -136,6 +169,7 @@ class CanvasPainter extends CustomPainter {
       canvas: canvas,
       size: size,
       layers: layers,
+      activeLayerIndex: activeLayerIndex,
       currentStroke: currentStroke,
       backgroundImage: backgroundImage,
     );
@@ -147,6 +181,10 @@ class CanvasPainter extends CustomPainter {
       return true;
     }
 
+    if (oldDelegate.activeLayerIndex != activeLayerIndex) {
+      return true;
+    }
+
     if (oldDelegate.layers.length != layers.length) {
       return true;
     }
@@ -155,6 +193,12 @@ class CanvasPainter extends CustomPainter {
       final oldLayer = oldDelegate.layers[i];
       final newLayer = layers[i];
       if (oldLayer.visible != newLayer.visible) {
+        return true;
+      }
+      if (oldLayer.opacity != newLayer.opacity) {
+        return true;
+      }
+      if (oldLayer.blendMode != newLayer.blendMode) {
         return true;
       }
       if (oldLayer.history.strokes.length != newLayer.history.strokes.length) {

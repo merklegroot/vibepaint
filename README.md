@@ -13,7 +13,7 @@ A vibe coded paint app.
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
-- **Layers** — stack layers, show/hide, add/delete, and draw on the selected layer
+- **Layers** — stack transparent layers (top of list = front), show/hide, reorder, opacity, blend modes, duplicate, merge down, and rename; eraser clears pixels on the active layer
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
 - **Image formats** — Save As supports PNG, JPEG, BMP, GIF, and WebP; macOS uses the system save panel format menu
 - **Document title** — filename in the window title; `*` prefix when there are unsaved changes
