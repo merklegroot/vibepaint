@@ -1584,8 +1584,10 @@ class _PaintScreenState extends State<PaintScreen>
           return;
         case AiEnhanceAvailability.unavailableOnDevice:
           _showMessage(
-            'AI Enhance needs Apple Intelligence / Image Playground '
-            '(macOS 15.1+ on a supported Mac, with image generation enabled).',
+            'Image Playground isn’t available yet. On this Mac, open '
+            'System Settings → Apple Intelligence & Siri, turn on Apple '
+            'Intelligence, wait for models to finish downloading, then retry. '
+            'Also check Screen Time → Intelligence & Siri → Image Creation.',
           );
           return;
         case AiEnhanceAvailability.unknown:
