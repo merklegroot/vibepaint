@@ -11,6 +11,8 @@ class ColorWellsControl extends StatelessWidget {
     required this.activeTarget,
     required this.onPrimaryTap,
     required this.onSecondaryTap,
+    this.onPrimaryDoubleTap,
+    this.onSecondaryDoubleTap,
     required this.onSwap,
     required this.onReset,
   });
@@ -23,6 +25,8 @@ class ColorWellsControl extends StatelessWidget {
   final ColorWellTarget activeTarget;
   final VoidCallback onPrimaryTap;
   final VoidCallback onSecondaryTap;
+  final VoidCallback? onPrimaryDoubleTap;
+  final VoidCallback? onSecondaryDoubleTap;
   final VoidCallback onSwap;
   final VoidCallback onReset;
 
@@ -42,6 +46,7 @@ class ColorWellsControl extends StatelessWidget {
               size: wellSize,
               selected: activeTarget == ColorWellTarget.canvasBackground,
               onTap: onSecondaryTap,
+              onDoubleTap: onSecondaryDoubleTap,
             ),
           ),
           Positioned(
@@ -52,6 +57,7 @@ class ColorWellsControl extends StatelessWidget {
               size: wellSize,
               selected: activeTarget == ColorWellTarget.primary,
               onTap: onPrimaryTap,
+              onDoubleTap: onPrimaryDoubleTap,
             ),
           ),
           Positioned(
@@ -80,12 +86,14 @@ class _OverlappingWell extends StatelessWidget {
     required this.size,
     required this.selected,
     required this.onTap,
+    this.onDoubleTap,
   });
 
   final Color color;
   final double size;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +101,7 @@ class _OverlappingWell extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onDoubleTap: onDoubleTap,
       child: Container(
         width: size,
         height: size,

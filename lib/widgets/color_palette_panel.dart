@@ -6,7 +6,8 @@ import 'package:vibepaint/widgets/color_wells_control.dart';
 class ColorPalettePanel extends StatelessWidget {
   const ColorPalettePanel({
     super.key,
-    required this.selectedIndex,
+    required this.primaryColor,
+    required this.primaryPresetIndex,
     required this.onPrimarySelected,
     required this.canvasBackgroundColor,
     required this.colorTarget,
@@ -14,9 +15,12 @@ class ColorPalettePanel extends StatelessWidget {
     required this.onCanvasBackgroundChanged,
     required this.onSwapColors,
     required this.onResetColors,
+    this.onPrimaryDoubleTap,
+    this.onSecondaryDoubleTap,
   });
 
-  final int selectedIndex;
+  final Color primaryColor;
+  final int? primaryPresetIndex;
   final ValueChanged<int> onPrimarySelected;
   final Color canvasBackgroundColor;
   final ColorWellTarget colorTarget;
@@ -24,6 +28,8 @@ class ColorPalettePanel extends StatelessWidget {
   final ValueChanged<Color> onCanvasBackgroundChanged;
   final VoidCallback onSwapColors;
   final VoidCallback onResetColors;
+  final VoidCallback? onPrimaryDoubleTap;
+  final VoidCallback? onSecondaryDoubleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +47,14 @@ class ColorPalettePanel extends StatelessWidget {
       child: Row(
         children: [
           ColorWellsControl(
-            primaryColor: AppColors.presetColors[selectedIndex],
+            primaryColor: primaryColor,
             secondaryColor: canvasBackgroundColor,
             activeTarget: colorTarget,
             onPrimaryTap: () => onColorTargetChanged(ColorWellTarget.primary),
             onSecondaryTap: () =>
                 onColorTargetChanged(ColorWellTarget.canvasBackground),
+            onPrimaryDoubleTap: onPrimaryDoubleTap,
+            onSecondaryDoubleTap: onSecondaryDoubleTap,
             onSwap: onSwapColors,
             onReset: onResetColors,
           ),
@@ -78,7 +86,7 @@ class ColorPalettePanel extends StatelessWidget {
   bool _isPresetSelected(int index) {
     final color = AppColors.presetColors[index];
     return switch (colorTarget) {
-      ColorWellTarget.primary => index == selectedIndex,
+      ColorWellTarget.primary => primaryPresetIndex == index,
       ColorWellTarget.canvasBackground =>
         canvasBackgroundColor.toARGB32() == color.toARGB32(),
     };

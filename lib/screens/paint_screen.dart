@@ -25,6 +25,7 @@ import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
+import 'package:vibepaint/widgets/color_picker_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
@@ -55,7 +56,7 @@ class _PaintScreenState extends State<PaintScreen>
   late final LayerStack _layerStack;
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
-  late int _selectedColorIndex;
+  late Color _primaryColor;
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
@@ -90,7 +91,7 @@ class _PaintScreenState extends State<PaintScreen>
   void initState() {
     super.initState();
     _layerStack = LayerStack(initialStrokes: widget.initialStrokes);
-    _selectedColorIndex = widget.initialColorIndex;
+    _primaryColor = AppColors.presetColors[widget.initialColorIndex];
     _activeTool = widget.initialTool;
     _shapeStyle = widget.initialShapeStyle;
     if (widget.initialStrokes.isNotEmpty) {
@@ -178,7 +179,7 @@ class _PaintScreenState extends State<PaintScreen>
     super.dispose();
   }
 
-  Color get _primaryColor => AppColors.presetColors[_selectedColorIndex];
+  int? get _primaryPresetIndex => presetColorIndex(_primaryColor);
 
   bool get _isErasing => _activeTool == PaintTool.eraser;
 
@@ -198,10 +199,9 @@ class _PaintScreenState extends State<PaintScreen>
       final canvas = _layerStack.backgroundColor;
       _layerStack.setBackgroundColor(primary);
       if (isTransparentCanvasBackground(canvas)) {
-        _selectedColorIndex = defaultPrimaryColorIndex;
+        _primaryColor = AppColors.presetColors[defaultPrimaryColorIndex];
       } else {
-        _selectedColorIndex =
-            presetColorIndex(canvas) ?? defaultPrimaryColorIndex;
+        _primaryColor = canvas;
       }
     });
     _noteDocumentEdited();
@@ -209,8 +209,29 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _resetColors() {
     setState(() {
-      _selectedColorIndex = defaultPrimaryColorIndex;
+      _primaryColor = AppColors.presetColors[defaultPrimaryColorIndex];
       _layerStack.setBackgroundColor(defaultCanvasBackground);
+    });
+    _noteDocumentEdited();
+  }
+
+  Future<void> _openColorPicker(ColorWellTarget target) async {
+    final result = await showDialog<ColorPickerResult>(
+      context: context,
+      builder: (context) => ColorPickerDialog(
+        primaryColor: _primaryColor,
+        secondaryColor: _layerStack.backgroundColor,
+        editingTarget: target,
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _primaryColor = result.primary;
+      _layerStack.setBackgroundColor(result.secondary);
+      _colorTarget = target;
     });
     _noteDocumentEdited();
   }
@@ -1670,7 +1691,8 @@ class _PaintScreenState extends State<PaintScreen>
                               child: IgnorePointer(
                                 ignoring: _activeTool == PaintTool.eraser,
                                 child: ColorPalettePanel(
-                                  selectedIndex: _selectedColorIndex,
+                                  primaryColor: _primaryColor,
+                                  primaryPresetIndex: _primaryPresetIndex,
                                   canvasBackgroundColor:
                                       _layerStack.backgroundColor,
                                   colorTarget: _colorTarget,
@@ -1678,7 +1700,10 @@ class _PaintScreenState extends State<PaintScreen>
                                     setState(() => _colorTarget = target);
                                   },
                                   onPrimarySelected: (index) {
-                                    setState(() => _selectedColorIndex = index);
+                                    setState(
+                                      () => _primaryColor =
+                                          AppColors.presetColors[index],
+                                    );
                                   },
                                   onCanvasBackgroundChanged: (color) {
                                     setState(
@@ -1688,6 +1713,12 @@ class _PaintScreenState extends State<PaintScreen>
                                   },
                                   onSwapColors: _swapColors,
                                   onResetColors: _resetColors,
+                                  onPrimaryDoubleTap: () => _openColorPicker(
+                                    ColorWellTarget.primary,
+                                  ),
+                                  onSecondaryDoubleTap: () => _openColorPicker(
+                                    ColorWellTarget.canvasBackground,
+                                  ),
                                 ),
                               ),
                             ),
