@@ -62,15 +62,17 @@ Rough order of obvious next steps:
 - [x] **Zoom & pan** — scroll to zoom, Space or middle-mouse to pan, keyboard zoom shortcuts
 - [x] **Layers** — stack and edit images independently
 
-## Install macOS
+## Install (macOS)
 
-Download the latest **`VibePaint-<version>-macos.dmg`** from [Releases](https://github.com/merklegroot/vibepaint/releases).
+Download **`VibePaint-<version>-macos.dmg`** from [Releases](https://github.com/merklegroot/vibepaint/releases).
 
 1. Open the DMG
 2. Drag **VibePaint** into **Applications**
-3. Launch from Applications or Spotlight
+3. **First launch only:** in Applications, **right-click** VibePaint → **Open** → click **Open** again
 
-If macOS says the app can’t be opened (unsigned/unnotarized builds), open **System Settings → Privacy & Security**, click **Open Anyway**, then confirm. Details: [docs/macos-distribution.md](docs/macos-distribution.md).
+macOS blocks unsigned apps downloaded from the internet until you confirm once. After that, double-click works normally. More detail: [docs/macos-distribution.md](docs/macos-distribution.md).
+
+Alternative: download `VibePaint-<version>-macos.app.zip`, unzip, move `VibePaint.app` to Applications, then right-click → Open.
 
 ## Run from source
 
@@ -83,7 +85,7 @@ flutter run -d macos    # or windows / linux
 
 ### Apple Silicon (M1–M4)
 
-On Apple Silicon Macs, use the arm64 Flutter SDK / toolchain (the default from flutter.dev). Then:
+Use the arm64 Flutter SDK from flutter.dev (the default), then:
 
 ```bash
 flutter doctor          # confirm macOS desktop toolchain is OK
@@ -91,14 +93,14 @@ flutter pub get
 flutter run -d macos
 ```
 
-For a release build locally:
+Release build locally:
 
 ```bash
 flutter build macos --release
 open build/macos/Build/Products/Release/VibePaint.app
 ```
 
-Optional DMG (requires `brew install create-dmg` for the polished layout; otherwise uses `hdiutil`):
+Optional DMG (`create-dmg` via Homebrew for a nicer layout; otherwise `hdiutil`):
 
 ```bash
 scripts/macos/package_dmg.sh \
@@ -127,11 +129,11 @@ git push origin v0.1.0
 
 | Platform | Artifact |
 | --- | --- |
-| macOS | `VibePaint-<version>-macos.dmg` (preferred) and `VibePaint-<version>-macos.app.zip` |
+| macOS | `VibePaint-<version>-macos.dmg` (drag into Applications) and `VibePaint-<version>-macos.app.zip` |
 | Windows | `VibePaint-<version>-win-x64.zip` |
 | Linux | `VibePaint-<version>-linux-x64.tar.gz` |
 
-macOS releases are **code-signed and notarized** when Apple Developer secrets are configured. Setup guide: [docs/macos-distribution.md](docs/macos-distribution.md).
+No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**.
 
 ## License
 

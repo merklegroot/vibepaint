@@ -128,19 +128,9 @@ jobs:
       - name: Build
         run: flutter build ${{ matrix.platform }} --release
 
-      - name: Package macOS (sign, notarize, DMG)
+      - name: Package macOS
         if: matrix.platform == 'macos'
         env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
@@ -148,20 +138,13 @@ jobs:
           DMG="VibePaint-${VERSION}-macos.dmg"
           ZIP="VibePaint-${VERSION}-macos.app.zip"
 
-          # Optional polish for the DMG layout (falls back to hdiutil if missing).
+          # Optional polish for the DMG layout (falls back to hdiutil).
           brew install create-dmg || true
-
-          chmod +x scripts/macos/sign_and_notarize.sh scripts/macos/package_dmg.sh
-
-          # Sign + notarize the .app when secrets are present; otherwise ship ad-hoc.
-          scripts/macos/sign_and_notarize.sh "$APP"
+          chmod +x scripts/macos/package_dmg.sh
 
           scripts/macos/package_dmg.sh "$APP" "$DMG" "$VERSION"
 
-          # Sign + notarize the DMG when secrets are present.
-          scripts/macos/sign_and_notarize.sh "$DMG"
-
-          # Keep a Finder-friendly zip of the .app as a secondary artifact.
+          # Finder-friendly zip of the .app (keeps the bundle intact).
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 
           ls -lh "$DMG" "$ZIP"
@@ -216,7 +199,7 @@ jobs:
             ### macOS
             - Download **`VibePaint-${{ needs.prepare.outputs.version }}-macos.dmg`**
             - Open the disk image and drag **VibePaint** into **Applications**
-            - If Gatekeeper blocks the app, see [docs/macos-distribution.md](docs/macos-distribution.md)
+            - First launch: **right-click → Open → Open** (unsigned build; one-time Gatekeeper prompt)
 
             ### Windows / Linux
             - Windows: `VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip`
