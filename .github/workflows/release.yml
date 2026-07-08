@@ -126,7 +126,7 @@ jobs:
           fi
 
       - name: Build
-        run: flutter build ${{ matrix.platform }} --release
+        run: flutter build ${{ matrix.platform }} --release --dart-define=VIBE_RELEASE_BUILD=true
 
       - name: Package macOS
         if: matrix.platform == 'macos'

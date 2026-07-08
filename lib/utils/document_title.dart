@@ -3,6 +3,7 @@ import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 
 const appWindowTitle = 'VibePaint';
 const untitledDocumentLabel = 'Untitled';
+const localBuildSuffix = ' (Local build)';
 
 String documentDisplayName(String? path) {
   if (path == null) {
@@ -13,10 +14,13 @@ String documentDisplayName(String? path) {
 
 String get appWindowTitleWithVersion {
   final version = appVersion;
-  if (version == null || version.isEmpty) {
-    return appWindowTitle;
+  final base = (version == null || version.isEmpty)
+      ? appWindowTitle
+      : '$appWindowTitle $version';
+  if (!showLocalBuildLabel) {
+    return base;
   }
-  return '$appWindowTitle $version';
+  return '$base$localBuildSuffix';
 }
 
 /// Formats the native window title using the common `*Name - App` pattern.
