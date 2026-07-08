@@ -190,6 +190,8 @@ class _PaintScreenState extends State<PaintScreen>
 
   bool get _isErasing => _activeTool == PaintTool.eraser;
 
+  bool get _isPencil => _activeTool == PaintTool.pencil;
+
   String get _colorStatusLabel {
     if (_isErasing) {
       return 'Eraser';
@@ -1004,6 +1006,7 @@ class _PaintScreenState extends State<PaintScreen>
         brushSize: _brushSize,
         points: [position],
         isEraser: _isErasing,
+        isPencil: _isPencil,
       );
     });
   }
@@ -1209,6 +1212,7 @@ class _PaintScreenState extends State<PaintScreen>
         points: [position, position],
         shape: StrokeShape.line,
         isEraser: _isErasing,
+        isPencil: _isPencil,
       );
     });
   }
@@ -1230,6 +1234,7 @@ class _PaintScreenState extends State<PaintScreen>
         shape: shape,
         style: _shapeStyle,
         isEraser: _isErasing,
+        isPencil: _isPencil,
       );
     });
   }
@@ -1396,6 +1401,7 @@ class _PaintScreenState extends State<PaintScreen>
           brushSize: _brushSize,
           points: points,
           isEraser: _isErasing,
+        isPencil: _isPencil,
         );
       });
       _lastPanPosition = position;
@@ -1477,6 +1483,9 @@ class _PaintScreenState extends State<PaintScreen>
             _changeBrushSize(2),
         const SingleActivator(LogicalKeyboardKey.keyB): () {
           setState(() => _activeTool = PaintTool.brush);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyP): () {
+          setState(() => _activeTool = PaintTool.pencil);
         },
         const SingleActivator(LogicalKeyboardKey.keyL): () {
           setState(() => _activeTool = PaintTool.line);

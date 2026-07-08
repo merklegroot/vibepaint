@@ -7,6 +7,7 @@ import 'package:vibepaint/widgets/ellipse_select_icon.dart';
 import 'package:vibepaint/widgets/eyedropper_icon.dart';
 import 'package:vibepaint/widgets/lasso_select_icon.dart';
 import 'package:vibepaint/widgets/line_icon.dart';
+import 'package:vibepaint/widgets/pencil_icon.dart';
 import 'package:vibepaint/widgets/rect_select_icon.dart';
 import 'package:vibepaint/widgets/rectangle_icon.dart';
 
@@ -71,6 +72,7 @@ class _ToolButton extends StatelessWidget {
             size: 20,
             color: AppColors.statusText,
           ),
+        PaintTool.pencil => const PencilIcon(color: AppColors.statusText),
         PaintTool.line => const LineIcon(color: AppColors.statusText),
         PaintTool.rectangle =>
           const RectangleIcon(color: AppColors.statusText),

@@ -184,6 +184,10 @@ class CanvasPainter extends CustomPainter {
         }
         return;
       case StrokeShape.freehand:
+        if (stroke.isPencil) {
+          _paintPencilStroke(canvas, stroke, fill, line);
+          return;
+        }
         break;
     }
 
@@ -197,6 +201,32 @@ class CanvasPainter extends CustomPainter {
     }
 
     canvas.drawCircle(stroke.points.last, stroke.brushSize / 2, fill);
+  }
+
+  static void _paintPencilStroke(
+    Canvas canvas,
+    Stroke stroke,
+    Paint fill,
+    Paint line,
+  ) {
+    line.strokeCap = StrokeCap.square;
+    line.strokeJoin = StrokeJoin.miter;
+
+    if (stroke.points.length == 1) {
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: stroke.points.first,
+          width: stroke.brushSize,
+          height: stroke.brushSize,
+        ),
+        fill,
+      );
+      return;
+    }
+
+    for (var i = 0; i < stroke.points.length - 1; i++) {
+      canvas.drawLine(stroke.points[i], stroke.points[i + 1], line);
+    }
   }
 
   static void _paintBoundedShape({

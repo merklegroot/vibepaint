@@ -17,6 +17,7 @@ class Stroke {
     this.shape = StrokeShape.freehand,
     this.style = ShapeStyle.outline,
     this.isEraser = false,
+    this.isPencil = false,
   }) : points = points ?? [];
 
   final Color color;
@@ -25,6 +26,7 @@ class Stroke {
   final StrokeShape shape;
   final ShapeStyle style;
   final bool isEraser;
+  final bool isPencil;
 
   bool get isEmpty => points.isEmpty;
 
@@ -35,6 +37,7 @@ class Stroke {
     StrokeShape? shape,
     ShapeStyle? style,
     bool? isEraser,
+    bool? isPencil,
   }) {
     return Stroke(
       color: color ?? this.color,
@@ -43,6 +46,7 @@ class Stroke {
       shape: shape ?? this.shape,
       style: style ?? this.style,
       isEraser: isEraser ?? this.isEraser,
+      isPencil: isPencil ?? this.isPencil,
     );
   }
 }
