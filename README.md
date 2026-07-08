@@ -40,6 +40,8 @@ A vibe coded paint app.
 
 ### Platform
 - **Desktop** — macOS, Windows, and Linux
+- **macOS native menus** — File, Edit, and Image live in the system menu bar with standard keyboard shortcuts
+- **Keyboard shortcuts** — undo/redo, zoom (⌘+/- / ⌘0 / ⌘1 on Mac), tools, and document commands; see menus for the full list
 
 Third-party assets are tracked in [ATTRIBUTIONS.md](ATTRIBUTIONS.md) and [`assets/ATTRIBUTIONS.yaml`](assets/ATTRIBUTIONS.yaml).
 
@@ -60,13 +62,48 @@ Rough order of obvious next steps:
 - [x] **Zoom & pan** — scroll to zoom, Space or middle-mouse to pan, keyboard zoom shortcuts
 - [x] **Layers** — stack and edit images independently
 
-## Run
+## Install macOS
+
+Download the latest **`VibePaint-<version>-macos.dmg`** from [Releases](https://github.com/merklegroot/vibepaint/releases).
+
+1. Open the DMG
+2. Drag **VibePaint** into **Applications**
+3. Launch from Applications or Spotlight
+
+If macOS says the app can’t be opened (unsigned/unnotarized builds), open **System Settings → Privacy & Security**, click **Open Anyway**, then confirm. Details: [docs/macos-distribution.md](docs/macos-distribution.md).
+
+## Run from source
 
 Requires [Flutter](https://docs.flutter.dev/get-started/install) with desktop support enabled.
 
 ```bash
 flutter pub get
 flutter run -d macos    # or windows / linux
+```
+
+### Apple Silicon (M1–M4)
+
+On Apple Silicon Macs, use the arm64 Flutter SDK / toolchain (the default from flutter.dev). Then:
+
+```bash
+flutter doctor          # confirm macOS desktop toolchain is OK
+flutter pub get
+flutter run -d macos
+```
+
+For a release build locally:
+
+```bash
+flutter build macos --release
+open build/macos/Build/Products/Release/VibePaint.app
+```
+
+Optional DMG (requires `brew install create-dmg` for the polished layout; otherwise uses `hdiutil`):
+
+```bash
+scripts/macos/package_dmg.sh \
+  build/macos/Build/Products/Release/VibePaint.app \
+  VibePaint-local-macos.dmg
 ```
 
 ## Releases
@@ -85,6 +122,16 @@ You can optionally enter a specific version (e.g. `0.2.0`) to override auto-incr
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+### Release artifacts
+
+| Platform | Artifact |
+| --- | --- |
+| macOS | `VibePaint-<version>-macos.dmg` (preferred) and `VibePaint-<version>-macos.app.zip` |
+| Windows | `VibePaint-<version>-win-x64.zip` |
+| Linux | `VibePaint-<version>-linux-x64.tar.gz` |
+
+macOS releases are **code-signed and notarized** when Apple Developer secrets are configured. Setup guide: [docs/macos-distribution.md](docs/macos-distribution.md).
 
 ## License
 

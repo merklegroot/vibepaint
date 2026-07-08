@@ -128,34 +128,66 @@ jobs:
       - name: Build
         run: flutter build ${{ matrix.platform }} --release
 
-      - name: Package macOS
+      - name: Package macOS (sign, notarize, DMG)
         if: matrix.platform == 'macos'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          cd build/macos/Build/Products/Release
-          ditto -c -k --sequesterRsrc --keepParent VibePaint.app "VibePaint-${{ needs.prepare.outputs.tag }}-macos.zip"
-          mv "VibePaint-${{ needs.prepare.outputs.tag }}-macos.zip" "$GITHUB_WORKSPACE/"
+          set -euo pipefail
+          APP="build/macos/Build/Products/Release/VibePaint.app"
+          DMG="VibePaint-${VERSION}-macos.dmg"
+          ZIP="VibePaint-${VERSION}-macos.app.zip"
+
+          # Optional polish for the DMG layout (falls back to hdiutil if missing).
+          brew install create-dmg || true
+
+          chmod +x scripts/macos/sign_and_notarize.sh scripts/macos/package_dmg.sh
+
+          # Sign + notarize the .app when secrets are present; otherwise ship ad-hoc.
+          scripts/macos/sign_and_notarize.sh "$APP"
+
+          scripts/macos/package_dmg.sh "$APP" "$DMG" "$VERSION"
+
+          # Sign + notarize the DMG when secrets are present.
+          scripts/macos/sign_and_notarize.sh "$DMG"
+
+          # Keep a Finder-friendly zip of the .app as a secondary artifact.
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+
+          ls -lh "$DMG" "$ZIP"
 
       - name: Package Linux
         if: matrix.platform == 'linux'
         run: |
           cd build/linux/x64/release
-          tar -czf "$GITHUB_WORKSPACE/VibePaint-${{ needs.prepare.outputs.tag }}-linux-x64.tar.gz" bundle
+          tar -czf "$GITHUB_WORKSPACE/VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz" bundle
 
       - name: Package Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           Compress-Archive -Path build/windows/x64/runner/Release/* `
-            -DestinationPath "VibePaint-${{ needs.prepare.outputs.tag }}-win-x64.zip"
+            -DestinationPath "VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: VibePaint-${{ matrix.artifact }}
           path: |
-            VibePaint-${{ needs.prepare.outputs.tag }}-macos.zip
-            VibePaint-${{ needs.prepare.outputs.tag }}-linux-x64.tar.gz
-            VibePaint-${{ needs.prepare.outputs.tag }}-win-x64.zip
+            VibePaint-${{ needs.prepare.outputs.version }}-macos.dmg
+            VibePaint-${{ needs.prepare.outputs.version }}-macos.app.zip
+            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz
+            VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
           if-no-files-found: error
 
   release:
@@ -180,4 +212,13 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: VibePaint ${{ needs.prepare.outputs.tag }}
           generate_release_notes: true
+          body: |
+            ### macOS
+            - Download **`VibePaint-${{ needs.prepare.outputs.version }}-macos.dmg`**
+            - Open the disk image and drag **VibePaint** into **Applications**
+            - If Gatekeeper blocks the app, see [docs/macos-distribution.md](docs/macos-distribution.md)
+
+            ### Windows / Linux
+            - Windows: `VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip`
+            - Linux: `VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz`
           files: dist/*
