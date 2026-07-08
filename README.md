@@ -13,7 +13,7 @@ A vibe coded paint app.
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
-- **File menu** — New, Open, and Save (macOS menu bar; in-window on Windows and Linux)
+- **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
 - **Desktop** — macOS, Windows, and Linux
 
 ## Roadmap

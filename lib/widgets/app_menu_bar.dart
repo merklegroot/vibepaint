@@ -11,12 +11,14 @@ class AppMenuBar extends StatelessWidget {
     required this.onNew,
     required this.onOpen,
     required this.onSave,
+    required this.onSaveAs,
   });
 
   final bool canNew;
   final VoidCallback onNew;
   final VoidCallback onOpen;
   final VoidCallback onSave;
+  final VoidCallback onSaveAs;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +65,15 @@ class AppMenuBar extends StatelessWidget {
             MenuItemButton(
               onPressed: onSave,
               shortcut: platformMenuShortcut(LogicalKeyboardKey.keyS),
-              child: const Text('Save...'),
+              child: const Text('Save'),
+            ),
+            MenuItemButton(
+              onPressed: onSaveAs,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyS,
+                shift: true,
+              ),
+              child: const Text('Save As...'),
             ),
             const Divider(height: 1),
             MenuItemButton(

@@ -47,6 +47,7 @@ class _PaintScreenState extends State<PaintScreen> {
   PaintTool _activeTool = PaintTool.brush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
   Size _canvasSize = Size.zero;
+  String? _documentPath;
 
   bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
@@ -201,7 +202,75 @@ class _PaintScreenState extends State<PaintScreen> {
       _lastPanPosition = null;
       _backgroundImage?.dispose();
       _backgroundImage = null;
+      _documentPath = null;
     });
+  }
+
+  Future<Uint8List?> _renderCanvasBytes() async {
+    if (_currentStroke != null) {
+      setState(_commitCurrentStroke);
+    }
+
+    if (_canvasSize == Size.zero) {
+      return null;
+    }
+
+    return renderCanvasToPng(
+      size: _canvasSize,
+      strokes: _history.strokes,
+      backgroundImage: _backgroundImage,
+    );
+  }
+
+  Future<void> _saveCanvas() async {
+    if (_documentPath != null) {
+      await _saveToPath(_documentPath!);
+      return;
+    }
+
+    await _saveCanvasAs();
+  }
+
+  Future<void> _saveCanvasAs() async {
+    try {
+      final bytes = await _renderCanvasBytes();
+      if (bytes == null || !mounted) {
+        return;
+      }
+
+      final defaultName = _documentPath != null
+          ? fileNameFromPath(_documentPath!)
+          : defaultPngFileName;
+      final path = await savePngFile(bytes, fileName: defaultName);
+      if (!mounted || path == null) {
+        return;
+      }
+
+      setState(() => _documentPath = path);
+      _showMessage('Saved $path');
+    } catch (error) {
+      if (mounted) {
+        _showMessage('Save failed: $error');
+      }
+    }
+  }
+
+  Future<void> _saveToPath(String path) async {
+    try {
+      final bytes = await _renderCanvasBytes();
+      if (bytes == null || !mounted) {
+        return;
+      }
+
+      await writePngFile(path, bytes);
+      if (mounted) {
+        _showMessage('Saved $path');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showMessage('Save failed: $error');
+      }
+    }
   }
 
   void _showMessage(String message) {
@@ -213,39 +282,10 @@ class _PaintScreenState extends State<PaintScreen> {
     );
   }
 
-  Future<void> _saveCanvas() async {
-    if (_currentStroke != null) {
-      setState(_commitCurrentStroke);
-    }
-
-    if (_canvasSize == Size.zero) {
-      return;
-    }
-
-    try {
-      final bytes = await renderCanvasToPng(
-        size: _canvasSize,
-        strokes: _history.strokes,
-        backgroundImage: _backgroundImage,
-      );
-      final path = await savePngFile(bytes);
-      if (!mounted) {
-        return;
-      }
-      if (path != null) {
-        _showMessage('Saved $path');
-      }
-    } catch (error) {
-      if (mounted) {
-        _showMessage('Save failed: $error');
-      }
-    }
-  }
-
   Future<void> _openCanvas() async {
     try {
-      final image = await pickPngImage();
-      if (!mounted || image == null) {
+      final picked = await pickPngImage();
+      if (!mounted || picked == null) {
         return;
       }
 
@@ -254,9 +294,10 @@ class _PaintScreenState extends State<PaintScreen> {
         _currentStroke = null;
         _lastPanPosition = null;
         _backgroundImage?.dispose();
-        _backgroundImage = image;
+        _backgroundImage = picked.image;
+        _documentPath = picked.path;
       });
-      _showMessage('Opened PNG');
+      _showMessage('Opened ${picked.path}');
     } catch (error) {
       if (mounted) {
         _showMessage('Open failed: $error');
@@ -535,6 +576,16 @@ class _PaintScreenState extends State<PaintScreen> {
             _saveCanvas(),
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
             _saveCanvas(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyS,
+          meta: true,
+          shift: true,
+        ): () => _saveCanvasAs(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyS,
+          control: true,
+          shift: true,
+        ): () => _saveCanvasAs(),
         const SingleActivator(LogicalKeyboardKey.keyO, meta: true): () =>
             _openCanvas(),
         const SingleActivator(LogicalKeyboardKey.keyO, control: true): () =>
@@ -576,6 +627,7 @@ class _PaintScreenState extends State<PaintScreen> {
                               onNew: () => _clearCanvas(),
                               onOpen: _openCanvas,
                               onSave: () => _saveCanvas(),
+                              onSaveAs: () => _saveCanvasAs(),
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -680,6 +732,7 @@ class _PaintScreenState extends State<PaintScreen> {
           onNew: canNew ? () => _clearCanvas() : null,
           onOpen: _openCanvas,
           onSave: _saveCanvas,
+          onSaveAs: _saveCanvasAs,
         ),
         child: body,
       );

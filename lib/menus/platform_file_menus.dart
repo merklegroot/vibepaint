@@ -6,6 +6,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback? onNew,
   required VoidCallback onOpen,
   required VoidCallback onSave,
+  required VoidCallback onSaveAs,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
     if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
@@ -66,9 +67,17 @@ List<PlatformMenu> buildMacosPlatformMenus({
               onSelected: onOpen,
             ),
             PlatformMenuItem(
-              label: 'Save...',
+              label: 'Save',
               shortcut: platformMenuShortcut(LogicalKeyboardKey.keyS),
               onSelected: onSave,
+            ),
+            PlatformMenuItem(
+              label: 'Save As...',
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyS,
+                shift: true,
+              ),
+              onSelected: onSaveAs,
             ),
           ],
         ),
