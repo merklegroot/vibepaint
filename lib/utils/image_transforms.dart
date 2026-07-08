@@ -109,6 +109,11 @@ Stroke? clipStrokeToRect(Stroke stroke, Rect rect) {
   }
 }
 
+Size documentSizeFromCropRect(Rect rect) {
+  final normalized = Rect.fromPoints(rect.topLeft, rect.bottomRight);
+  return Size(normalized.width, normalized.height);
+}
+
 Offset canvasResizeOffset({
   required Size currentSize,
   required Size newSize,

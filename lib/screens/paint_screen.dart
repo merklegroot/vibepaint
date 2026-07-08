@@ -59,7 +59,7 @@ class _PaintScreenState extends State<PaintScreen>
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
-  Size _canvasSize = Size.zero;
+  Size _documentSize = Size.zero;
   String? _documentPath;
   int _editGeneration = 0;
   int _savedGeneration = 0;
@@ -315,11 +315,11 @@ class _PaintScreenState extends State<PaintScreen>
       _selectionDraft ?? _selection;
 
   void _selectAll() {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
     setState(() {
-      _selection = CanvasSelection.all(_canvasSize);
+      _selection = CanvasSelection.all(_documentSize);
       _selectionDraft = null;
     });
   }
@@ -375,11 +375,11 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _invertSelection() {
-    if (_selection == null || _canvasSize == Size.zero) {
+    if (_selection == null || _documentSize == Size.zero) {
       return;
     }
     setState(() {
-      _selection = _selection!.inverted(_canvasSize);
+      _selection = _selection!.inverted(_documentSize);
     });
     _noteDocumentEdited();
   }
@@ -397,43 +397,49 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   bool get _canCropToSelection =>
-      _selection != null && !_selection!.isEmpty && _canvasSize != Size.zero;
+      _selection != null && !_selection!.isEmpty && _documentSize != Size.zero;
 
   Future<void> _applyCropRect(Rect rect) async {
-    if (_canvasSize == Size.zero || rect.isEmpty) {
+    if (_documentSize == Size.zero || rect.isEmpty) {
       return;
     }
 
+    final currentSize = _documentSize;
+    final newSize = documentSizeFromCropRect(rect);
     setState(() {
       _layerStack.cropContentToRect(rect);
+      _documentSize = newSize;
     });
-    await _layerStack.cropBackgroundToRect(rect, _canvasSize);
+    await _layerStack.cropBackgroundToRect(rect, currentSize);
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _cropToSelection() async {
     final selection = _selection;
-    if (selection == null || selection.isEmpty || _canvasSize == Size.zero) {
+    if (selection == null || selection.isEmpty || _documentSize == Size.zero) {
       return;
     }
 
+    final currentSize = _documentSize;
+    final newSize = documentSizeFromCropRect(selection.bounds);
     setState(() {
       _layerStack.cropContentToSelection(selection);
+      _documentSize = newSize;
     });
-    await _layerStack.cropBackgroundToRect(selection.bounds, _canvasSize);
+    await _layerStack.cropBackgroundToRect(selection.bounds, currentSize);
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _autoCrop() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
     final bounds = contentBounds(
       layers: _layerStack.layers,
-      canvasSize: _canvasSize,
+      canvasSize: _documentSize,
       includeBackground: _layerStack.backgroundImage != null,
     );
     if (bounds == null || bounds.isEmpty) {
@@ -445,7 +451,7 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   Future<void> _resizeImage() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
@@ -453,25 +459,27 @@ class _PaintScreenState extends State<PaintScreen>
       context: context,
       builder: (context) => ResizeDimensionsDialog(
         title: 'Resize Image',
-        initialWidth: _canvasSize.width.ceil(),
-        initialHeight: _canvasSize.height.ceil(),
+        initialWidth: _documentSize.width.ceil(),
+        initialHeight: _documentSize.height.ceil(),
       ),
     );
     if (result == null || !mounted) {
       return;
     }
 
+    final currentSize = _documentSize;
     final newSize = Size(result.width.toDouble(), result.height.toDouble());
     setState(() {
-      _layerStack.resizeImageContent(_canvasSize, newSize);
+      _layerStack.resizeImageContent(currentSize, newSize);
+      _documentSize = newSize;
     });
-    await _layerStack.resizeBackgroundImage(_canvasSize, newSize);
+    await _layerStack.resizeBackgroundImage(currentSize, newSize);
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _resizeCanvas() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
@@ -479,8 +487,8 @@ class _PaintScreenState extends State<PaintScreen>
       context: context,
       builder: (context) => ResizeDimensionsDialog(
         title: 'Resize Canvas',
-        initialWidth: _canvasSize.width.ceil(),
-        initialHeight: _canvasSize.height.ceil(),
+        initialWidth: _documentSize.width.ceil(),
+        initialHeight: _documentSize.height.ceil(),
         showAnchor: true,
       ),
     );
@@ -488,68 +496,78 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    final currentSize = _documentSize;
     final newSize = Size(result.width.toDouble(), result.height.toDouble());
     setState(() {
       _layerStack.resizeCanvasContent(
-        currentSize: _canvasSize,
+        currentSize: currentSize,
         newSize: newSize,
         anchor: result.anchor,
       );
+      _documentSize = newSize;
     });
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _flipHorizontal() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
-    setState(() => _layerStack.flipHorizontal(_canvasSize));
+    setState(() => _layerStack.flipHorizontal(_documentSize));
     await _layerStack.flipBackgroundHorizontal();
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _flipVertical() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
-    setState(() => _layerStack.flipVertical(_canvasSize));
+    setState(() => _layerStack.flipVertical(_documentSize));
     await _layerStack.flipBackgroundVertical();
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _rotate90Clockwise() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
-    setState(() => _layerStack.rotate90Clockwise(_canvasSize));
+    final currentSize = _documentSize;
+    setState(() {
+      _layerStack.rotate90Clockwise(currentSize);
+      _documentSize = Size(currentSize.height, currentSize.width);
+    });
     await _layerStack.rotateBackground90Clockwise();
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _rotate90CounterClockwise() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
-    setState(() => _layerStack.rotate90CounterClockwise(_canvasSize));
+    final currentSize = _documentSize;
+    setState(() {
+      _layerStack.rotate90CounterClockwise(currentSize);
+      _documentSize = Size(currentSize.height, currentSize.width);
+    });
     await _layerStack.rotateBackground90CounterClockwise();
     _deselect();
     _noteDocumentEdited();
   }
 
   Future<void> _rotate180() async {
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return;
     }
 
-    setState(() => _layerStack.rotate180(_canvasSize));
+    setState(() => _layerStack.rotate180(_documentSize));
     await _layerStack.rotateBackground180();
     _deselect();
     _noteDocumentEdited();
@@ -876,12 +894,12 @@ class _PaintScreenState extends State<PaintScreen>
       setState(_commitCurrentStroke);
     }
 
-    if (_canvasSize == Size.zero) {
+    if (_documentSize == Size.zero) {
       return null;
     }
 
     return renderCanvasToBytes(
-      size: _canvasSize,
+      size: _documentSize,
       layers: _layerStack.layers,
       backgroundImage: _layerStack.backgroundImage,
       backgroundColor: _layerStack.backgroundColor,
@@ -989,6 +1007,10 @@ class _PaintScreenState extends State<PaintScreen>
       setState(() {
         _layerStack.clear();
         _layerStack.setBackgroundImage(picked.image);
+        _documentSize = Size(
+          picked.image.width.toDouble(),
+          picked.image.height.toDouble(),
+        );
         _currentStroke = null;
         _lastPanPosition = null;
       });
@@ -1475,15 +1497,35 @@ class _PaintScreenState extends State<PaintScreen>
                                   Expanded(
                                     child: LayoutBuilder(
                                       builder: (context, constraints) {
-                                        final size = Size(
+                                        final viewportSize = Size(
                                           constraints.maxWidth,
                                           constraints.maxHeight,
                                         );
-                                        _canvasSize = size;
-                                        final bounds = Offset.zero & size;
+                                        if (_documentSize == Size.zero &&
+                                            viewportSize != Size.zero) {
+                                          WidgetsBinding.instance
+                                              .addPostFrameCallback((_) {
+                                            if (mounted &&
+                                                _documentSize == Size.zero) {
+                                              setState(
+                                                () => _documentSize =
+                                                    viewportSize,
+                                              );
+                                            }
+                                          });
+                                          return const SizedBox.expand();
+                                        }
 
-                                        return ClipRect(
-                                          child: MouseRegion(
+                                        final canvasSize = _documentSize;
+                                        final bounds = Offset.zero & canvasSize;
+
+                                        return Align(
+                                          alignment: Alignment.topLeft,
+                                          child: SizedBox(
+                                            width: canvasSize.width,
+                                            height: canvasSize.height,
+                                            child: ClipRect(
+                                              child: MouseRegion(
                                             cursor: _canvasCursor,
                                             onHover: (event) => _updateCanvasCursor(
                                               event.localPosition,
@@ -1543,6 +1585,8 @@ class _PaintScreenState extends State<PaintScreen>
                                                 child: const SizedBox.expand(),
                                               ),
                                             ),
+                                          ),
+                                        ),
                                           ),
                                         ),
                                         );
