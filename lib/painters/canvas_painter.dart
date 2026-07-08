@@ -5,6 +5,7 @@ import 'package:vibepaint/models/layer_blend_mode.dart';
 import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
+import 'package:vibepaint/theme/color_wells.dart';
 
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
@@ -12,12 +13,14 @@ class CanvasPainter extends CustomPainter {
     required this.activeLayerIndex,
     this.currentStroke,
     this.backgroundImage,
+    this.backgroundColor = defaultCanvasBackground,
   });
 
   final List<PaintLayer> layers;
   final int activeLayerIndex;
   final Stroke? currentStroke;
   final ui.Image? backgroundImage;
+  final Color backgroundColor;
 
   static void paintCanvas({
     required Canvas canvas,
@@ -26,8 +29,44 @@ class CanvasPainter extends CustomPainter {
     required int activeLayerIndex,
     Stroke? currentStroke,
     ui.Image? backgroundImage,
+    Color backgroundColor = defaultCanvasBackground,
   }) {
     final bounds = Offset.zero & size;
+
+    _paintDocumentBackground(
+      canvas: canvas,
+      bounds: bounds,
+      backgroundColor: backgroundColor,
+      backgroundImage: backgroundImage,
+    );
+
+    for (var i = 0; i < layers.length; i++) {
+      _paintLayer(
+        canvas: canvas,
+        bounds: bounds,
+        layer: layers[i],
+        currentStroke: i == activeLayerIndex ? currentStroke : null,
+      );
+    }
+  }
+
+  static void _paintDocumentBackground({
+    required Canvas canvas,
+    required Rect bounds,
+    required Color backgroundColor,
+    ui.Image? backgroundImage,
+  }) {
+    if (isTransparentCanvasBackground(backgroundColor) &&
+        backgroundImage == null) {
+      _paintCheckerboard(canvas, bounds);
+      return;
+    }
+
+    if (!isTransparentCanvasBackground(backgroundColor)) {
+      canvas.drawRect(bounds, Paint()..color = backgroundColor);
+    } else {
+      _paintCheckerboard(canvas, bounds);
+    }
 
     if (backgroundImage != null) {
       canvas.drawImageRect(
@@ -41,18 +80,30 @@ class CanvasPainter extends CustomPainter {
         bounds,
         Paint(),
       );
-    } else {
-      canvas.drawRect(bounds, Paint()..color = Colors.white);
+    }
+  }
+
+  static void _paintCheckerboard(Canvas canvas, Rect bounds) {
+    const cellSize = 10.0;
+    const light = Color(0xFFCCCCCC);
+    const dark = Color(0xFF999999);
+
+    canvas.save();
+    canvas.clipRect(bounds);
+
+    for (var y = bounds.top; y < bounds.bottom; y += cellSize) {
+      for (var x = bounds.left; x < bounds.right; x += cellSize) {
+        final row = ((y - bounds.top) / cellSize).floor();
+        final col = ((x - bounds.left) / cellSize).floor();
+        final color = (row + col).isEven ? light : dark;
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, cellSize, cellSize),
+          Paint()..color = color,
+        );
+      }
     }
 
-    for (var i = 0; i < layers.length; i++) {
-      _paintLayer(
-        canvas: canvas,
-        bounds: bounds,
-        layer: layers[i],
-        currentStroke: i == activeLayerIndex ? currentStroke : null,
-      );
-    }
+    canvas.restore();
   }
 
   static void _paintLayer({
@@ -172,12 +223,17 @@ class CanvasPainter extends CustomPainter {
       activeLayerIndex: activeLayerIndex,
       currentStroke: currentStroke,
       backgroundImage: backgroundImage,
+      backgroundColor: backgroundColor,
     );
   }
 
   @override
   bool shouldRepaint(covariant CanvasPainter oldDelegate) {
     if (oldDelegate.backgroundImage != backgroundImage) {
+      return true;
+    }
+
+    if (oldDelegate.backgroundColor != backgroundColor) {
       return true;
     }
 

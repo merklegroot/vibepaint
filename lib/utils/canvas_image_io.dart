@@ -6,11 +6,13 @@ import 'package:image/image.dart' as img;
 import 'package:vibepaint/models/image_file_format.dart';
 import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
+import 'package:vibepaint/theme/color_wells.dart';
 
 Future<ui.Image> renderCanvasToUiImage({
   required Size size,
   required List<PaintLayer> layers,
   ui.Image? backgroundImage,
+  Color backgroundColor = defaultCanvasBackground,
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -21,6 +23,7 @@ Future<ui.Image> renderCanvasToUiImage({
     layers: layers,
     activeLayerIndex: 0,
     backgroundImage: backgroundImage,
+    backgroundColor: backgroundColor,
   );
 
   final picture = recorder.endRecording();
@@ -65,12 +68,14 @@ Future<Uint8List> renderCanvasToBytes({
   required Size size,
   required List<PaintLayer> layers,
   ui.Image? backgroundImage,
+  Color backgroundColor = defaultCanvasBackground,
   ImageFileFormat format = ImageFileFormat.png,
 }) async {
   final uiImage = await renderCanvasToUiImage(
     size: size,
     layers: layers,
     backgroundImage: backgroundImage,
+    backgroundColor: backgroundColor,
   );
 
   try {

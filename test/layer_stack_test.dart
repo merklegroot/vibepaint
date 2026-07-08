@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vibepaint/models/layer_blend_mode.dart';
 import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/theme/color_wells.dart';
 
 void main() {
   test('starts with one layer and empty history', () {
@@ -130,6 +131,23 @@ void main() {
     expect(stack.layers.first.name, 'Background');
     expect(stack.layers.first.history.strokes, isEmpty);
     expect(stack.backgroundImage, isNull);
+    expect(stack.backgroundColor, defaultCanvasBackground);
     expect(stack.hasContent, isFalse);
+  });
+
+  test('clear resets background color to white', () {
+    final stack = LayerStack();
+    stack.setBackgroundColor(Colors.red);
+
+    stack.clear();
+
+    expect(stack.backgroundColor, defaultCanvasBackground);
+  });
+
+  test('hasContent is true when only background color changed', () {
+    final stack = LayerStack();
+    stack.setBackgroundColor(Colors.red);
+
+    expect(stack.hasContent, isTrue);
   });
 }

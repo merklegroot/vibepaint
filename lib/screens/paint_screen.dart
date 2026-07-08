@@ -8,6 +8,7 @@ import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/theme/color_wells.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
@@ -17,6 +18,7 @@ import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
+import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
@@ -51,6 +53,7 @@ class _PaintScreenState extends State<PaintScreen> {
   String? _documentPath;
   int _editGeneration = 0;
   int _savedGeneration = 0;
+  ColorWellTarget _colorTarget = ColorWellTarget.primary;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
@@ -149,9 +152,14 @@ class _PaintScreenState extends State<PaintScreen> {
 
   bool get _isErasing => _activeTool == PaintTool.eraser;
 
-  String get _primaryHex {
-    final value = _primaryColor.toARGB32() & 0xFFFFFF;
-    return '#${value.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  String get _colorStatusLabel {
+    if (_isErasing) {
+      return 'Eraser';
+    }
+    if (_colorTarget == ColorWellTarget.canvasBackground) {
+      return 'Canvas ${colorWellHex(_layerStack.backgroundColor)}';
+    }
+    return colorWellHex(_primaryColor);
   }
 
   String get _statusHint {
@@ -245,37 +253,18 @@ class _PaintScreenState extends State<PaintScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final backgroundColor = await showDialog<Color>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.palettePanel,
-        title: const Text(
-          'New image?',
-          style: TextStyle(color: AppColors.statusText),
-        ),
-        content: const Text(
-          'Discard the current canvas? This cannot be undone.',
-          style: TextStyle(color: AppColors.paletteLabel),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('New'),
-          ),
-        ],
-      ),
+      builder: (context) => const NewImageDialog(),
     );
 
-    if (confirmed != true || !mounted) {
+    if (backgroundColor == null || !mounted) {
       return;
     }
 
     setState(() {
       _layerStack.clear();
+      _layerStack.setBackgroundColor(backgroundColor);
       _currentStroke = null;
       _lastPanPosition = null;
     });
@@ -295,6 +284,7 @@ class _PaintScreenState extends State<PaintScreen> {
       size: _canvasSize,
       layers: _layerStack.layers,
       backgroundImage: _layerStack.backgroundImage,
+      backgroundColor: _layerStack.backgroundColor,
       format: format,
     );
   }
@@ -643,7 +633,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canNew = _layerStack.hasContent || _currentStroke != null;
+    final canNew = true;
 
     final body = CallbackShortcuts(
         bindings: {
@@ -790,6 +780,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 currentStroke: _currentStroke,
                                                 backgroundImage:
                                                     _layerStack.backgroundImage,
+                                                backgroundColor:
+                                                    _layerStack.backgroundColor,
                                               ),
                                               child: const SizedBox.expand(),
                                             ),
@@ -876,9 +868,20 @@ class _PaintScreenState extends State<PaintScreen> {
                                 ignoring: _activeTool == PaintTool.eraser,
                                 child: ColorPalettePanel(
                                   selectedIndex: _selectedColorIndex,
-                                  onSelected: (index) {
+                                  canvasBackgroundColor:
+                                      _layerStack.backgroundColor,
+                                  colorTarget: _colorTarget,
+                                  onColorTargetChanged: (target) {
+                                    setState(() => _colorTarget = target);
+                                  },
+                                  onPrimarySelected: (index) {
+                                    setState(() => _selectedColorIndex = index);
+                                  },
+                                  onCanvasBackgroundChanged: (color) {
                                     setState(
-                                        () => _selectedColorIndex = index);
+                                      () => _layerStack.setBackgroundColor(color),
+                                    );
+                                    _noteDocumentEdited();
                                   },
                                 ),
                               ),
@@ -896,7 +899,7 @@ class _PaintScreenState extends State<PaintScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_isErasing ? 'Eraser' : _primaryHex}  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  $_colorStatusLabel  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(
@@ -914,7 +917,7 @@ class _PaintScreenState extends State<PaintScreen> {
     if (usePlatformFileMenu) {
       return PlatformMenuBar(
         menus: buildMacosPlatformMenus(
-          onNew: canNew ? () => _clearCanvas() : null,
+          onNew: _clearCanvas,
           onOpen: _openCanvas,
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,

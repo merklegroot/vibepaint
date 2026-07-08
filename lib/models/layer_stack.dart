@@ -1,9 +1,11 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart';
 import 'package:vibepaint/models/layer_blend_mode.dart';
 import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/models/stroke_history.dart';
+import 'package:vibepaint/theme/color_wells.dart';
 
 class LayerStack {
   LayerStack({Iterable<Stroke>? initialStrokes}) {
@@ -18,6 +20,7 @@ class LayerStack {
   final List<PaintLayer> _layers = [];
   int _activeIndex = 0;
   ui.Image? _backgroundImage;
+  Color _backgroundColor = defaultCanvasBackground;
 
   List<PaintLayer> get layers => List<PaintLayer>.unmodifiable(_layers);
 
@@ -29,12 +32,15 @@ class LayerStack {
 
   ui.Image? get backgroundImage => _backgroundImage;
 
+  Color get backgroundColor => _backgroundColor;
+
   bool get canUndo => activeHistory.canUndo;
 
   bool get canRedo => activeHistory.canRedo;
 
   bool get hasContent =>
       _backgroundImage != null ||
+      _backgroundColor != defaultCanvasBackground ||
       _layers.any((layer) => layer.history.canUndo);
 
   bool get canDeleteLayer => _layers.length > 1;
@@ -48,6 +54,10 @@ class LayerStack {
   void setBackgroundImage(ui.Image? image) {
     _backgroundImage?.dispose();
     _backgroundImage = image;
+  }
+
+  void setBackgroundColor(Color color) {
+    _backgroundColor = color;
   }
 
   void setActiveLayer(int index) {
@@ -178,6 +188,7 @@ class LayerStack {
     }
     _backgroundImage?.dispose();
     _backgroundImage = null;
+    _backgroundColor = defaultCanvasBackground;
     _layers
       ..clear()
       ..add(PaintLayer(name: 'Background'));

@@ -11,7 +11,8 @@ A vibe coded paint app.
 - **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
-- **Color palette** — primary swatch and 12 preset colors (below the canvas)
+- **Canvas background** — separate from layers; choose via the Canvas color well or when creating a new image (includes transparent)
+- **Color wells** — Primary for painting, Canvas for the document background (click a well, then pick a preset color)
 - **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
 - **Layers** — stack transparent layers (top of list = front), show/hide, reorder, opacity, blend modes, duplicate, merge down, and rename; eraser clears pixels on the active layer
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
