@@ -4,12 +4,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:vibepaint/models/image_file_format.dart';
-import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 
 Future<ui.Image> renderCanvasToUiImage({
   required Size size,
-  required List<Stroke> strokes,
+  required List<PaintLayer> layers,
   ui.Image? backgroundImage,
 }) async {
   final recorder = ui.PictureRecorder();
@@ -18,7 +18,7 @@ Future<ui.Image> renderCanvasToUiImage({
   CanvasPainter.paintCanvas(
     canvas: canvas,
     size: size,
-    strokes: strokes,
+    layers: layers,
     backgroundImage: backgroundImage,
   );
 
@@ -62,13 +62,13 @@ Uint8List encodeRasterImage(
 
 Future<Uint8List> renderCanvasToBytes({
   required Size size,
-  required List<Stroke> strokes,
+  required List<PaintLayer> layers,
   ui.Image? backgroundImage,
   ImageFileFormat format = ImageFileFormat.png,
 }) async {
   final uiImage = await renderCanvasToUiImage(
     size: size,
-    strokes: strokes,
+    layers: layers,
     backgroundImage: backgroundImage,
   );
 

@@ -1,13 +1,11 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_file_menus.dart';
+import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
-import 'package:vibepaint/models/stroke_history.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
@@ -18,6 +16,7 @@ import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
+import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
@@ -41,9 +40,8 @@ class PaintScreen extends StatefulWidget {
 }
 
 class _PaintScreenState extends State<PaintScreen> {
-  late final StrokeHistory _history;
+  late final LayerStack _layerStack;
   Stroke? _currentStroke;
-  ui.Image? _backgroundImage;
   Offset? _lastPanPosition;
   late int _selectedColorIndex;
   double _brushSize = 6;
@@ -63,7 +61,7 @@ class _PaintScreenState extends State<PaintScreen> {
   @override
   void initState() {
     super.initState();
-    _history = StrokeHistory(widget.initialStrokes);
+    _layerStack = LayerStack(initialStrokes: widget.initialStrokes);
     _selectedColorIndex = widget.initialColorIndex;
     _activeTool = widget.initialTool;
     _shapeStyle = widget.initialShapeStyle;
@@ -101,7 +99,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   void dispose() {
-    _backgroundImage?.dispose();
+    _layerStack.dispose();
     super.dispose();
   }
 
@@ -177,33 +175,31 @@ class _PaintScreenState extends State<PaintScreen> {
       return;
     }
 
-    _history.add(_currentStroke!);
+    _layerStack.activeHistory.add(_currentStroke!);
     _currentStroke = null;
     _noteDocumentEdited();
   }
 
   void _undo() {
-    if (!_history.canUndo) {
+    if (!_layerStack.canUndo) {
       return;
     }
 
-    setState(_history.undo);
+    setState(_layerStack.activeHistory.undo);
     _noteDocumentEdited();
   }
 
   void _redo() {
-    if (!_history.canRedo) {
+    if (!_layerStack.canRedo) {
       return;
     }
 
-    setState(_history.redo);
+    setState(_layerStack.activeHistory.redo);
     _noteDocumentEdited();
   }
 
   Future<void> _clearCanvas() async {
-    if (!_history.canUndo &&
-        _currentStroke == null &&
-        _backgroundImage == null) {
+    if (!_layerStack.hasContent && _currentStroke == null) {
       return;
     }
 
@@ -237,11 +233,9 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     setState(() {
-      _history.clear();
+      _layerStack.clear();
       _currentStroke = null;
       _lastPanPosition = null;
-      _backgroundImage?.dispose();
-      _backgroundImage = null;
     });
     _resetDocumentTracking();
   }
@@ -257,8 +251,8 @@ class _PaintScreenState extends State<PaintScreen> {
 
     return renderCanvasToBytes(
       size: _canvasSize,
-      strokes: _history.strokes,
-      backgroundImage: _backgroundImage,
+      layers: _layerStack.layers,
+      backgroundImage: _layerStack.backgroundImage,
       format: format,
     );
   }
@@ -361,11 +355,10 @@ class _PaintScreenState extends State<PaintScreen> {
       }
 
       setState(() {
-        _history.clear();
+        _layerStack.clear();
+        _layerStack.setBackgroundImage(picked.image);
         _currentStroke = null;
         _lastPanPosition = null;
-        _backgroundImage?.dispose();
-        _backgroundImage = picked.image;
       });
       _resetDocumentTracking(path: picked.path);
       _showMessage('Opened ${picked.path}');
@@ -605,9 +598,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canNew = _history.canUndo ||
-        _currentStroke != null ||
-        _backgroundImage != null;
+    final canNew = _layerStack.hasContent || _currentStroke != null;
 
     final body = CallbackShortcuts(
         bindings: {
@@ -714,45 +705,80 @@ class _PaintScreenState extends State<PaintScreen> {
                                           setState(() => _shapeStyle = style);
                                         }
                                       : null,
-                              canUndo: _history.canUndo,
-                              canRedo: _history.canRedo,
+                              canUndo: _layerStack.canUndo,
+                              canRedo: _layerStack.canRedo,
                               onUndo: _undo,
                               onRedo: _redo,
                             ),
                             Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final size = Size(
-                                    constraints.maxWidth,
-                                    constraints.maxHeight,
-                                  );
-                                  _canvasSize = size;
-                                  final bounds = Offset.zero & size;
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final size = Size(
+                                          constraints.maxWidth,
+                                          constraints.maxHeight,
+                                        );
+                                        _canvasSize = size;
+                                        final bounds = Offset.zero & size;
 
-                                  return ClipRect(
-                                    child: GestureDetector(
-                                      onPanStart: (details) => _beginPan(
-                                        details.localPosition,
-                                        bounds,
-                                      ),
-                                      onPanUpdate: (details) =>
-                                          _extendStroke(
-                                        details.localPosition,
-                                        bounds,
-                                      ),
-                                      onPanEnd: (_) => _endStroke(),
-                                      onPanCancel: () => _endStroke(),
-                                      child: CustomPaint(
-                                        painter: CanvasPainter(
-                                          strokes: _history.strokes,
-                                          currentStroke: _currentStroke,
-                                          backgroundImage: _backgroundImage,
-                                        ),
-                                        child: const SizedBox.expand(),
-                                      ),
+                                        return ClipRect(
+                                          child: GestureDetector(
+                                            onPanStart: (details) => _beginPan(
+                                              details.localPosition,
+                                              bounds,
+                                            ),
+                                            onPanUpdate: (details) =>
+                                                _extendStroke(
+                                              details.localPosition,
+                                              bounds,
+                                            ),
+                                            onPanEnd: (_) => _endStroke(),
+                                            onPanCancel: () => _endStroke(),
+                                            child: CustomPaint(
+                                              painter: CanvasPainter(
+                                                layers: _layerStack.layers,
+                                                currentStroke: _currentStroke,
+                                                backgroundImage:
+                                                    _layerStack.backgroundImage,
+                                              ),
+                                              child: const SizedBox.expand(),
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
+                                  ),
+                                  LayersPanel(
+                                    layers: _layerStack.layers,
+                                    activeIndex: _layerStack.activeIndex,
+                                    canDeleteLayer:
+                                        _layerStack.canDeleteActiveLayer,
+                                    onLayerSelected: (index) {
+                                      setState(
+                                        () => _layerStack.setActiveLayer(index),
+                                      );
+                                    },
+                                    onToggleVisibility: (index) {
+                                      setState(
+                                        () => _layerStack.toggleVisibility(index),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                    onAddLayer: () {
+                                      setState(_layerStack.addLayer);
+                                      _noteDocumentEdited();
+                                    },
+                                    onDeleteLayer: (index) {
+                                      setState(
+                                        () => _layerStack.deleteLayer(index),
+                                      );
+                                      _noteDocumentEdited();
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                             Opacity(
@@ -782,7 +808,7 @@ class _PaintScreenState extends State<PaintScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  $_statusHint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_activeTool == PaintTool.eraser ? 'White' : _primaryHex}  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(

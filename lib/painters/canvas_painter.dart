@@ -1,24 +1,25 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
-    required this.strokes,
+    required this.layers,
     this.currentStroke,
     this.backgroundImage,
   });
 
-  final List<Stroke> strokes;
+  final List<PaintLayer> layers;
   final Stroke? currentStroke;
   final ui.Image? backgroundImage;
 
   static void paintCanvas({
     required Canvas canvas,
     required Size size,
-    required List<Stroke> strokes,
+    required List<PaintLayer> layers,
     Stroke? currentStroke,
     ui.Image? backgroundImage,
   }) {
@@ -38,8 +39,14 @@ class CanvasPainter extends CustomPainter {
       canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
     }
 
-    for (final stroke in strokes) {
-      _paintStroke(canvas, stroke);
+    for (final layer in layers) {
+      if (!layer.visible) {
+        continue;
+      }
+
+      for (final stroke in layer.history.strokes) {
+        _paintStroke(canvas, stroke);
+      }
     }
 
     if (currentStroke != null) {
@@ -128,7 +135,7 @@ class CanvasPainter extends CustomPainter {
     paintCanvas(
       canvas: canvas,
       size: size,
-      strokes: strokes,
+      layers: layers,
       currentStroke: currentStroke,
       backgroundImage: backgroundImage,
     );
@@ -140,8 +147,19 @@ class CanvasPainter extends CustomPainter {
       return true;
     }
 
-    if (oldDelegate.strokes.length != strokes.length) {
+    if (oldDelegate.layers.length != layers.length) {
       return true;
+    }
+
+    for (var i = 0; i < layers.length; i++) {
+      final oldLayer = oldDelegate.layers[i];
+      final newLayer = layers[i];
+      if (oldLayer.visible != newLayer.visible) {
+        return true;
+      }
+      if (oldLayer.history.strokes.length != newLayer.history.strokes.length) {
+        return true;
+      }
     }
 
     final oldCurrent = oldDelegate.currentStroke;

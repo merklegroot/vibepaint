@@ -12,7 +12,8 @@ A vibe coded paint app.
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
-- **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
+- **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
+- **Layers** — stack layers, show/hide, add/delete, and draw on the selected layer
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
 - **Image formats** — Save As supports PNG, JPEG, BMP, GIF, and WebP; macOS uses the system save panel format menu
 - **Document title** — filename in the window title; `*` prefix when there are unsaved changes
@@ -31,7 +32,7 @@ Rough order of obvious next steps:
 - [ ] **More tools** — fill bucket (line, rectangle & ellipse done)
 - [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases
-- [ ] **Layers** — stack and edit images independently
+- [x] **Layers** — stack and edit images independently
 
 ## Run
 
