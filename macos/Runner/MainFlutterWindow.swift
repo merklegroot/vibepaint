@@ -9,6 +9,9 @@ class MainFlutterWindow: NSWindow {
     self.center()
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    NativeSaveDialogPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "NativeSaveDialogPlugin")
+    )
 
     super.awakeFromNib()
   }

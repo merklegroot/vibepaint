@@ -14,6 +14,7 @@ A vibe coded paint app.
 - **Color palette** — primary swatch and 12 preset colors (below the canvas)
 - **Undo & redo** — step through stroke history (toolbar buttons or ⌘Z / ⌘⇧Z)
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
+- **Image formats** — Save As supports PNG, JPEG, BMP, GIF, and WebP; macOS uses the system save panel format menu
 - **Document title** — filename in the window title; `*` prefix when there are unsaved changes
 - **Desktop** — macOS, Windows, and Linux
 

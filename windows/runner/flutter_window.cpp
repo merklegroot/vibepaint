@@ -1,8 +1,13 @@
 #include "flutter_window.h"
 
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
+
+#include <memory>
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "native_save_dialog.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -27,6 +32,46 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  native_save_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "vibepaint/native_save_dialog",
+          &flutter::StandardMethodCodec::GetInstance());
+  native_save_channel_->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        if (call.method_name() != "showSaveDialog") {
+          result->NotImplemented();
+          return;
+        }
+
+        const auto* args =
+            std::get_if<flutter::EncodableMap>(call.arguments());
+        if (args == nullptr) {
+          result->Error("invalid_arguments", "Expected argument map");
+          return;
+        }
+
+        auto read_string = [&](const char* key) -> std::string {
+          const auto it = args->find(flutter::EncodableValue(key));
+          if (it == args->end()) {
+            return std::string();
+          }
+          const auto* value = std::get_if<std::string>(&it->second);
+          return value == nullptr ? std::string() : *value;
+        };
+
+        const auto path = ShowNativeSaveDialog(
+            read_string("fileName"),
+            read_string("initialDirectory"),
+            read_string("dialogTitle"));
+        if (path.has_value()) {
+          result->Success(path.value());
+        } else {
+          result->Success();
+        }
+      });
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +85,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  native_save_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

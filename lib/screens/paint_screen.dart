@@ -19,6 +19,7 @@ import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
+import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
@@ -245,7 +246,7 @@ class _PaintScreenState extends State<PaintScreen> {
     _resetDocumentTracking();
   }
 
-  Future<Uint8List?> _renderCanvasBytes() async {
+  Future<Uint8List?> _renderCanvasBytes(ImageFileFormat format) async {
     if (_currentStroke != null) {
       setState(_commitCurrentStroke);
     }
@@ -254,10 +255,11 @@ class _PaintScreenState extends State<PaintScreen> {
       return null;
     }
 
-    return renderCanvasToPng(
+    return renderCanvasToBytes(
       size: _canvasSize,
       strokes: _history.strokes,
       backgroundImage: _backgroundImage,
+      format: format,
     );
   }
 
@@ -272,15 +274,42 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Future<void> _saveCanvasAs() async {
     try {
-      final bytes = await _renderCanvasBytes();
-      if (bytes == null || !mounted) {
-        return;
+      final initialFormat =
+          imageFormatFromPath(_documentPath ?? '') ?? ImageFileFormat.png;
+      final defaultName = defaultSaveFileName(
+        documentPath: _documentPath,
+        format: initialFormat,
+      );
+
+      String? path;
+      if (useNativeSaveFormatPicker) {
+        path = await saveImageViaNativeDialog(
+          fileName: defaultName,
+          initialDirectory: parentDirectoryPath(_documentPath),
+          encode: _renderCanvasBytes,
+        );
+      } else {
+        if (!mounted) {
+          return;
+        }
+        final request = await showSaveImageDialog(
+          context,
+          documentPath: _documentPath,
+          initialFormat: initialFormat,
+        );
+        if (request == null || !mounted) {
+          return;
+        }
+
+        final bytes = await _renderCanvasBytes(request.format);
+        if (bytes == null || !mounted) {
+          return;
+        }
+
+        await writeImageFile(request.path, bytes);
+        path = request.path;
       }
 
-      final defaultName = _documentPath != null
-          ? fileNameFromPath(_documentPath!)
-          : defaultPngFileName;
-      final path = await savePngFile(bytes, fileName: defaultName);
       if (!mounted || path == null) {
         return;
       }
@@ -297,12 +326,13 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Future<void> _saveToPath(String path) async {
     try {
-      final bytes = await _renderCanvasBytes();
+      final format = imageFormatFromPath(path) ?? ImageFileFormat.png;
+      final bytes = await _renderCanvasBytes(format);
       if (bytes == null || !mounted) {
         return;
       }
 
-      await writePngFile(path, bytes);
+      await writeImageFile(path, bytes);
       if (mounted) {
         _noteDocumentSaved();
         _showMessage('Saved $path');
@@ -325,7 +355,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Future<void> _openCanvas() async {
     try {
-      final picked = await pickPngImage();
+      final picked = await pickImageFile();
       if (!mounted || picked == null) {
         return;
       }

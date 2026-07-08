@@ -3,14 +3,16 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:vibepaint/models/image_file_format.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
+import 'package:vibepaint/utils/native_save_dialog.dart';
 
-const defaultPngFileName = 'Untitled.png';
+export 'package:vibepaint/models/image_file_format.dart';
 
-Future<({ui.Image image, String path})?> pickPngImage() async {
+Future<({ui.Image image, String path})?> pickImageFile() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
-    allowedExtensions: ['png'],
+    allowedExtensions: openImageExtensions,
     withData: true,
   );
 
@@ -25,40 +27,54 @@ Future<({ui.Image image, String path})?> pickPngImage() async {
   }
 
   final bytes = file.bytes ?? await File(path).readAsBytes();
-  final image = await decodePngBytes(bytes);
+  final image = await decodeImageBytes(bytes);
   return (image: image, path: path);
 }
 
-Future<String?> savePngFile(
-  Uint8List bytes, {
-  String fileName = defaultPngFileName,
+Future<String?> promptSaveImagePath({
+  String fileName = defaultImageFileName,
+  String? initialDirectory,
 }) async {
-  final path = await FilePicker.platform.saveFile(
-    fileName: fileName,
-    type: FileType.custom,
-    allowedExtensions: ['png'],
-  );
+  if (supportsNativeSaveFormatPicker) {
+    return showNativeSaveDialog(
+      fileName: fileNameStemFromPath(fileName),
+      initialDirectory: initialDirectory,
+    );
+  }
 
-  if (path == null) {
+  return FilePicker.platform.saveFile(
+    dialogTitle: 'Save As',
+    fileName: fileName,
+    initialDirectory: initialDirectory,
+    type: FileType.custom,
+    allowedExtensions: saveImageExtensions,
+  );
+}
+
+Future<String?> saveImageViaNativeDialog({
+  required String fileName,
+  required Future<Uint8List?> Function(ImageFileFormat format) encode,
+  String? initialDirectory,
+}) async {
+  final pickedPath = await promptSaveImagePath(
+    fileName: fileName,
+    initialDirectory: initialDirectory,
+  );
+  if (pickedPath == null) {
     return null;
   }
 
-  await writePngFile(path, bytes);
-  return normalizePngPath(path);
-}
-
-Future<void> writePngFile(String path, Uint8List bytes) async {
-  await File(normalizePngPath(path)).writeAsBytes(bytes);
-}
-
-String normalizePngPath(String path) {
-  return path.toLowerCase().endsWith('.png') ? path : '$path.png';
-}
-
-String fileNameFromPath(String path) {
-  final separator = path.lastIndexOf(Platform.pathSeparator);
-  if (separator == -1) {
-    return path;
+  final format = imageFormatFromPath(pickedPath) ?? ImageFileFormat.png;
+  final path = normalizeImagePath(pickedPath, format);
+  final bytes = await encode(format);
+  if (bytes == null) {
+    return null;
   }
-  return path.substring(separator + 1);
+
+  await writeImageFile(path, bytes);
+  return path;
+}
+
+Future<void> writeImageFile(String path, Uint8List bytes) async {
+  await File(path).writeAsBytes(bytes);
 }
