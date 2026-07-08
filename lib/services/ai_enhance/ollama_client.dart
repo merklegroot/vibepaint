@@ -448,10 +448,15 @@ class OllamaClient {
         .timeout(const Duration(minutes: 5));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final explained = explainOllamaHttpError(
+        statusCode: response.statusCode,
+        body: response.body,
+        operation: 'generate',
+      );
       throw AiEnhanceException(
         'api_error',
-        'Ollama request failed (${response.statusCode}).',
-        details: response.body,
+        explained.message,
+        details: explained.details,
       );
     }
 
@@ -483,10 +488,15 @@ class OllamaClient {
         .timeout(const Duration(minutes: 5));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final explained = explainOllamaHttpError(
+        statusCode: response.statusCode,
+        body: response.body,
+        operation: 'chat',
+      );
       throw AiEnhanceException(
         'api_error',
-        'Ollama chat request failed (${response.statusCode}).',
-        details: response.body,
+        explained.message,
+        details: explained.details,
       );
     }
 

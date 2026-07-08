@@ -113,3 +113,59 @@ bool ollamaModelNamesMatch(String available, String target) {
 bool ollamaHasModel(Iterable<String> available, String target) {
   return available.any((name) => ollamaModelNamesMatch(name, target));
 }
+
+/// Parses the `error` field from an Ollama HTTP error body.
+String? parseOllamaErrorMessage(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) {
+      return null;
+    }
+    final error = decoded['error']?.toString().trim();
+    if (error == null || error.isEmpty) {
+      return null;
+    }
+    return error;
+  } on FormatException {
+    return null;
+  }
+}
+
+/// User-facing message and optional details for a failed Ollama HTTP call.
+({String message, String? details}) explainOllamaHttpError({
+  required int statusCode,
+  required String body,
+  String operation = 'request',
+}) {
+  final serverError = parseOllamaErrorMessage(body);
+  final trimmedBody = body.trim();
+
+  if (serverError != null &&
+      serverError.contains('llama-server binary not found')) {
+    return (
+      message: 'Remote Ollama install is broken (llama-server missing).',
+      details:
+          'The Windows Ollama server cannot run models because '
+          'llama-server.exe is missing. This is a server install issue, '
+          'not a VibePaint bug.\n\n'
+          'On the Windows machine:\n'
+          '1. Quit Ollama from the system tray\n'
+          '2. Reinstall from https://ollama.com/download/windows\n'
+          '3. Run: ollama pull moondream\n'
+          '4. Test: ollama run moondream "hello"\n\n'
+          'Server reported:\n$serverError',
+    );
+  }
+
+  if (serverError != null) {
+    return (
+      message: serverError,
+      details: 'HTTP $statusCode during Ollama $operation.',
+    );
+  }
+
+  return (
+    message: 'Ollama $operation failed (HTTP $statusCode).',
+    details: trimmedBody.isEmpty ? null : trimmedBody,
+  );
+}

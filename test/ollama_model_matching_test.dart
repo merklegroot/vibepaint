@@ -110,4 +110,36 @@ void main() {
       isTrue,
     );
   });
+
+  group('explainOllamaHttpError', () {
+    test('explains missing llama-server on Windows', () {
+      const body = r'''
+{"error":"error starting llama-server: llama-server binary not found (checked: C:\\Users\\doug\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\llama-server.exe)"}
+''';
+
+      final explained = explainOllamaHttpError(
+        statusCode: 500,
+        body: body,
+        operation: 'generate',
+      );
+
+      expect(
+        explained.message,
+        contains('llama-server missing'),
+      );
+      expect(explained.details, contains('Windows'));
+      expect(explained.details, contains('ollama.com/download/windows'));
+    });
+
+    test('uses server error field as message', () {
+      const body = '{"error":"model not found"}';
+
+      final explained = explainOllamaHttpError(
+        statusCode: 404,
+        body: body,
+      );
+
+      expect(explained.message, 'model not found');
+    });
+  });
 }
