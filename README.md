@@ -41,6 +41,7 @@ A vibe coded paint app.
 
 ### Platform
 - **Desktop** — macOS, Windows, and Linux
+- **Android (basic)** — touch drawing with a trimmed tool set (brush, pencil, eraser, line, fill, eyedropper); no layers panel, selection tools, text, magic wand, image menu, or AI Enhance
 - **macOS native menus** — File, Edit, and Image live in the system menu bar with standard keyboard shortcuts
 - **Keyboard shortcuts** — undo/redo, zoom (⌘+/- / ⌘0 / ⌘1 on Mac), tools, and document commands; see menus for the full list
 
@@ -144,8 +145,11 @@ git push origin v0.1.0
 | macOS | `VibePaint-<version>-macos.dmg` (drag into Applications) and `VibePaint-<version>-macos.app.zip` |
 | Windows | `VibePaint-<version>-win-x64.zip` |
 | Linux | `VibePaint-<version>-linux-x64.tar.gz` |
+| Android | `VibePaint-<version>-android.apk` (basic mobile build; sideload or install from release assets) |
 
-No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**.
+Pushes to `master` also upload a **`VibePaint-android-apk`** artifact from CI (Actions → latest workflow run → Artifacts) for quick testing without cutting a release.
+
+No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**. Android APKs are debug-signed for now (fine for sideloading; not Play Store ready).
 
 ## License
 

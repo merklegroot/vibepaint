@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:vibepaint/utils/platform_features.dart';
 
 /// Returns whether a pointer event should start or continue canvas input.
 ///
@@ -12,6 +13,7 @@ bool acceptsCanvasDrawingPointerKind(PointerDeviceKind kind, int buttons) {
   return switch (kind) {
     PointerDeviceKind.mouse => (buttons & kPrimaryMouseButton) != 0,
     PointerDeviceKind.stylus || PointerDeviceKind.invertedStylus => true,
+    PointerDeviceKind.touch when supportsTouchDrawing => true,
     _ => false,
   };
 }

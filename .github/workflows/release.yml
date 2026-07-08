@@ -93,6 +93,9 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             artifact: linux
+          - os: ubuntu-latest
+            platform: android
+            artifact: android
 
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +107,13 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Setup Java
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
@@ -125,8 +135,17 @@ jobs:
             sed -i "s/^version: .*/${VERSION_LINE}/" pubspec.yaml
           fi
 
+      - name: Accept Android licenses
+        if: matrix.platform == 'android'
+        run: yes | flutter doctor --android-licenses
+
       - name: Build
-        run: flutter build ${{ matrix.platform }} --release --dart-define=VIBE_RELEASE_BUILD=true
+        run: |
+          if [ "${{ matrix.platform }}" = "android" ]; then
+            flutter build apk --release --dart-define=VIBE_RELEASE_BUILD=true
+          else
+            flutter build ${{ matrix.platform }} --release --dart-define=VIBE_RELEASE_BUILD=true
+          fi
 
       - name: Package macOS
         if: matrix.platform == 'macos'
@@ -162,6 +181,13 @@ jobs:
           Compress-Archive -Path build/windows/x64/runner/Release/* `
             -DestinationPath "VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip"
 
+      - name: Package Android
+        if: matrix.platform == 'android'
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "VibePaint-${{ needs.prepare.outputs.version }}-android.apk"
+          ls -lh "VibePaint-${{ needs.prepare.outputs.version }}-android.apk"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -171,6 +197,7 @@ jobs:
             VibePaint-${{ needs.prepare.outputs.version }}-macos.app.zip
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
+            VibePaint-${{ needs.prepare.outputs.version }}-android.apk
           if-no-files-found: error
 
   release:
@@ -201,7 +228,8 @@ jobs:
             - Open the disk image and drag **VibePaint** into **Applications**
             - First launch: **right-click → Open → Open** (unsigned build; one-time Gatekeeper prompt)
 
-            ### Windows / Linux
+            ### Windows / Linux / Android
             - Windows: `VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip`
             - Linux: `VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz`
+            - Android: `VibePaint-${{ needs.prepare.outputs.version }}-android.apk` (basic mobile build — install via “Open with” / sideload; unsigned debug-signed APK)
           files: dist/*

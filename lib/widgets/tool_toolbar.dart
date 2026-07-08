@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/utils/platform_features.dart';
 import 'package:vibepaint/widgets/tool_svg_icon.dart';
 
 class ToolToolbar extends StatelessWidget {
@@ -8,15 +9,47 @@ class ToolToolbar extends StatelessWidget {
     super.key,
     required this.selected,
     required this.onSelected,
+    this.tools,
+    this.horizontal = false,
   });
 
   static const double width = 52;
 
   final PaintTool selected;
   final ValueChanged<PaintTool> onSelected;
+  final List<PaintTool>? tools;
+  final bool horizontal;
+
+  List<PaintTool> get _tools => tools ?? availablePaintTools;
 
   @override
   Widget build(BuildContext context) {
+    if (horizontal) {
+      return Container(
+        height: 52,
+        decoration: const BoxDecoration(
+          color: AppColors.palettePanel,
+          border: Border(
+            bottom: BorderSide(color: AppColors.paletteBorder),
+          ),
+        ),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          itemCount: _tools.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 4),
+          itemBuilder: (context, index) {
+            final tool = _tools[index];
+            return _ToolButton(
+              tool: tool,
+              selected: selected == tool,
+              onPressed: () => onSelected(tool),
+            );
+          },
+        ),
+      );
+    }
+
     return Container(
       width: width,
       decoration: const BoxDecoration(
@@ -29,7 +62,7 @@ class ToolToolbar extends StatelessWidget {
         mainAxisSize: MainAxisSize.max,
         children: [
           const SizedBox(height: 8),
-          for (final tool in PaintTool.values) ...[
+          for (final tool in _tools) ...[
             if (tool == PaintTool.rectSelect)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),

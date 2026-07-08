@@ -31,6 +31,7 @@ class PaintToolbar extends StatelessWidget {
     this.onAiEnhance,
     this.aiEnhanceEnabled = true,
     this.onOpenSettings,
+    this.showSelectionActions = true,
   });
 
   final double brushSize;
@@ -54,6 +55,7 @@ class PaintToolbar extends StatelessWidget {
   final VoidCallback? onAiEnhance;
   final bool aiEnhanceEnabled;
   final VoidCallback? onOpenSettings;
+  final bool showSelectionActions;
 
   @override
   Widget build(BuildContext context) {
@@ -93,42 +95,44 @@ class PaintToolbar extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(width: 16),
-          _ToolbarIconButton(
-            icon: Icons.select_all,
-            tooltip: 'Select all',
-            enabled: true,
-            onPressed: onSelectAll,
-          ),
-          const SizedBox(width: 4),
-          _ToolbarIconButton(
-            icon: Icons.highlight_off,
-            tooltip: 'Deselect',
-            enabled: hasSelection,
-            onPressed: onDeselect,
-          ),
-          const SizedBox(width: 4),
-          _ToolbarIconButton(
-            icon: Icons.flip,
-            tooltip: 'Invert selection',
-            enabled: hasSelection,
-            onPressed: onInvertSelection,
-          ),
-          const SizedBox(width: 4),
-          _ToolbarIconButton(
-            icon: Icons.delete_outline,
-            tooltip: 'Delete selection',
-            enabled: hasSelection,
-            onPressed: onDeleteSelection,
-          ),
-          if (canReshapeSelection &&
-              selectionShape != null &&
-              onSelectionShapeChanged != null) ...[
+          if (showSelectionActions) ...[
             const SizedBox(width: 16),
-            SelectionShapeControl(
-              shape: selectionShape!,
-              onChanged: onSelectionShapeChanged!,
+            _ToolbarIconButton(
+              icon: Icons.select_all,
+              tooltip: 'Select all',
+              enabled: true,
+              onPressed: onSelectAll,
             ),
+            const SizedBox(width: 4),
+            _ToolbarIconButton(
+              icon: Icons.highlight_off,
+              tooltip: 'Deselect',
+              enabled: hasSelection,
+              onPressed: onDeselect,
+            ),
+            const SizedBox(width: 4),
+            _ToolbarIconButton(
+              icon: Icons.flip,
+              tooltip: 'Invert selection',
+              enabled: hasSelection,
+              onPressed: onInvertSelection,
+            ),
+            const SizedBox(width: 4),
+            _ToolbarIconButton(
+              icon: Icons.delete_outline,
+              tooltip: 'Delete selection',
+              enabled: hasSelection,
+              onPressed: onDeleteSelection,
+            ),
+            if (canReshapeSelection &&
+                selectionShape != null &&
+                onSelectionShapeChanged != null) ...[
+              const SizedBox(width: 16),
+              SelectionShapeControl(
+                shape: selectionShape!,
+                onChanged: onSelectionShapeChanged!,
+              ),
+            ],
           ],
           if (onAiEnhance != null) ...[
             const SizedBox(width: 16),

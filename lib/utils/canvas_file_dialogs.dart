@@ -21,13 +21,14 @@ Future<({ui.Image image, String path})?> pickImageFile() async {
   }
 
   final file = result.files.single;
-  final path = file.path;
-  if (path == null) {
+  final bytes = file.bytes ??
+      (file.path == null ? null : await File(file.path!).readAsBytes());
+  if (bytes == null) {
     return null;
   }
 
-  final bytes = file.bytes ?? await File(path).readAsBytes();
   final image = await decodeImageBytes(bytes);
+  final path = file.path ?? file.name;
   return (image: image, path: path);
 }
 

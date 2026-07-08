@@ -30,6 +30,7 @@ import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
+import 'package:vibepaint/utils/platform_features.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
@@ -39,6 +40,7 @@ import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/color_picker_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
+import 'package:vibepaint/widgets/mobile_file_bar.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
@@ -122,7 +124,9 @@ class _PaintScreenState extends State<PaintScreen>
     super.initState();
     _layerStack = LayerStack(initialStrokes: widget.initialStrokes);
     _primaryColor = AppColors.presetColors[widget.initialColorIndex];
-    _activeTool = widget.initialTool;
+    _activeTool = availablePaintTools.contains(widget.initialTool)
+        ? widget.initialTool
+        : PaintTool.brush;
     _shapeStyle = widget.initialShapeStyle;
     if (widget.initialStrokes.isNotEmpty) {
       _editGeneration = 1;
@@ -323,8 +327,7 @@ class _PaintScreenState extends State<PaintScreen>
     return hints.join(' · ');
   }
 
-  String get _viewportHint =>
-      'Scroll: zoom · Space+drag or middle-drag: pan · $platformZoomKeyboardHint';
+  String get _viewportHint => viewportInteractionHint;
 
   bool _shouldViewportPan(PointerDownEvent event) {
     return _spacePressed || (event.buttons & kMiddleMouseButton) != 0;
@@ -510,6 +513,9 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _applySelectionTool(PaintTool tool) {
+    if (!availablePaintTools.contains(tool)) {
+      return;
+    }
     if (_textDraft != null && tool != PaintTool.text) {
       _commitTextDraft();
     }
@@ -2270,16 +2276,32 @@ class _PaintScreenState extends State<PaintScreen>
         autofocus: true,
         child: Scaffold(
           backgroundColor: AppColors.workspace,
+          appBar: supportsMobileFileBar
+              ? MobileFileBar(
+                  onNew: () => _clearCanvas(),
+                  onOpen: _openCanvas,
+                  onSave: () => _saveCanvas(),
+                  isDirty: _isDirty,
+                  documentName: documentDisplayName(_documentPath),
+                )
+              : null,
           body: Column(
             children: [
+              if (isMobilePaintPlatform)
+                ToolToolbar(
+                  horizontal: true,
+                  selected: _activeTool,
+                  onSelected: _applySelectionTool,
+                ),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ToolToolbar(
-                      selected: _activeTool,
-                      onSelected: _applySelectionTool,
-                    ),
+                    if (!isMobilePaintPlatform)
+                      ToolToolbar(
+                        selected: _activeTool,
+                        onSelected: _applySelectionTool,
+                      ),
                     Expanded(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -2291,14 +2313,15 @@ class _PaintScreenState extends State<PaintScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            AppMenuBar(
+                            if (supportsInWindowMenuBar)
+                              AppMenuBar(
                               canNew: canNew,
                               onNew: () => _clearCanvas(),
                               onOpen: _openCanvas,
                               onSave: () => _saveCanvas(),
                               onSaveAs: () => _saveCanvasAs(),
                               onOpenSettings:
-                                  !kIsWeb ? _openAiEnhanceSettings : null,
+                                  supportsAiEnhance ? _openAiEnhanceSettings : null,
                               onSelectAll: _selectAll,
                               onDeselect: _deselect,
                               onInvertSelection: _invertSelection,
@@ -2354,10 +2377,11 @@ class _PaintScreenState extends State<PaintScreen>
                                   _selection?.canReshape == true
                                       ? _changeSelectionShape
                                       : null,
-                              onAiEnhance: !kIsWeb ? _aiEnhance : null,
+                              onAiEnhance: supportsAiEnhance ? _aiEnhance : null,
                               aiEnhanceEnabled: !_aiEnhanceBusy,
                               onOpenSettings:
-                                  !kIsWeb ? _openAiEnhanceSettings : null,
+                                  supportsAiEnhance ? _openAiEnhanceSettings : null,
+                              showSelectionActions: supportsSelectionTools,
                             ),
                             Expanded(
                               child: Row(
@@ -2518,7 +2542,8 @@ class _PaintScreenState extends State<PaintScreen>
                                       },
                                     ),
                                   ),
-                                  LayersPanel(
+                                  if (supportsLayersPanel)
+                                    LayersPanel(
                                     layers: _layerStack.layers,
                                     activeIndex: _layerStack.activeIndex,
                                     canDeleteLayer: _layerStack.canDeleteLayer,
@@ -2642,7 +2667,9 @@ class _PaintScreenState extends State<PaintScreen>
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_viewport.zoomPercentLabel}%  |  $_colorStatusLabel  |  ${_layerStack.activeLayer.name}  |  $_statusHint  |  $_viewportHint',
+                  isMobilePaintPlatform
+                      ? '${_activeTool.label} ${_brushSize.round()}px  |  ${_viewport.zoomPercentLabel}%  |  $_colorStatusLabel'
+                      : '${_activeTool.label} ${_brushSize.round()}px  |  ${_viewport.zoomPercentLabel}%  |  $_colorStatusLabel  |  ${_layerStack.activeLayer.name}  |  $_statusHint  |  $_viewportHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(
@@ -2664,7 +2691,7 @@ class _PaintScreenState extends State<PaintScreen>
           onOpen: _openCanvas,
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,
-          onOpenSettings: !kIsWeb ? _openAiEnhanceSettings : null,
+          onOpenSettings: supportsAiEnhance ? _openAiEnhanceSettings : null,
           onSelectAll: _selectAll,
           onDeselect: _deselect,
           onInvertSelection: _invertSelection,
