@@ -1,27 +1,27 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/services/grok_api_key_storage.dart';
+import 'package:vibepaint/services/grok_client.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 
-const _channel = MethodChannel('vibepaint/ai_enhance');
-const _progressChannel = EventChannel('vibepaint/ai_enhance_progress');
-
-/// Default prompt for MLX sketch enhancement.
+/// Default prompt for Grok sketch enhancement.
 const defaultAiEnhancePrompt =
-    'colorful finished illustration, polished digital art, vivid colors';
+    'Enhance this sketch into a vibrant, clean, professional illustration';
 
 enum AiEnhanceAvailability {
   available,
+  missingApiKey,
   unsupportedPlatform,
-  unavailableOnDevice,
   unknown,
 }
 
-/// Live status updates from the native MLX subprocess.
+/// Live status updates during Grok image editing.
 class AiEnhanceProgress {
   const AiEnhanceProgress({
     required this.message,
@@ -57,7 +57,7 @@ class AiEnhanceResult {
   final int height;
 }
 
-/// Crop of the active layer (or selection) prepared as MLX input.
+/// Crop of the active layer (or selection) prepared as Grok input.
 class AiEnhanceSource {
   const AiEnhanceSource({
     required this.pngBytes,
@@ -70,85 +70,69 @@ class AiEnhanceSource {
   final Rect placement;
 }
 
+final _keyStorage = GrokApiKeyStorage();
+final _grokClient = GrokClient();
+
+final _progressController = StreamController<AiEnhanceProgress>.broadcast();
+
+/// Whether AI Enhance can run (requires a stored Grok API key).
 Future<AiEnhanceAvailability> checkAiEnhanceAvailability() async {
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+  if (kIsWeb) {
     return AiEnhanceAvailability.unsupportedPlatform;
   }
 
   try {
-    final available = await _channel.invokeMethod<bool>('isAvailable');
-    if (available == true) {
+    final hasKey = await _keyStorage.hasKey();
+    if (hasKey) {
       return AiEnhanceAvailability.available;
     }
-    return AiEnhanceAvailability.unavailableOnDevice;
-  } on MissingPluginException {
-    return AiEnhanceAvailability.unavailableOnDevice;
+    return AiEnhanceAvailability.missingApiKey;
   } on Object {
     return AiEnhanceAvailability.unknown;
   }
 }
 
 Stream<AiEnhanceProgress> aiEnhanceProgressStream() {
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
-    return const Stream.empty();
-  }
-  return _progressChannel.receiveBroadcastStream().map((event) {
-    if (event is Map) {
-      final message = event['message']?.toString() ?? 'Working…';
-      final phase = event['phase']?.toString() ?? 'working';
-      final bytesDone = event['bytes_done'];
-      final bytesTotal = event['bytes_total'];
-      final elapsed = event['elapsed_seconds'];
-      return AiEnhanceProgress(
-        message: message,
-        phase: phase,
-        bytesDone: bytesDone is int ? bytesDone : int.tryParse('$bytesDone'),
-        bytesTotal: bytesTotal is int ? bytesTotal : int.tryParse('$bytesTotal'),
-        elapsedSeconds: elapsed is int ? elapsed : int.tryParse('$elapsed') ?? 0,
-      );
-    }
-    return AiEnhanceProgress(message: event?.toString() ?? 'Working…');
-  });
+  return _progressController.stream;
 }
 
+void _emitProgress(AiEnhanceProgress progress) {
+  if (!_progressController.isClosed) {
+    _progressController.add(progress);
+  }
+}
+
+/// Sends [sourcePng] to Grok Imagine for enhancement.
 Future<AiEnhanceResult?> enhanceSketch({
   required Uint8List sourcePng,
   String prompt = defaultAiEnhancePrompt,
 }) async {
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+  if (kIsWeb) {
     return null;
   }
 
-  try {
-    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
-      'enhance',
-      <String, Object>{
-        'pngBytes': sourcePng,
-        'prompt': prompt,
-      },
-    );
-    if (result == null) {
-      return null;
-    }
-
-    final bytes = result['pngBytes'];
-    final width = result['width'];
-    final height = result['height'];
-    final png = switch (bytes) {
-      final Uint8List b => b,
-      final ByteBuffer buffer => buffer.asUint8List(),
-      final List<int> list => Uint8List.fromList(list),
-      _ => null,
-    };
-    if (png == null || width is! int || height is! int) {
-      return null;
-    }
-    return AiEnhanceResult(pngBytes: png, width: width, height: height);
-  } on PlatformException catch (error) {
+  final apiKey = await _keyStorage.read();
+  if (apiKey == null || apiKey.trim().isEmpty) {
     throw AiEnhanceException(
-      error.code,
-      error.message ?? 'AI Enhance failed',
-      details: error.details?.toString(),
+      'missing_api_key',
+      'Grok API key is not set. Open Settings to add your key.',
+    );
+  }
+
+  try {
+    return await _grokClient.enhanceSketch(
+      apiKey: apiKey,
+      sourcePng: sourcePng,
+      prompt: prompt,
+      onProgress: _emitProgress,
+    );
+  } on AiEnhanceException {
+    rethrow;
+  } on Exception catch (error) {
+    throw AiEnhanceException(
+      'network_error',
+      'Could not reach Grok API.',
+      details: error.toString(),
     );
   }
 }
@@ -241,7 +225,7 @@ Future<AiEnhanceSource?> captureAiEnhanceSource({
     return null;
   }
 
-  // MLX / mflux works best with opaque sketches on a white background.
+  // Grok works best with opaque sketches on a white background.
   final prepared = _flattenOntoWhite(cropped);
 
   return AiEnhanceSource(

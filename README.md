@@ -32,7 +32,7 @@ A vibe coded paint app.
 
 ### Image
 - **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
-- **AI Enhance** — macOS toolbar sparkle button enhances the active layer (or selection) with local MLX image-to-image (FLUX via [mflux](https://github.com/akx/mflux)) and applies the result in place (undoable). Requires Apple Silicon and a one-time `scripts/mlx/setup.sh` install
+- **AI Enhance** — toolbar sparkle button enhances the active layer (or selection) via Grok Imagine (xAI cloud). Preview before apply; undoable. Requires a Grok API key in Settings (stored securely).
 
 ### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
@@ -101,17 +101,14 @@ flutter build macos --release
 open build/macos/Build/Products/Release/VibePaint.app
 ```
 
-### AI Enhance (MLX, macOS Apple Silicon)
+### AI Enhance (Grok / xAI)
 
-One-time setup (Python 3.10+, downloads mflux; first enhance also downloads **FLUX.2 Klein 4B**, a smaller public model suited to 16 GB Macs):
+1. Open **Settings** (VibePaint menu on macOS, File menu on Windows/Linux, or the gear toolbar button).
+2. Enter your [xAI API key](https://console.x.ai/), save, and use **Test Connection**.
+3. Draw on the active layer, then click the sparkle **AI Enhance** toolbar button.
+4. Review the preview — **Apply**, **Regenerate**, or **Cancel**.
 
-```bash
-scripts/mlx/setup.sh
-```
-
-Then run VibePaint and use the sparkle toolbar button. Generation runs locally in the background via `~/.vibepaint/mlx-venv`.
-
-(FLUX.1 models are gated; VibePaint defaults to `flux2-klein-4b` for lower memory use.)
+Enhancement uses the `grok-imagine-image-quality` model via `POST /v1/images/edits`.
 
 Optional DMG (`create-dmg` via Homebrew for a nicer layout; otherwise `hdiutil`):
 

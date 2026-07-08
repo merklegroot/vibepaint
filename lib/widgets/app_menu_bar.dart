@@ -27,6 +27,7 @@ class AppMenuBar extends StatelessWidget {
     required this.onRotate90CounterClockwise,
     required this.onRotate180,
     required this.onFlatten,
+    this.onOpenSettings,
   });
 
   final bool canNew;
@@ -49,6 +50,7 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onRotate90CounterClockwise;
   final VoidCallback onRotate180;
   final VoidCallback onFlatten;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +110,13 @@ class AppMenuBar extends StatelessWidget {
               child: const Text('Save As...'),
             ),
             const Divider(height: 1),
+            if (onOpenSettings != null)
+              MenuItemButton(
+                onPressed: onOpenSettings,
+                shortcut: platformMenuShortcut(LogicalKeyboardKey.comma),
+                child: const Text('Settings...'),
+              ),
+            if (onOpenSettings != null) const Divider(height: 1),
             MenuItemButton(
               onPressed: () => SystemNavigator.pop(),
               child: const Text('Exit'),

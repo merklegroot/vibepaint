@@ -15,7 +15,9 @@ import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
 import 'package:vibepaint/utils/ai_enhance.dart';
+import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_progress_dialog.dart';
+import 'package:vibepaint/widgets/grok_settings_dialog.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
@@ -1609,6 +1611,43 @@ class _PaintScreenState extends State<PaintScreen>
     );
   }
 
+  Future<void> _openGrokSettings() => showGrokSettingsDialog(context);
+
+  Future<bool> _promptForGrokApiKey() async {
+    if (!mounted) {
+      return false;
+    }
+
+    final openSettings = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Grok API key required'),
+          content: const Text(
+            'AI Enhance uses Grok. Add your xAI API key in Settings to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (openSettings == true && mounted) {
+      await _openGrokSettings();
+      final availability = await checkAiEnhanceAvailability();
+      return availability == AiEnhanceAvailability.available;
+    }
+    return false;
+  }
+
   Future<void> _aiEnhance() async {
     if (_aiEnhanceBusy || _documentSize == Size.zero) {
       return;
@@ -1624,15 +1663,15 @@ class _PaintScreenState extends State<PaintScreen>
       switch (availability) {
         case AiEnhanceAvailability.unsupportedPlatform:
           await _showAiEnhanceError(
-            'AI Enhance is only available on macOS.',
+            'AI Enhance is not available on this platform.',
           );
           return;
-        case AiEnhanceAvailability.unavailableOnDevice:
-          await _showAiEnhanceError(
-            'AI Enhance needs MLX set up on this Mac. Run scripts/mlx/setup.sh '
-            '(Apple Silicon, Python 3.10+), then try again.',
-          );
-          return;
+        case AiEnhanceAvailability.missingApiKey:
+          final configured = await _promptForGrokApiKey();
+          if (!configured) {
+            return;
+          }
+          break;
         case AiEnhanceAvailability.unknown:
           await _showAiEnhanceError(
             'Could not check AI Enhance availability.',
@@ -1659,16 +1698,39 @@ class _PaintScreenState extends State<PaintScreen>
         return;
       }
 
-      final generated = await showAiEnhanceProgressDialog(
-        context: context,
-        work: () => enhanceSketch(sourcePng: source.pngBytes),
-      );
-      if (!mounted) {
-        return;
-      }
-      if (generated == null) {
-        await _showAiEnhanceError('AI Enhance was cancelled.');
-        return;
+      AiEnhanceResult? generated;
+      while (true) {
+        generated = await showAiEnhanceProgressDialog(
+          context: context,
+          work: () => enhanceSketch(sourcePng: source.pngBytes),
+        );
+        if (!mounted) {
+          return;
+        }
+        if (generated == null) {
+          await _showAiEnhanceError('AI Enhance was cancelled.');
+          return;
+        }
+
+        final action = await showAiEnhancePreviewDialog(
+          context: context,
+          pngBytes: generated.pngBytes,
+          width: generated.width,
+          height: generated.height,
+        );
+        if (!mounted) {
+          return;
+        }
+
+        switch (action) {
+          case AiEnhancePreviewAction.apply:
+            break;
+          case AiEnhancePreviewAction.regenerate:
+            continue;
+          case AiEnhancePreviewAction.cancel:
+            return;
+        }
+        break;
       }
 
       final stroke = await strokeFromAiEnhanceResult(
@@ -2224,6 +2286,8 @@ class _PaintScreenState extends State<PaintScreen>
                               onOpen: _openCanvas,
                               onSave: () => _saveCanvas(),
                               onSaveAs: () => _saveCanvasAs(),
+                              onOpenSettings:
+                                  !kIsWeb ? _openGrokSettings : null,
                               onSelectAll: _selectAll,
                               onDeselect: _deselect,
                               onInvertSelection: _invertSelection,
@@ -2279,13 +2343,9 @@ class _PaintScreenState extends State<PaintScreen>
                                   _selection?.canReshape == true
                                       ? _changeSelectionShape
                                       : null,
-                              onAiEnhance:
-                                  !kIsWeb &&
-                                          defaultTargetPlatform ==
-                                              TargetPlatform.macOS
-                                      ? _aiEnhance
-                                      : null,
+                              onAiEnhance: !kIsWeb ? _aiEnhance : null,
                               aiEnhanceEnabled: !_aiEnhanceBusy,
+                              onOpenSettings: !kIsWeb ? _openGrokSettings : null,
                             ),
                             Expanded(
                               child: Row(
@@ -2592,6 +2652,7 @@ class _PaintScreenState extends State<PaintScreen>
           onOpen: _openCanvas,
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,
+          onOpenSettings: !kIsWeb ? _openGrokSettings : null,
           onSelectAll: _selectAll,
           onDeselect: _deselect,
           onInvertSelection: _invertSelection,

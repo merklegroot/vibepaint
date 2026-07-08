@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:vibepaint/utils/ai_enhance.dart';
 
 /// Shows a non-dismissible progress dialog while [work] runs.
-/// Subscribes to progress *before* starting work so download status isn't missed.
+/// Subscribes to progress *before* starting work so early status isn't missed.
 Future<T> showAiEnhanceProgressDialog<T>({
   required BuildContext context,
   required Future<T> Function() work,
@@ -12,8 +12,7 @@ Future<T> showAiEnhanceProgressDialog<T>({
   final navigator = Navigator.of(context, rootNavigator: true);
   final status = ValueNotifier<AiEnhanceProgress>(
     const AiEnhanceProgress(
-      message:
-          'Starting… model weights download to disk first, then load into RAM.',
+      message: 'Starting Grok enhancement…',
       phase: 'start',
     ),
   );
@@ -45,20 +44,6 @@ Future<T> showAiEnhanceProgressDialog<T>({
       navigator.pop();
     }
   }
-}
-
-String _formatBytes(int bytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var value = bytes.toDouble();
-  var unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  if (unit == 0) {
-    return '${value.round()} ${units[unit]}';
-  }
-  return '${value.toStringAsFixed(1)} ${units[unit]}';
 }
 
 String _formatElapsed(int seconds) {
@@ -116,20 +101,16 @@ class _AiEnhanceProgressDialogState extends State<_AiEnhanceProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final progress = widget.status.value;
-    final fraction = progress.progressFraction;
     final elapsed = progress.elapsedSeconds > 0
         ? progress.elapsedSeconds
         : _elapsedSeconds;
 
     final subtitle = switch (progress.phase) {
-      'download' =>
-        progress.bytesDone != null && progress.bytesTotal != null
-            ? 'Disk: ${_formatBytes(progress.bytesDone!)} / ${_formatBytes(progress.bytesTotal!)} · ${_formatElapsed(elapsed)}'
-            : progress.bytesDone != null
-            ? 'Disk: ${_formatBytes(progress.bytesDone!)} downloaded · ${_formatElapsed(elapsed)}'
-            : 'Downloading to ~/.vibepaint/huggingface · ${_formatElapsed(elapsed)}',
-      'load' => 'Reading weights from disk into RAM · ${_formatElapsed(elapsed)}',
-      'generate' => 'Running on-device inference · ${_formatElapsed(elapsed)}',
+      'prepare' => 'Preparing sketch · ${_formatElapsed(elapsed)}',
+      'upload' => 'Uploading to Grok · ${_formatElapsed(elapsed)}',
+      'generate' => 'Generating illustration · ${_formatElapsed(elapsed)}',
+      'decode' => 'Downloading result · ${_formatElapsed(elapsed)}',
+      'done' => 'Complete · ${_formatElapsed(elapsed)}',
       _ => 'Elapsed ${_formatElapsed(elapsed)}',
     };
 
@@ -141,10 +122,7 @@ class _AiEnhanceProgressDialogState extends State<_AiEnhanceProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (fraction != null)
-              LinearProgressIndicator(value: fraction)
-            else
-              const LinearProgressIndicator(),
+            const LinearProgressIndicator(),
             const SizedBox(height: 16),
             Text(progress.message),
             const SizedBox(height: 12),
@@ -152,15 +130,6 @@ class _AiEnhanceProgressDialogState extends State<_AiEnhanceProgressDialog> {
               subtitle,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            if (progress.phase == 'load') ...[
-              const SizedBox(height: 8),
-              Text(
-                'Loading uses several GB of RAM. Close other heavy apps if needed.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
           ],
         ),
       ),

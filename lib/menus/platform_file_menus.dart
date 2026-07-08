@@ -24,12 +24,23 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onRotate90CounterClockwise,
   required VoidCallback onRotate180,
   required VoidCallback onFlatten,
+  VoidCallback? onOpenSettings,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
     if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
       const PlatformMenuItemGroup(
         members: [
           PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.about),
+        ],
+      ),
+    if (onOpenSettings != null)
+      PlatformMenuItemGroup(
+        members: [
+          PlatformMenuItem(
+            label: 'Settings…',
+            shortcut: platformMenuShortcut(LogicalKeyboardKey.comma),
+            onSelected: onOpenSettings,
+          ),
         ],
       ),
     PlatformMenuItemGroup(
