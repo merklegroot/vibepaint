@@ -29,41 +29,74 @@ class _LassoSelectIconPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final w = size.width;
+    final h = size.height;
+
+    final handle = Offset(w * 0.78, h * 0.2);
+    final path = Path()
+      ..moveTo(handle.dx, handle.dy)
+      ..lineTo(w * 0.7, h * 0.34)
+      ..cubicTo(
+        w * 0.62,
+        h * 0.56,
+        w * 0.42,
+        h * 0.8,
+        w * 0.2,
+        h * 0.68,
+      )
+      ..cubicTo(
+        w * 0.08,
+        h * 0.5,
+        w * 0.16,
+        h * 0.28,
+        w * 0.38,
+        h * 0.24,
+      )
+      ..cubicTo(
+        w * 0.52,
+        h * 0.22,
+        w * 0.62,
+        h * 0.28,
+        w * 0.66,
+        h * 0.36,
+      );
+
+    final stroke = Paint()
       ..color = color
       ..strokeWidth = 1.75
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    final path = Path()
-      ..moveTo(size.width * 0.2, size.height * 0.34)
-      ..quadraticBezierTo(
-        size.width * 0.08,
-        size.height * 0.58,
-        size.width * 0.28,
-        size.height * 0.74,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.56,
-        size.height * 0.84,
-        size.width * 0.78,
-        size.height * 0.62,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.9,
-        size.height * 0.42,
-        size.width * 0.68,
-        size.height * 0.24,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.44,
-        size.height * 0.12,
-        size.width * 0.2,
-        size.height * 0.34,
-      );
+    final tail = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    _drawDashedPath(canvas: canvas, path: path, paint: paint);
+    canvas.drawLine(
+      Offset(w * 0.84, h * 0.1),
+      handle,
+      tail,
+    );
+
+    _drawDashedPath(canvas: canvas, path: path, paint: stroke);
+
+    canvas.drawCircle(
+      handle,
+      1.75,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      handle,
+      1.75,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.75,
+    );
   }
 
   static void _drawDashedPath({
