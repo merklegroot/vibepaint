@@ -3,6 +3,7 @@ import 'dart:ui';
 enum SelectionShape {
   rectangle,
   ellipse,
+  lasso,
 }
 
 class CanvasSelection {
@@ -26,11 +27,48 @@ class CanvasSelection {
         path.addRect(normalized);
       case SelectionShape.ellipse:
         path.addOval(normalized);
+      case SelectionShape.lasso:
+        break;
     }
     return CanvasSelection(
       shape: shape,
       path: path,
       bounds: normalized,
+      isSimple: true,
+    );
+  }
+
+  factory CanvasSelection.fromPoints(
+    List<Offset> points, {
+    bool close = true,
+  }) {
+    if (points.isEmpty) {
+      return CanvasSelection(
+        shape: SelectionShape.lasso,
+        path: Path(),
+        bounds: Rect.zero,
+        isSimple: true,
+      );
+    }
+
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    if (close && points.length >= 3) {
+      path.close();
+    }
+
+    final bounds = path.getBounds();
+    final isEmpty = close
+        ? points.length < 3 ||
+            (bounds.width <= 0 && bounds.height <= 0)
+        : points.length < 2;
+
+    return CanvasSelection(
+      shape: SelectionShape.lasso,
+      path: path,
+      bounds: isEmpty ? Rect.zero : bounds,
       isSimple: true,
     );
   }
@@ -44,12 +82,13 @@ class CanvasSelection {
 
   bool get isEmpty => bounds.isEmpty || bounds.width <= 0 || bounds.height <= 0;
 
-  bool get canReshape => isSimple && !isEmpty;
+  bool get canReshape =>
+      isSimple && !isEmpty && shape != SelectionShape.lasso;
 
   bool contains(Offset point) => path.contains(point);
 
   CanvasSelection withShape(SelectionShape newShape) {
-    if (!isSimple) {
+    if (!isSimple || shape == SelectionShape.lasso) {
       return this;
     }
     return CanvasSelection.fromRect(newShape, bounds);

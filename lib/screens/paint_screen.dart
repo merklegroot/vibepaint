@@ -63,6 +63,7 @@ class _PaintScreenState extends State<PaintScreen>
   CanvasSelection? _selection;
   CanvasSelection? _selectionDraft;
   Offset? _selectionDragStart;
+  List<Offset>? _lassoPoints;
   bool _movingSelection = false;
   Offset? _moveStart;
   List<Stroke>? _strokesBeforeMove;
@@ -212,7 +213,11 @@ class _PaintScreenState extends State<PaintScreen>
 
   String get _statusHint {
     if (_activeTool.isSelectionTool) {
-      final hints = <String>['Drag to select'];
+      final hints = <String>[
+        _activeTool == PaintTool.lassoSelect
+            ? 'Draw around area to select'
+            : 'Drag to select',
+      ];
       if (_selection != null) {
         hints.add('Drag inside to move');
       }
@@ -287,6 +292,11 @@ class _PaintScreenState extends State<PaintScreen>
         _setCanvasCursor(SystemMouseCursors.move);
         return;
       }
+
+      if (_activeTool == PaintTool.lassoSelect) {
+        _setCanvasCursor(SystemMouseCursors.precise);
+        return;
+      }
     }
 
     _resetCanvasCursor();
@@ -317,6 +327,7 @@ class _PaintScreenState extends State<PaintScreen>
     setState(() {
       _selection = null;
       _selectionDraft = null;
+      _lassoPoints = null;
       _movingSelection = false;
       _moveStart = null;
       _strokesBeforeMove = null;
@@ -345,7 +356,7 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _applySelectionTool(PaintTool tool) {
     setState(() {
-      if (tool.isSelectionTool &&
+      if (tool.isBoxSelectionTool &&
           _selection?.canReshape == true &&
           _selectionDraft == null) {
         final shape = tool == PaintTool.rectSelect
@@ -419,6 +430,75 @@ class _PaintScreenState extends State<PaintScreen>
     _resetCanvasCursor();
   }
 
+  void _commitSelectionDraft(CanvasSelection draft) {
+    if (draft.isEmpty) {
+      if (_selection != null) {
+        _deselect();
+      }
+      return;
+    }
+
+    setState(() {
+      if (_selection == null ||
+          (!_shiftPressed && !_subtractSelectionModifier)) {
+        _selection = draft;
+        return;
+      }
+
+      if (_shiftPressed && !_subtractSelectionModifier) {
+        _selection = _selection!.combined(draft, PathOperation.union);
+      } else if (_subtractSelectionModifier && !_shiftPressed) {
+        _selection = _selection!.combined(draft, PathOperation.difference);
+      } else {
+        _selection = _selection!.combined(draft, PathOperation.intersect);
+      }
+    });
+  }
+
+  void _beginLassoSelection(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    setState(() {
+      _lassoPoints = [position];
+      _selectionDraft = CanvasSelection.fromPoints(
+        _lassoPoints!,
+        close: false,
+      );
+    });
+  }
+
+  void _extendLassoSelection(Offset position, Rect bounds) {
+    if (_lassoPoints == null || !_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    final last = _lassoPoints!.last;
+    if ((position - last).distance < 3) {
+      return;
+    }
+
+    setState(() {
+      _lassoPoints!.add(position);
+      _selectionDraft = CanvasSelection.fromPoints(
+        _lassoPoints!,
+        close: false,
+      );
+    });
+  }
+
+  void _endLassoSelection() {
+    final points = _lassoPoints;
+    _lassoPoints = null;
+    _selectionDraft = null;
+    if (points == null) {
+      return;
+    }
+
+    _commitSelectionDraft(CanvasSelection.fromPoints(points));
+  }
+
   void _beginSelectionDrag(Offset position, Rect bounds) {
     if (!_isInsideCanvas(position, bounds)) {
       return;
@@ -464,28 +544,8 @@ class _PaintScreenState extends State<PaintScreen>
     if (draft == null) {
       return;
     }
-    if (draft.isEmpty) {
-      if (_selection != null) {
-        _deselect();
-      }
-      return;
-    }
 
-    setState(() {
-      if (_selection == null ||
-          (!_shiftPressed && !_subtractSelectionModifier)) {
-        _selection = draft;
-        return;
-      }
-
-      if (_shiftPressed && !_subtractSelectionModifier) {
-        _selection = _selection!.combined(draft, PathOperation.union);
-      } else if (_subtractSelectionModifier && !_shiftPressed) {
-        _selection = _selection!.combined(draft, PathOperation.difference);
-      } else {
-        _selection = _selection!.combined(draft, PathOperation.intersect);
-      }
-    });
+    _commitSelectionDraft(draft);
   }
 
   void _beginMoveSelection(Offset position) {
@@ -549,6 +609,8 @@ class _PaintScreenState extends State<PaintScreen>
 
       if (_selection != null && _selection!.contains(position)) {
         _beginMoveSelection(position);
+      } else if (_activeTool == PaintTool.lassoSelect) {
+        _beginLassoSelection(position, bounds);
       } else {
         _beginSelectionDrag(position, bounds);
       }
@@ -632,6 +694,7 @@ class _PaintScreenState extends State<PaintScreen>
       _lastPanPosition = null;
       _selection = null;
       _selectionDraft = null;
+      _lassoPoints = null;
     });
     _resetDocumentTracking();
   }
@@ -890,6 +953,8 @@ class _PaintScreenState extends State<PaintScreen>
         _extendResizeSelection(position, bounds);
       } else if (_movingSelection) {
         _extendMoveSelection(position);
+      } else if (_activeTool == PaintTool.lassoSelect) {
+        _extendLassoSelection(position, bounds);
       } else {
         _extendSelectionDrag(position, bounds);
       }
@@ -991,6 +1056,8 @@ class _PaintScreenState extends State<PaintScreen>
         _endResizeSelection();
       } else if (_movingSelection) {
         _endMoveSelection();
+      } else if (_activeTool == PaintTool.lassoSelect) {
+        _endLassoSelection();
       } else {
         _endSelectionDrag();
       }
@@ -1043,6 +1110,9 @@ class _PaintScreenState extends State<PaintScreen>
         },
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyF): () {
+          setState(() => _activeTool = PaintTool.lassoSelect);
         },
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,

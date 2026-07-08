@@ -52,6 +52,30 @@ void main() {
     expect(ellipse.contains(const Offset(50, 40)), isTrue);
   });
 
+  test('lasso selection contains interior points when closed', () {
+    final selection = CanvasSelection.fromPoints(const [
+      Offset(10, 10),
+      Offset(90, 10),
+      Offset(90, 90),
+      Offset(10, 90),
+    ]);
+
+    expect(selection.shape, SelectionShape.lasso);
+    expect(selection.isEmpty, isFalse);
+    expect(selection.canReshape, isFalse);
+    expect(selection.contains(const Offset(50, 50)), isTrue);
+    expect(selection.contains(const Offset(5, 5)), isFalse);
+  });
+
+  test('lasso selection with too few points is empty', () {
+    final selection = CanvasSelection.fromPoints(const [
+      Offset(10, 10),
+      Offset(20, 20),
+    ]);
+
+    expect(selection.isEmpty, isTrue);
+  });
+
   test('zero area selection is empty', () {
     final selection = CanvasSelection.fromRect(
       SelectionShape.rectangle,
