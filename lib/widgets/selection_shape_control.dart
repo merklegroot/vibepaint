@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/widgets/ellipse_select_icon.dart';
+import 'package:vibepaint/widgets/rect_select_icon.dart';
 
 class SelectionShapeControl extends StatelessWidget {
   const SelectionShapeControl({
@@ -18,14 +20,14 @@ class SelectionShapeControl extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ShapeButton(
-          icon: Icons.crop_free,
+          icon: const RectSelectIcon(size: 18, color: AppColors.statusText),
           tooltip: 'Rectangle selection',
           selected: shape == SelectionShape.rectangle,
           onPressed: () => onChanged(SelectionShape.rectangle),
         ),
         const SizedBox(width: 4),
         _ShapeButton(
-          icon: Icons.radio_button_unchecked,
+          icon: const EllipseSelectIcon(size: 18, color: AppColors.statusText),
           tooltip: 'Ellipse selection',
           selected: shape == SelectionShape.ellipse,
           onPressed: () => onChanged(SelectionShape.ellipse),
@@ -43,7 +45,7 @@ class _ShapeButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String tooltip;
   final bool selected;
   final VoidCallback onPressed;
@@ -54,7 +56,7 @@ class _ShapeButton extends StatelessWidget {
       message: tooltip,
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, size: 18),
+        icon: icon,
         color: AppColors.statusText,
         style: IconButton.styleFrom(
           minimumSize: const Size(32, 32),

@@ -3,7 +3,9 @@ import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/eraser_icon.dart';
 import 'package:vibepaint/widgets/ellipse_icon.dart';
+import 'package:vibepaint/widgets/ellipse_select_icon.dart';
 import 'package:vibepaint/widgets/line_icon.dart';
+import 'package:vibepaint/widgets/rect_select_icon.dart';
 import 'package:vibepaint/widgets/rectangle_icon.dart';
 
 class ToolToolbar extends StatelessWidget {
@@ -72,16 +74,10 @@ class _ToolButton extends StatelessWidget {
           const RectangleIcon(color: AppColors.statusText),
         PaintTool.ellipse => const EllipseIcon(color: AppColors.statusText),
         PaintTool.eraser => const EraserIcon(color: AppColors.statusText),
-        PaintTool.rectSelect => const Icon(
-            Icons.crop_free,
-            size: 20,
-            color: AppColors.statusText,
-          ),
-        PaintTool.ellipseSelect => const Icon(
-            Icons.radio_button_unchecked,
-            size: 20,
-            color: AppColors.statusText,
-          ),
+        PaintTool.rectSelect =>
+          const RectSelectIcon(color: AppColors.statusText),
+        PaintTool.ellipseSelect =>
+          const EllipseSelectIcon(color: AppColors.statusText),
       };
 
   String get _tooltip => tool.label;
