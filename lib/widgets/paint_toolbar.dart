@@ -15,6 +15,11 @@ class PaintToolbar extends StatelessWidget {
     required this.canRedo,
     required this.onUndo,
     required this.onRedo,
+    required this.hasSelection,
+    required this.onSelectAll,
+    required this.onDeselect,
+    required this.onInvertSelection,
+    required this.onDeleteSelection,
   });
 
   final double brushSize;
@@ -25,6 +30,11 @@ class PaintToolbar extends StatelessWidget {
   final bool canRedo;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
+  final bool hasSelection;
+  final VoidCallback onSelectAll;
+  final VoidCallback onDeselect;
+  final VoidCallback onInvertSelection;
+  final VoidCallback onDeleteSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +59,34 @@ class PaintToolbar extends StatelessWidget {
               onChanged: onShapeStyleChanged!,
             ),
           ],
+          const SizedBox(width: 16),
+          _ToolbarIconButton(
+            icon: Icons.select_all,
+            tooltip: 'Select all',
+            enabled: true,
+            onPressed: onSelectAll,
+          ),
+          const SizedBox(width: 4),
+          _ToolbarIconButton(
+            icon: Icons.highlight_off,
+            tooltip: 'Deselect',
+            enabled: hasSelection,
+            onPressed: onDeselect,
+          ),
+          const SizedBox(width: 4),
+          _ToolbarIconButton(
+            icon: Icons.flip,
+            tooltip: 'Invert selection',
+            enabled: hasSelection,
+            onPressed: onInvertSelection,
+          ),
+          const SizedBox(width: 4),
+          _ToolbarIconButton(
+            icon: Icons.delete_outline,
+            tooltip: 'Delete selection',
+            enabled: hasSelection,
+            onPressed: onDeleteSelection,
+          ),
           const Spacer(),
           _ToolbarIconButton(
             icon: Icons.undo,

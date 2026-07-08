@@ -32,12 +32,18 @@ class ToolToolbar extends StatelessWidget {
         mainAxisSize: MainAxisSize.max,
         children: [
           const SizedBox(height: 8),
-          for (final tool in PaintTool.values)
+          for (final tool in PaintTool.values) ...[
+            if (tool == PaintTool.rectSelect)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Divider(height: 1, color: AppColors.paletteBorder),
+              ),
             _ToolButton(
               tool: tool,
               selected: selected == tool,
               onPressed: () => onSelected(tool),
             ),
+          ],
         ],
       ),
     );
@@ -66,6 +72,16 @@ class _ToolButton extends StatelessWidget {
           const RectangleIcon(color: AppColors.statusText),
         PaintTool.ellipse => const EllipseIcon(color: AppColors.statusText),
         PaintTool.eraser => const EraserIcon(color: AppColors.statusText),
+        PaintTool.rectSelect => const Icon(
+            Icons.crop_free,
+            size: 20,
+            color: AppColors.statusText,
+          ),
+        PaintTool.ellipseSelect => const Icon(
+            Icons.radio_button_unchecked,
+            size: 20,
+            color: AppColors.statusText,
+          ),
       };
 
   String get _tooltip => tool.label;

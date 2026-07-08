@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 
-/// In-window File menu for Windows and Linux.
+/// In-window File and Edit menus for Windows and Linux.
 class AppMenuBar extends StatelessWidget {
   const AppMenuBar({
     super.key,
@@ -12,6 +12,11 @@ class AppMenuBar extends StatelessWidget {
     required this.onOpen,
     required this.onSave,
     required this.onSaveAs,
+    required this.onSelectAll,
+    required this.onDeselect,
+    required this.onInvertSelection,
+    required this.onDeleteSelection,
+    required this.hasSelection,
   });
 
   final bool canNew;
@@ -19,12 +24,30 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onSave;
   final VoidCallback onSaveAs;
+  final VoidCallback onSelectAll;
+  final VoidCallback onDeselect;
+  final VoidCallback onInvertSelection;
+  final VoidCallback onDeleteSelection;
+  final bool hasSelection;
 
   @override
   Widget build(BuildContext context) {
     if (!useInWindowFileMenu) {
       return const SizedBox.shrink();
     }
+
+    final menuStyle = ButtonStyle(
+      foregroundColor: const WidgetStatePropertyAll(AppColors.statusText),
+      overlayColor: WidgetStatePropertyAll(
+        AppColors.statusText.withValues(alpha: 0.08),
+      ),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      ),
+      textStyle: const WidgetStatePropertyAll(
+        TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+    );
 
     return MenuBar(
       style: const MenuStyle(
@@ -35,18 +58,7 @@ class AppMenuBar extends StatelessWidget {
       ),
       children: [
         SubmenuButton(
-          style: ButtonStyle(
-            foregroundColor: const WidgetStatePropertyAll(AppColors.statusText),
-            overlayColor: WidgetStatePropertyAll(
-              AppColors.statusText.withValues(alpha: 0.08),
-            ),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-            textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
+          style: menuStyle,
           menuStyle: const MenuStyle(
             backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
           ),
@@ -82,6 +94,39 @@ class AppMenuBar extends StatelessWidget {
             ),
           ],
           child: const Text('File'),
+        ),
+        SubmenuButton(
+          style: menuStyle,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+          ),
+          menuChildren: [
+            MenuItemButton(
+              onPressed: onSelectAll,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyA),
+              child: const Text('Select All'),
+            ),
+            MenuItemButton(
+              onPressed: hasSelection ? onDeselect : null,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyD),
+              child: const Text('Deselect'),
+            ),
+            MenuItemButton(
+              onPressed: hasSelection ? onInvertSelection : null,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyI,
+                shift: true,
+                control: true,
+              ),
+              child: const Text('Invert Selection'),
+            ),
+            MenuItemButton(
+              onPressed: hasSelection ? onDeleteSelection : null,
+              shortcut: const SingleActivator(LogicalKeyboardKey.delete),
+              child: const Text('Delete Selection'),
+            ),
+          ],
+          child: const Text('Edit'),
         ),
       ],
     );

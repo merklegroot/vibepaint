@@ -15,6 +15,7 @@ A vibe coded paint app.
 - **Color wells** — classic overlapping primary and background swatches with swap and reset; click a well, then pick a preset (background well includes transparent)
 - **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
 - **Layers** — stack transparent layers (top of list = front), show/hide, reorder, opacity, blend modes, duplicate, merge down, and rename; eraser clears pixels on the active layer
+- **Selection** — rectangle and ellipse select tools, marching ants, select all, deselect, invert, move, and delete
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
 - **Image formats** — Save As supports PNG, JPEG, BMP, GIF, and WebP; macOS uses the system save panel format menu
 - **Document title** — filename in the window title; `*` prefix when there are unsaved changes

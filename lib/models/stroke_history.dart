@@ -46,4 +46,16 @@ class StrokeHistory {
     _strokes.addAll(strokes);
     _redoStack.clear();
   }
+
+  void removeWhere(bool Function(Stroke stroke) test) {
+    _strokes.removeWhere(test);
+    _redoStack.clear();
+  }
+
+  void replaceStrokes(List<Stroke> strokes) {
+    _strokes
+      ..clear()
+      ..addAll(strokes);
+    _redoStack.clear();
+  }
 }

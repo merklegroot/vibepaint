@@ -4,6 +4,8 @@ enum PaintTool {
   rectangle,
   ellipse,
   eraser,
+  rectSelect,
+  ellipseSelect,
 }
 
 extension PaintToolLabel on PaintTool {
@@ -13,6 +15,8 @@ extension PaintToolLabel on PaintTool {
         PaintTool.rectangle => 'Rectangle',
         PaintTool.ellipse => 'Ellipse',
         PaintTool.eraser => 'Eraser',
+        PaintTool.rectSelect => 'Rectangle Select',
+        PaintTool.ellipseSelect => 'Ellipse Select',
       };
 
   bool get isFreehand => this == PaintTool.brush || this == PaintTool.eraser;
@@ -21,6 +25,9 @@ extension PaintToolLabel on PaintTool {
       this == PaintTool.line ||
       this == PaintTool.rectangle ||
       this == PaintTool.ellipse;
+
+  bool get isSelectionTool =>
+      this == PaintTool.rectSelect || this == PaintTool.ellipseSelect;
 
   bool get supportsFillStyle =>
       this == PaintTool.rectangle || this == PaintTool.ellipse;

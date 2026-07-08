@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_file_menus.dart';
+import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
+import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
@@ -14,6 +16,7 @@ import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
+import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
@@ -41,7 +44,8 @@ class PaintScreen extends StatefulWidget {
   State<PaintScreen> createState() => _PaintScreenState();
 }
 
-class _PaintScreenState extends State<PaintScreen> {
+class _PaintScreenState extends State<PaintScreen>
+    with SingleTickerProviderStateMixin {
   late final LayerStack _layerStack;
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
@@ -54,12 +58,22 @@ class _PaintScreenState extends State<PaintScreen> {
   int _editGeneration = 0;
   int _savedGeneration = 0;
   ColorWellTarget _colorTarget = ColorWellTarget.primary;
+  CanvasSelection? _selection;
+  CanvasSelection? _selectionDraft;
+  Offset? _selectionDragStart;
+  bool _movingSelection = false;
+  Offset? _moveStart;
+  List<Stroke>? _strokesBeforeMove;
+  late final AnimationController _marchingAntsController;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
   bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
   bool get _altPressed => HardwareKeyboard.instance.isAltPressed;
+
+  bool get _subtractSelectionModifier =>
+      HardwareKeyboard.instance.isControlPressed;
 
   @override
   void initState() {
@@ -71,6 +85,10 @@ class _PaintScreenState extends State<PaintScreen> {
     if (widget.initialStrokes.isNotEmpty) {
       _editGeneration = 1;
     }
+    _marchingAntsController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncWindowTitle());
   }
 
@@ -144,6 +162,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   @override
   void dispose() {
+    _marchingAntsController.dispose();
     _layerStack.dispose();
     super.dispose();
   }
@@ -186,6 +205,16 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   String get _statusHint {
+    if (_activeTool.isSelectionTool) {
+      final hints = <String>['Drag to select'];
+      if (_selection != null) {
+        hints.add('Drag inside to move');
+      }
+      hints.add('Shift: add');
+      hints.add('Ctrl: subtract');
+      return hints.join(' · ');
+    }
+
     if (!_activeTool.isDragShape) {
       return 'Drag on the canvas to paint';
     }
@@ -204,6 +233,159 @@ class _PaintScreenState extends State<PaintScreen> {
     return isInsideCanvas(position, bounds.width, bounds.height);
   }
 
+  SelectionShape get _activeSelectionShape =>
+      _activeTool == PaintTool.ellipseSelect
+          ? SelectionShape.ellipse
+          : SelectionShape.rectangle;
+
+  CanvasSelection? get _activeSelectionOverlay =>
+      _selectionDraft ?? _selection;
+
+  void _selectAll() {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+    setState(() {
+      _selection = CanvasSelection.all(_canvasSize);
+      _selectionDraft = null;
+    });
+  }
+
+  void _deselect() {
+    if (_selection == null && _selectionDraft == null) {
+      return;
+    }
+    setState(() {
+      _selection = null;
+      _selectionDraft = null;
+      _movingSelection = false;
+      _moveStart = null;
+      _strokesBeforeMove = null;
+    });
+  }
+
+  void _invertSelection() {
+    if (_selection == null || _canvasSize == Size.zero) {
+      return;
+    }
+    setState(() {
+      _selection = _selection!.inverted(_canvasSize);
+    });
+    _noteDocumentEdited();
+  }
+
+  void _deleteSelection() {
+    if (_selection == null) {
+      return;
+    }
+    setState(() {
+      _layerStack.activeHistory.removeWhere(
+        (stroke) => strokeIntersectsSelection(_selection!, stroke),
+      );
+    });
+    _noteDocumentEdited();
+  }
+
+  void _beginSelectionDrag(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    setState(() {
+      _selectionDragStart = position;
+      _selectionDraft = CanvasSelection.fromRect(
+        _activeSelectionShape,
+        Rect.fromPoints(position, position),
+      );
+    });
+  }
+
+  void _extendSelectionDrag(Offset position, Rect bounds) {
+    if (_selectionDragStart == null) {
+      return;
+    }
+
+    final corners = clippedShapeBounds(
+      start: _selectionDragStart!,
+      end: position,
+      bounds: bounds,
+      constrainSquare: _shiftPressed && !_subtractSelectionModifier,
+      fromCenter: false,
+    );
+    if (corners == null) {
+      return;
+    }
+
+    setState(() {
+      _selectionDraft = CanvasSelection.fromRect(
+        _activeSelectionShape,
+        Rect.fromPoints(corners.topLeft, corners.bottomRight),
+      );
+    });
+  }
+
+  void _endSelectionDrag() {
+    _selectionDragStart = null;
+    final draft = _selectionDraft;
+    _selectionDraft = null;
+    if (draft == null || draft.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      if (_selection == null ||
+          (!_shiftPressed && !_subtractSelectionModifier)) {
+        _selection = draft;
+        return;
+      }
+
+      if (_shiftPressed && !_subtractSelectionModifier) {
+        _selection = _selection!.combined(draft, PathOperation.union);
+      } else if (_subtractSelectionModifier && !_shiftPressed) {
+        _selection = _selection!.combined(draft, PathOperation.difference);
+      } else {
+        _selection = _selection!.combined(draft, PathOperation.intersect);
+      }
+    });
+  }
+
+  void _beginMoveSelection(Offset position) {
+    _movingSelection = true;
+    _moveStart = position;
+    _strokesBeforeMove = List<Stroke>.from(_layerStack.activeHistory.strokes);
+  }
+
+  void _extendMoveSelection(Offset position) {
+    if (!_movingSelection ||
+        _moveStart == null ||
+        _selection == null ||
+        _strokesBeforeMove == null) {
+      return;
+    }
+
+    final delta = position - _moveStart!;
+    setState(() {
+      _layerStack.activeHistory.replaceStrokes(
+        translateSelectedStrokes(
+          _strokesBeforeMove!,
+          _selection!,
+          delta,
+        ),
+      );
+    });
+  }
+
+  void _endMoveSelection() {
+    if (!_movingSelection) {
+      return;
+    }
+
+    _movingSelection = false;
+    _moveStart = null;
+    _strokesBeforeMove = null;
+    _noteDocumentEdited();
+  }
+
   void _changeBrushSize(double delta) {
     setState(() {
       _brushSize = (_brushSize + delta).clamp(
@@ -215,6 +397,15 @@ class _PaintScreenState extends State<PaintScreen> {
 
   void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
+    if (_activeTool.isSelectionTool) {
+      if (_selection != null && _selection!.contains(position)) {
+        _beginMoveSelection(position);
+      } else {
+        _beginSelectionDrag(position, bounds);
+      }
+      return;
+    }
+
     switch (_activeTool) {
       case PaintTool.line:
         _startLine(position, bounds);
@@ -290,6 +481,8 @@ class _PaintScreenState extends State<PaintScreen> {
       _layerStack.setBackgroundColor(backgroundColor);
       _currentStroke = null;
       _lastPanPosition = null;
+      _selection = null;
+      _selectionDraft = null;
     });
     _resetDocumentTracking();
   }
@@ -543,6 +736,15 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   void _extendStroke(Offset position, Rect bounds) {
+    if (_activeTool.isSelectionTool) {
+      if (_movingSelection) {
+        _extendMoveSelection(position);
+      } else {
+        _extendSelectionDrag(position, bounds);
+      }
+      return;
+    }
+
     switch (_activeTool) {
       case PaintTool.line:
         _extendLine(position, bounds);
@@ -633,6 +835,16 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   void _endStroke() {
+    if (_activeTool.isSelectionTool) {
+      if (_movingSelection) {
+        _endMoveSelection();
+      } else {
+        _endSelectionDrag();
+      }
+      _lastPanPosition = null;
+      return;
+    }
+
     switch (_activeTool) {
       case PaintTool.line:
         _endLine();
@@ -714,6 +926,28 @@ class _PaintScreenState extends State<PaintScreen> {
             _clearCanvas(),
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
             _clearCanvas(),
+        const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _selectAll,
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+            _selectAll,
+        const SingleActivator(LogicalKeyboardKey.keyD, meta: true): _deselect,
+        const SingleActivator(LogicalKeyboardKey.keyD, control: true):
+            _deselect,
+        const SingleActivator(
+          LogicalKeyboardKey.keyI,
+          control: true,
+          shift: true,
+        ): _invertSelection,
+        const SingleActivator(
+          LogicalKeyboardKey.keyI,
+          meta: true,
+          shift: true,
+        ): _invertSelection,
+        const SingleActivator(LogicalKeyboardKey.delete): _deleteSelection,
+        const SingleActivator(LogicalKeyboardKey.backspace): _deleteSelection,
+        const SingleActivator(LogicalKeyboardKey.escape): _deselect,
+        const SingleActivator(LogicalKeyboardKey.keyS): () {
+          setState(() => _activeTool = PaintTool.rectSelect);
+        },
       },
       child: Focus(
         autofocus: true,
@@ -748,6 +982,11 @@ class _PaintScreenState extends State<PaintScreen> {
                               onOpen: _openCanvas,
                               onSave: () => _saveCanvas(),
                               onSaveAs: () => _saveCanvasAs(),
+                              onSelectAll: _selectAll,
+                              onDeselect: _deselect,
+                              onInvertSelection: _invertSelection,
+                              onDeleteSelection: _deleteSelection,
+                              hasSelection: _selection != null,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -767,6 +1006,11 @@ class _PaintScreenState extends State<PaintScreen> {
                               canRedo: _layerStack.canRedo,
                               onUndo: _undo,
                               onRedo: _redo,
+                              hasSelection: _selection != null,
+                              onSelectAll: _selectAll,
+                              onDeselect: _deselect,
+                              onInvertSelection: _invertSelection,
+                              onDeleteSelection: _deleteSelection,
                             ),
                             Expanded(
                               child: Row(
@@ -795,18 +1039,40 @@ class _PaintScreenState extends State<PaintScreen> {
                                             ),
                                             onPanEnd: (_) => _endStroke(),
                                             onPanCancel: () => _endStroke(),
-                                            child: CustomPaint(
-                                              painter: CanvasPainter(
-                                                layers: _layerStack.layers,
-                                                activeLayerIndex:
-                                                    _layerStack.activeIndex,
-                                                currentStroke: _currentStroke,
-                                                backgroundImage:
-                                                    _layerStack.backgroundImage,
-                                                backgroundColor:
-                                                    _layerStack.backgroundColor,
+                                            child: AnimatedBuilder(
+                                              animation: _marchingAntsController,
+                                              builder: (context, child) {
+                                                return Stack(
+                                                  fit: StackFit.expand,
+                                                  children: [
+                                                    child!,
+                                                    CustomPaint(
+                                                      painter:
+                                                          SelectionOverlayPainter(
+                                                        selection:
+                                                            _activeSelectionOverlay,
+                                                        dashPhase:
+                                                            _marchingAntsController
+                                                                    .value *
+                                                                16,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                              child: CustomPaint(
+                                                painter: CanvasPainter(
+                                                  layers: _layerStack.layers,
+                                                  activeLayerIndex:
+                                                      _layerStack.activeIndex,
+                                                  currentStroke: _currentStroke,
+                                                  backgroundImage:
+                                                      _layerStack.backgroundImage,
+                                                  backgroundColor:
+                                                      _layerStack.backgroundColor,
+                                                ),
+                                                child: const SizedBox.expand(),
                                               ),
-                                              child: const SizedBox.expand(),
                                             ),
                                           ),
                                         );
@@ -946,6 +1212,11 @@ class _PaintScreenState extends State<PaintScreen> {
           onOpen: _openCanvas,
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,
+          onSelectAll: _selectAll,
+          onDeselect: _deselect,
+          onInvertSelection: _invertSelection,
+          onDeleteSelection: _deleteSelection,
+          hasSelection: _selection != null,
         ),
         child: body,
       );

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
+import 'package:vibepaint/menus/platform_edit_menus.dart';
 
 List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback? onNew,
   required VoidCallback onOpen,
   required VoidCallback onSave,
   required VoidCallback onSaveAs,
+  required VoidCallback onSelectAll,
+  required VoidCallback onDeselect,
+  required VoidCallback onInvertSelection,
+  required VoidCallback onDeleteSelection,
+  required bool hasSelection,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
     if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
@@ -80,6 +86,20 @@ List<PlatformMenu> buildMacosPlatformMenus({
               onSelected: onSaveAs,
             ),
           ],
+        ),
+      ],
+    ),
+    PlatformMenu(
+      label: 'Edit',
+      menus: [
+        PlatformMenuItemGroup(
+          members: buildEditPlatformMenuItems(
+            onSelectAll: onSelectAll,
+            onDeselect: onDeselect,
+            onInvertSelection: onInvertSelection,
+            onDeleteSelection: onDeleteSelection,
+            canDeleteSelection: hasSelection,
+          ),
         ),
       ],
     ),
