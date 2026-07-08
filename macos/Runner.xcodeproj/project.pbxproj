@@ -31,7 +31,7 @@
 		33CC11172044BFA00003C047 /* SelectionCursors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11162044BFA00003C047 /* SelectionCursors.swift */; };
 		33CC11192044BFA00003C048 /* MenuSanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11182044BFA00003C048 /* MenuSanitizer.swift */; };
 		A1E001012044BFA00003C049 /* AiEnhance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E001002044BFA00003C049 /* AiEnhance.swift */; };
-		A1E001032044BFA00003C04B /* ImagePlayground.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1E001022044BFA00003C04A /* ImagePlayground.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		A1E001042044BFA00003C04C /* enhance_sketch.py in Resources */ = {isa = PBXBuildFile; fileRef = A1E001052044BFA00003C04D /* enhance_sketch.py */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 /* End PBXBuildFile section */
 
@@ -80,7 +80,7 @@
 		33CC11162044BFA00003C047 /* SelectionCursors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionCursors.swift; sourceTree = "<group>"; };
 		33CC11182044BFA00003C048 /* MenuSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuSanitizer.swift; sourceTree = "<group>"; };
 		A1E001002044BFA00003C049 /* AiEnhance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiEnhance.swift; sourceTree = "<group>"; };
-		A1E001022044BFA00003C04A /* ImagePlayground.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImagePlayground.framework; path = System/Library/Frameworks/ImagePlayground.framework; sourceTree = SDKROOT; };
+		A1E001052044BFA00003C04D /* enhance_sketch.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = enhance_sketch.py; sourceTree = "<group>"; };
 		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
 		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
 		33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Flutter-Generated.xcconfig"; path = "ephemeral/Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
@@ -104,7 +104,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1E001032044BFA00003C04B /* ImagePlayground.framework in Frameworks */,
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -183,6 +182,7 @@
 				33CC11162044BFA00003C047 /* SelectionCursors.swift */,
 				33CC11182044BFA00003C048 /* MenuSanitizer.swift */,
 				A1E001002044BFA00003C049 /* AiEnhance.swift */,
+				A1E001062044BFA00003C04E /* mlx */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
@@ -191,10 +191,17 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
+		A1E001062044BFA00003C04E /* mlx */ = {
+			isa = PBXGroup;
+			children = (
+				A1E001052044BFA00003C04D /* enhance_sketch.py */,
+			);
+			path = mlx;
+			sourceTree = "<group>";
+		};
 		D73912EC22F37F3D000D13A0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A1E001022044BFA00003C04A /* ImagePlayground.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -311,6 +318,7 @@
 			files = (
 				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
 				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
+				A1E001042044BFA00003C04C /* enhance_sketch.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

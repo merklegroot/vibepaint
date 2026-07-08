@@ -32,7 +32,7 @@ A vibe coded paint app.
 
 ### Image
 - **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
-- **AI Enhance** — macOS toolbar sparkle button silently enhances the active layer (or selection) with Apple Intelligence `ImageCreator` and applies the result in place (undoable). Requires a supported Mac with Apple Intelligence enabled; keep VibePaint frontmost when enhancing
+- **AI Enhance** — macOS toolbar sparkle button enhances the active layer (or selection) with local MLX image-to-image (FLUX via [mflux](https://github.com/akx/mflux)) and applies the result in place (undoable). Requires Apple Silicon and a one-time `scripts/mlx/setup.sh` install
 
 ### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
@@ -100,6 +100,18 @@ Release build locally:
 flutter build macos --release
 open build/macos/Build/Products/Release/VibePaint.app
 ```
+
+### AI Enhance (MLX, macOS Apple Silicon)
+
+One-time setup (Python 3.10+, downloads mflux; first enhance also downloads **FLUX.2 Klein 4B**, a smaller public model suited to 16 GB Macs):
+
+```bash
+scripts/mlx/setup.sh
+```
+
+Then run VibePaint and use the sparkle toolbar button. Generation runs locally in the background via `~/.vibepaint/mlx-venv`.
+
+(FLUX.1 models are gated; VibePaint defaults to `flux2-klein-4b` for lower memory use.)
 
 Optional DMG (`create-dmg` via Homebrew for a nicer layout; otherwise `hdiutil`):
 

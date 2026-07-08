@@ -8,16 +8,41 @@ import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 
 const _channel = MethodChannel('vibepaint/ai_enhance');
+const _progressChannel = EventChannel('vibepaint/ai_enhance_progress');
 
-/// Default prompt seed for Image Playground when enhancing a sketch.
+/// Default prompt for MLX sketch enhancement.
 const defaultAiEnhancePrompt =
-    'colorful finished illustration based on this drawing';
+    'colorful finished illustration, polished digital art, vivid colors';
 
 enum AiEnhanceAvailability {
   available,
   unsupportedPlatform,
   unavailableOnDevice,
   unknown,
+}
+
+/// Live status updates from the native MLX subprocess.
+class AiEnhanceProgress {
+  const AiEnhanceProgress({
+    required this.message,
+    this.phase = 'working',
+    this.bytesDone,
+    this.bytesTotal,
+    this.elapsedSeconds = 0,
+  });
+
+  final String message;
+  final String phase;
+  final int? bytesDone;
+  final int? bytesTotal;
+  final int elapsedSeconds;
+
+  double? get progressFraction {
+    if (bytesDone == null || bytesTotal == null || bytesTotal! <= 0) {
+      return null;
+    }
+    return (bytesDone! / bytesTotal!).clamp(0.0, 1.0);
+  }
 }
 
 class AiEnhanceResult {
@@ -32,7 +57,7 @@ class AiEnhanceResult {
   final int height;
 }
 
-/// Crop of the active layer (or selection) prepared as Playground input.
+/// Crop of the active layer (or selection) prepared as MLX input.
 class AiEnhanceSource {
   const AiEnhanceSource({
     required this.pngBytes,
@@ -61,6 +86,29 @@ Future<AiEnhanceAvailability> checkAiEnhanceAvailability() async {
   } on Object {
     return AiEnhanceAvailability.unknown;
   }
+}
+
+Stream<AiEnhanceProgress> aiEnhanceProgressStream() {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+    return const Stream.empty();
+  }
+  return _progressChannel.receiveBroadcastStream().map((event) {
+    if (event is Map) {
+      final message = event['message']?.toString() ?? 'Working…';
+      final phase = event['phase']?.toString() ?? 'working';
+      final bytesDone = event['bytes_done'];
+      final bytesTotal = event['bytes_total'];
+      final elapsed = event['elapsed_seconds'];
+      return AiEnhanceProgress(
+        message: message,
+        phase: phase,
+        bytesDone: bytesDone is int ? bytesDone : int.tryParse('$bytesDone'),
+        bytesTotal: bytesTotal is int ? bytesTotal : int.tryParse('$bytesTotal'),
+        elapsedSeconds: elapsed is int ? elapsed : int.tryParse('$elapsed') ?? 0,
+      );
+    }
+    return AiEnhanceProgress(message: event?.toString() ?? 'Working…');
+  });
 }
 
 Future<AiEnhanceResult?> enhanceSketch({
@@ -97,25 +145,29 @@ Future<AiEnhanceResult?> enhanceSketch({
     }
     return AiEnhanceResult(pngBytes: png, width: width, height: height);
   } on PlatformException catch (error) {
-    final detail = error.details;
-    final suffix = (detail is String && detail.trim().isNotEmpty)
-        ? ' ($detail)'
-        : '';
     throw AiEnhanceException(
       error.code,
-      '${error.message ?? 'AI Enhance failed'}$suffix',
+      error.message ?? 'AI Enhance failed',
+      details: error.details?.toString(),
     );
   }
 }
 
 class AiEnhanceException implements Exception {
-  AiEnhanceException(this.code, this.message);
+  AiEnhanceException(this.code, this.message, {this.details});
 
   final String code;
   final String message;
+  final String? details;
 
   @override
-  String toString() => message;
+  String toString() {
+    final detail = details?.trim();
+    if (detail == null || detail.isEmpty) {
+      return message;
+    }
+    return '$message\n$detail';
+  }
 }
 
 /// Renders the active layer strokes and optionally crops to [selection].
@@ -189,7 +241,7 @@ Future<AiEnhanceSource?> captureAiEnhanceSource({
     return null;
   }
 
-  // ImageCreator rejects many transparent / tiny inputs; flatten onto white.
+  // MLX / mflux works best with opaque sketches on a white background.
   final prepared = _flattenOntoWhite(cropped);
 
   return AiEnhanceSource(
