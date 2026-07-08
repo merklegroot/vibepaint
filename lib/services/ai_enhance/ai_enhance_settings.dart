@@ -96,10 +96,11 @@ class AiEnhanceConnectionResult {
     };
   }
 
-  factory AiEnhanceConnectionResult.valid({String? message}) {
+  factory AiEnhanceConnectionResult.valid({String? message, String? details}) {
     return AiEnhanceConnectionResult(
       status: AiEnhanceConnectionStatus.valid,
       message: message,
+      details: details,
     );
   }
 

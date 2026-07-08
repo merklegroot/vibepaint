@@ -50,83 +50,78 @@ class OllamaClient {
   Uri _uri(String baseUrl, String path) =>
       Uri.parse('${AiEnhanceSettingsStorage.normalizeBaseUrl(baseUrl)}$path');
 
-  /// Lists models via `GET /api/tags`.
+  /// Verifies Ollama is reachable (same approach as the Ollama app's health check).
   Future<AiEnhanceConnectionResult> testConnection({
     required String baseUrl,
     String model = AiEnhanceSettings.ollamaEnhanceModel,
   }) async {
     final normalizedUrl = AiEnhanceSettingsStorage.normalizeBaseUrl(baseUrl);
-    final tagsUri = _uri(normalizedUrl, '/api/tags');
 
     try {
-      final response = await _http
-          .get(tagsUri)
-          .timeout(const Duration(seconds: 15));
+      final version = await _fetchOllamaVersion(normalizedUrl);
+      if (version == null) {
+        final tagsResponse = await _http
+            .get(_uri(normalizedUrl, '/api/tags'))
+            .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode != 200) {
-        return AiEnhanceConnectionResult.invalid(
-          message: 'Ollama returned HTTP ${response.statusCode}.',
-          details: _truncate(response.body),
+        if (tagsResponse.statusCode != 200) {
+          return AiEnhanceConnectionResult.invalid(
+            message: 'Ollama returned HTTP ${tagsResponse.statusCode}.',
+            details: _truncate(tagsResponse.body),
+          );
+        }
+
+        return AiEnhanceConnectionResult.valid(
+          message: 'Connected to $normalizedUrl',
         );
       }
 
       final modelName = model.trim();
       if (modelName.isEmpty) {
         return AiEnhanceConnectionResult.valid(
-          message: 'Connected to $normalizedUrl',
+          message: 'Connected to Ollama $version at $normalizedUrl',
         );
       }
 
-      var available = parseOllamaModelNames(response.body);
+      if (await _probeModelExists(baseUrl: normalizedUrl, model: modelName)) {
+        return AiEnhanceConnectionResult.valid(
+          message:
+              'Connected to Ollama $version. Model "$modelName" is ready.',
+        );
+      }
+
+      var available = <String>[];
+      try {
+        final tagsResponse = await _http
+            .get(_uri(normalizedUrl, '/api/tags'))
+            .timeout(const Duration(seconds: 15));
+        if (tagsResponse.statusCode == 200) {
+          available = parseOllamaModelNames(tagsResponse.body);
+        }
+      } on Exception {
+        // Optional listing check.
+      }
+
       if (available.isEmpty) {
         available = await _listModelsFromOpenAiEndpoint(normalizedUrl);
       }
 
       if (ollamaHasModel(available, modelName)) {
         return AiEnhanceConnectionResult.valid(
-          message: 'Connected. Model "$modelName" is available.',
-        );
-      }
-
-      final existsViaShow = await _probeModelExists(
-        baseUrl: normalizedUrl,
-        model: modelName,
-      );
-      if (existsViaShow) {
-        return AiEnhanceConnectionResult.valid(
           message:
-              'Connected. Model "$modelName" is available '
-              '(verified via /api/show).',
+              'Connected to Ollama $version. Model "$modelName" is ready.',
         );
       }
 
-      final version = await _fetchOllamaVersion(normalizedUrl);
-
-      if (available.isEmpty) {
-        return AiEnhanceConnectionResult.invalid(
-          message:
-              'Connected to Ollama${version == null ? '' : ' $version'}, '
-              'but this instance has no models.',
-          details:
-              'GET /api/tags returned no models and /api/show could not find '
-              '$modelName.\n\n'
-              'Your SSH tunnel is working, but the Ollama service behind it '
-              'does not see any models. If `ollama ls` on the server shows '
-              '$modelName, the CLI may be using a different model directory '
-              'than the background service.\n\n'
-              'On the server, compare:\n'
-              '  curl -s http://localhost:11434/api/tags\n'
-              '  ollama ls\n\n'
-              'If /api/tags is empty there too, run on the server:\n'
-              '  ollama pull $modelName',
-        );
-      }
-
-      return AiEnhanceConnectionResult.invalid(
-        message: 'Model "$modelName" was not found on the server.',
+      return AiEnhanceConnectionResult.valid(
+        message: 'Connected to Ollama $version at $normalizedUrl',
         details:
-            'Available models: ${available.join(', ')}. '
-            'Use Pull model to install $modelName.',
+            'Ollama is reachable. Model "$modelName" was not confirmed via '
+            '/api/tags or /api/show, but will still be used when you run '
+            'AI Enhance.\n\n'
+            'If enhance fails, try Pull model or verify the model on the '
+            'server with:\n'
+            '  ollama run $modelName "test"',
       );
     } on http.ClientException catch (error) {
       return AiEnhanceConnectionResult.networkError(
@@ -160,20 +155,22 @@ class OllamaClient {
     required String model,
   }) async {
     for (final candidate in ollamaModelProbeCandidates(model)) {
-      try {
-        final response = await _http
-            .post(
-              _uri(baseUrl, '/api/show'),
-              headers: const {'Content-Type': 'application/json'},
-              body: jsonEncode({'model': candidate}),
-            )
-            .timeout(const Duration(seconds: 15));
+      for (final field in const ['model', 'name']) {
+        try {
+          final response = await _http
+              .post(
+                _uri(baseUrl, '/api/show'),
+                headers: const {'Content-Type': 'application/json'},
+                body: jsonEncode({field: candidate}),
+              )
+              .timeout(const Duration(seconds: 15));
 
-        if (response.statusCode == 200) {
-          return true;
+          if (response.statusCode == 200) {
+            return true;
+          }
+        } on Exception {
+          continue;
         }
-      } on Exception {
-        continue;
       }
     }
     return false;
