@@ -37,7 +37,7 @@ Future<String?> promptSaveImagePath({
 }) async {
   if (supportsNativeSaveFormatPicker) {
     return showNativeSaveDialog(
-      fileName: fileNameStemFromPath(fileName),
+      fileName: fileName,
       initialDirectory: initialDirectory,
     );
   }

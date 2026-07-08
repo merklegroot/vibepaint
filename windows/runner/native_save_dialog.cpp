@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <commdlg.h>
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,41 @@ std::string WideToUtf8(const std::wstring& value) {
   return utf8;
 }
 
+std::string EnsureExtension(const std::string& path, const std::string& ext) {
+  if (ext.empty()) {
+    return path;
+  }
+
+  // Find last dot after the last separator.
+  size_t sep = path.find_last_of("/\\");
+  size_t dot = path.find_last_of('.');
+  bool hasExt = (dot != std::string::npos) &&
+                (sep == std::string::npos || dot > sep);
+
+  std::string base = path;
+  if (hasExt) {
+    base = path.substr(0, dot);
+  }
+
+  // If base already ends with the desired (case-insensitive), keep as-is.
+  std::string desired = "." + ext;
+  auto toLowerAscii = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
+  std::string lowerBase = base;
+  std::transform(lowerBase.begin(), lowerBase.end(), lowerBase.begin(), toLowerAscii);
+  std::string lowerDesired = desired;
+  std::transform(lowerDesired.begin(), lowerDesired.end(), lowerDesired.begin(), toLowerAscii);
+  if (lowerBase.size() >= lowerDesired.size() &&
+      lowerBase.compare(lowerBase.size() - lowerDesired.size(),
+                        lowerDesired.size(), lowerDesired) == 0) {
+    return base; // already good (without forcing another dot)
+  }
+
+  if (!base.empty() && base.back() == '.') {
+    return base + ext;
+  }
+  return base + desired;
+}
+
 }  // namespace
 
 std::optional<std::string> ShowNativeSaveDialog(
@@ -67,7 +104,7 @@ std::optional<std::string> ShowNativeSaveDialog(
   OPENFILENAMEW dialog = {};
   dialog.lStructSize = sizeof(dialog);
   dialog.lpstrFilter = filter;
-  dialog.nFilterIndex = 1;
+  dialog.nFilterIndex = 1; // default PNG
   dialog.lpstrFile = file_buffer.data();
   dialog.nMaxFile = MAX_PATH;
   dialog.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY |
@@ -80,5 +117,35 @@ std::optional<std::string> ShowNativeSaveDialog(
     return std::nullopt;
   }
 
-  return WideToUtf8(file_buffer.data());
+  std::string resultPath = WideToUtf8(file_buffer.data());
+
+  // Map the selected filter to a concrete extension and ensure the path has it.
+  // This makes the "Save as type" choice determine the image format.
+  std::string chosenExt;
+  switch (dialog.nFilterIndex) {
+    case 1: chosenExt = "png"; break;
+    case 2: chosenExt = "jpg"; break;
+    case 3: chosenExt = "bmp"; break;
+    case 4: chosenExt = "gif"; break;
+    case 5: chosenExt = "webp"; break;
+    case 6: {
+      // "All Supported" — keep whatever extension the user typed, or default to png.
+      size_t dot = resultPath.find_last_of('.');
+      size_t sep = resultPath.find_last_of("/\\");
+      bool hasExt = (dot != std::string::npos) &&
+                    (sep == std::string::npos || dot > sep);
+      if (!hasExt) {
+        chosenExt = "png";
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  if (!chosenExt.empty()) {
+    resultPath = EnsureExtension(resultPath, chosenExt);
+  }
+
+  return resultPath;
 }

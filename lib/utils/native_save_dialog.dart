@@ -16,9 +16,15 @@ Future<String?> showNativeSaveDialog({
     return null;
   }
 
-  return _channel.invokeMethod<String>('showSaveDialog', {
-    'fileName': fileName,
-    'initialDirectory': initialDirectory,
-    'dialogTitle': dialogTitle,
-  });
+  try {
+    return await _channel.invokeMethod<String>('showSaveDialog', {
+      'fileName': fileName,
+      'initialDirectory': initialDirectory,
+      'dialogTitle': dialogTitle,
+    });
+  } on PlatformException {
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
