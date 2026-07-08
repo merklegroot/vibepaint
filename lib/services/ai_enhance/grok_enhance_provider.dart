@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img;
 import 'package:vibepaint/services/ai_enhance/ai_enhance_provider.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 import 'package:vibepaint/services/grok_client.dart';
@@ -29,16 +26,10 @@ class GrokEnhanceProvider implements AiEnhanceProvider {
       'Grok API key is not set. Open Settings to add your key.';
 
   @override
-  Future<AiEnhanceConnectionStatus> testConnection(
+  Future<AiEnhanceConnectionResult> testConnection(
     AiEnhanceSettings settings,
-  ) async {
-    final status = await _client.testConnection(settings.grokApiKey);
-    return switch (status) {
-      GrokConnectionStatus.valid => AiEnhanceConnectionStatus.valid,
-      GrokConnectionStatus.invalid => AiEnhanceConnectionStatus.invalid,
-      GrokConnectionStatus.networkError =>
-        AiEnhanceConnectionStatus.networkError,
-    };
+  ) {
+    return _client.testConnection(settings.grokApiKey);
   }
 
   @override

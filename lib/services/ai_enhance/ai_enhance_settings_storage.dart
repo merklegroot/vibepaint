@@ -4,8 +4,6 @@ import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 const _providerKey = 'ai_enhance_provider';
 const _grokApiKeyKey = 'grok_api_key';
 const _ollamaBaseUrlKey = 'ollama_base_url';
-const _ollamaModelKey = 'ollama_model';
-
 /// Persists AI Enhance settings (API keys stored securely).
 class AiEnhanceSettingsStorage {
   AiEnhanceSettingsStorage({FlutterSecureStorage? storage})
@@ -30,7 +28,6 @@ class AiEnhanceSettingsStorage {
       _storage.read(key: _providerKey),
       _storage.read(key: _grokApiKeyKey),
       _storage.read(key: _ollamaBaseUrlKey),
-      _storage.read(key: _ollamaModelKey),
     ]);
 
     return AiEnhanceSettings(
@@ -39,7 +36,6 @@ class AiEnhanceSettingsStorage {
       ollamaBaseUrl: AiEnhanceSettingsStorage.normalizeBaseUrl(
         values[2] ?? AiEnhanceSettings.defaultOllamaBaseUrl,
       ),
-      ollamaModel: (values[3] ?? AiEnhanceSettings.defaultOllamaModel).trim(),
     );
   }
 
@@ -50,10 +46,6 @@ class AiEnhanceSettingsStorage {
       _storage.write(
         key: _ollamaBaseUrlKey,
         value: AiEnhanceSettingsStorage.normalizeBaseUrl(settings.ollamaBaseUrl),
-      ),
-      _storage.write(
-        key: _ollamaModelKey,
-        value: settings.ollamaModel.trim(),
       ),
     ]);
   }

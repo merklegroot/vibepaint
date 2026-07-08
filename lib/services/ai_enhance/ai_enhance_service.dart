@@ -5,6 +5,7 @@ import 'package:vibepaint/services/ai_enhance/ai_enhance_provider.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings_storage.dart';
 import 'package:vibepaint/services/ai_enhance/grok_enhance_provider.dart';
+import 'package:vibepaint/services/ai_enhance/ollama_client.dart';
 import 'package:vibepaint/services/ai_enhance/ollama_enhance_provider.dart';
 
 /// Routes AI Enhance requests to the configured provider.
@@ -41,7 +42,7 @@ class AiEnhanceService {
     return providerFor(settings).missingConfigurationMessage(settings);
   }
 
-  Future<AiEnhanceConnectionStatus> testConnection({
+  Future<AiEnhanceConnectionResult> testConnection({
     required AiEnhanceProviderId providerId,
     required AiEnhanceSettings settings,
   }) {
@@ -50,6 +51,28 @@ class AiEnhanceService {
       orElse: () => _providers.first,
     );
     return provider.testConnection(settings);
+  }
+
+  Future<void> pullOllamaModel({
+    required String baseUrl,
+    void Function(OllamaPullProgress progress)? onProgress,
+  }) async {
+    final settings = AiEnhanceSettings(ollamaBaseUrl: baseUrl);
+    final provider = _providers.firstWhere(
+      (entry) => entry.id == AiEnhanceProviderId.ollama,
+    ) as OllamaEnhanceProvider;
+
+    try {
+      await provider.pullModel(settings: settings, onProgress: onProgress);
+    } on AiEnhanceException {
+      rethrow;
+    } on Exception catch (error) {
+      throw AiEnhanceException(
+        'network_error',
+        'Could not reach Ollama.',
+        details: error.toString(),
+      );
+    }
   }
 
   Future<AiEnhanceResult> enhanceSketch({

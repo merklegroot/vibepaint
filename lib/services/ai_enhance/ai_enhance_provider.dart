@@ -15,7 +15,7 @@ abstract class AiEnhanceProvider {
   /// Human-readable message when [isConfigured] is false.
   String missingConfigurationMessage(AiEnhanceSettings settings);
 
-  Future<AiEnhanceConnectionStatus> testConnection(AiEnhanceSettings settings);
+  Future<AiEnhanceConnectionResult> testConnection(AiEnhanceSettings settings);
 
   Future<AiEnhanceResult> enhanceSketch({
     required AiEnhanceSettings settings,

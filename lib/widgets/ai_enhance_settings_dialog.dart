@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_service.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 import 'package:vibepaint/theme/app_colors.dart';
+import 'package:vibepaint/widgets/ollama_pull_progress_dialog.dart';
 
 /// Example SSH tunnel for reaching a remote Ollama instance.
 const ollamaSshTunnelCommand =
@@ -26,16 +27,18 @@ class AiEnhanceSettingsDialog extends StatefulWidget {
 
 class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
   final _service = AiEnhanceService();
+  final _scrollController = ScrollController();
+  final _grokStatusKey = GlobalKey();
+  final _ollamaStatusKey = GlobalKey();
   final _grokKeyController = TextEditingController();
   final _ollamaUrlController = TextEditingController();
-  final _ollamaModelController = TextEditingController();
   final _obscureGrokKey = ValueNotifier<bool>(true);
 
   bool _loading = true;
   bool _busy = false;
   AiEnhanceProviderId _activeProvider = AiEnhanceProviderId.grok;
-  AiEnhanceConnectionStatus? _grokStatus;
-  AiEnhanceConnectionStatus? _ollamaStatus;
+  AiEnhanceConnectionResult? _grokStatus;
+  AiEnhanceConnectionResult? _ollamaStatus;
 
   @override
   void initState() {
@@ -52,16 +55,15 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
       _activeProvider = settings.activeProvider;
       _grokKeyController.text = settings.grokApiKey;
       _ollamaUrlController.text = settings.ollamaBaseUrl;
-      _ollamaModelController.text = settings.ollamaModel;
       _loading = false;
     });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _grokKeyController.dispose();
     _ollamaUrlController.dispose();
-    _ollamaModelController.dispose();
     _obscureGrokKey.dispose();
     super.dispose();
   }
@@ -71,7 +73,6 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
       activeProvider: _activeProvider,
       grokApiKey: _grokKeyController.text,
       ollamaBaseUrl: _ollamaUrlController.text,
-      ollamaModel: _ollamaModelController.text,
     );
   }
 
@@ -94,19 +95,92 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
     }
   }
 
+  Future<void> _showTestResult({
+    required AiEnhanceProviderId providerId,
+    required AiEnhanceConnectionResult result,
+    required GlobalKey statusKey,
+  }) async {
+    setState(() {
+      switch (providerId) {
+        case AiEnhanceProviderId.grok:
+          _grokStatus = result;
+        case AiEnhanceProviderId.ollama:
+          _ollamaStatus = result;
+      }
+    });
+
+    if (!mounted) {
+      return;
+    }
+
+    final summary = result.summary;
+    if (!result.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(summary),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final statusContext = statusKey.currentContext;
+    if (statusContext != null && mounted) {
+      await Scrollable.ensureVisible(
+        statusContext,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        alignment: 0.1,
+      );
+    }
+  }
+
   Future<void> _testGrok() async {
     setState(() {
       _busy = true;
       _grokStatus = null;
     });
     try {
-      final status = await _service.testConnection(
+      final result = await _service.testConnection(
         providerId: AiEnhanceProviderId.grok,
         settings: _currentSettings(),
       );
+      await _showTestResult(
+        providerId: AiEnhanceProviderId.grok,
+        result: result,
+        statusKey: _grokStatusKey,
+      );
+    } finally {
       if (mounted) {
-        setState(() => _grokStatus = status);
+        setState(() => _busy = false);
       }
+    }
+  }
+
+  Future<void> _pullOllamaModel() async {
+    setState(() => _busy = true);
+    try {
+      await showOllamaPullProgressDialog(
+        context: context,
+        work: (onProgress) => _service.pullOllamaModel(
+          baseUrl: _ollamaUrlController.text,
+          onProgress: onProgress,
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AiEnhanceSettings.ollamaEnhanceModel} downloaded successfully.',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      await _testOllama();
+    } on Object {
+      // Error snackbar shown by progress dialog.
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -120,13 +194,15 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
       _ollamaStatus = null;
     });
     try {
-      final status = await _service.testConnection(
+      final result = await _service.testConnection(
         providerId: AiEnhanceProviderId.ollama,
         settings: _currentSettings(),
       );
-      if (mounted) {
-        setState(() => _ollamaStatus = status);
-      }
+      await _showTestResult(
+        providerId: AiEnhanceProviderId.ollama,
+        result: result,
+        statusKey: _ollamaStatusKey,
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -136,7 +212,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
 
   String _statusLabel(AiEnhanceConnectionStatus status) {
     return switch (status) {
-      AiEnhanceConnectionStatus.valid => 'Valid',
+      AiEnhanceConnectionStatus.valid => 'Connected',
       AiEnhanceConnectionStatus.invalid => 'Invalid',
       AiEnhanceConnectionStatus.networkError => 'Network error',
     };
@@ -150,33 +226,91 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
     };
   }
 
-  Widget _statusRow(AiEnhanceConnectionStatus status) {
-    return Row(
-      children: [
-        Icon(
-          status == AiEnhanceConnectionStatus.valid
-              ? Icons.check_circle
-              : Icons.error_outline,
-          size: 18,
-          color: _statusColor(status),
+  Future<void> _copyConnectionResult(
+    AiEnhanceConnectionResult result,
+  ) async {
+    await Clipboard.setData(ClipboardData(text: result.copyableText));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connection message copied to clipboard'),
+          duration: Duration(seconds: 2),
         ),
-        const SizedBox(width: 8),
-        Text(
-          'Status: ${_statusLabel(status)}',
-          style: TextStyle(
-            color: _statusColor(status),
-            fontWeight: FontWeight.w600,
+      );
+    }
+  }
+
+  Widget _statusPanel(AiEnhanceConnectionResult result) {
+    final color = _statusColor(result.status);
+    final headline = result.message?.trim().isNotEmpty == true
+        ? result.message!.trim()
+        : _statusLabel(result.status);
+    final details = result.details?.trim();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.workspace,
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                result.isValid ? Icons.check_circle : Icons.error_outline,
+                size: 18,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  headline,
+                  style: TextStyle(
+                    color: AppColors.statusText,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Copy message',
+                onPressed: () => _copyConnectionResult(result),
+                icon: const Icon(Icons.copy, size: 18),
+                color: AppColors.paletteLabel,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
           ),
-        ),
-      ],
+          if (details != null && details.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SelectableText(
+              details,
+              style: const TextStyle(
+                color: AppColors.paletteLabel,
+                fontFamily: 'Menlo',
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
   bool _isGrokConfigured() => _grokKeyController.text.trim().isNotEmpty;
 
-  bool _isOllamaConfigured() =>
-      _ollamaUrlController.text.trim().isNotEmpty &&
-      _ollamaModelController.text.trim().isNotEmpty;
+  bool _isOllamaConfigured() => _ollamaUrlController.text.trim().isNotEmpty;
 
   Widget _providerPicker() {
     return Column(
@@ -204,7 +338,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
                 subtitle: 'xAI cloud · API key',
                 selected: _activeProvider == AiEnhanceProviderId.grok,
                 configured: _isGrokConfigured(),
-                status: _grokStatus,
+                testResult: _grokStatus,
                 enabled: !_busy,
                 onTap: () => setState(
                   () => _activeProvider = AiEnhanceProviderId.grok,
@@ -216,10 +350,10 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
               child: _ProviderOptionCard(
                 icon: Icons.dns_outlined,
                 title: 'Ollama',
-                subtitle: 'Local or SSH tunnel',
+                subtitle: AiEnhanceSettings.ollamaEnhanceModel,
                 selected: _activeProvider == AiEnhanceProviderId.ollama,
                 configured: _isOllamaConfigured(),
-                status: _ollamaStatus,
+                testResult: _ollamaStatus,
                 enabled: !_busy,
                 onTap: () => setState(
                   () => _activeProvider = AiEnhanceProviderId.ollama,
@@ -282,8 +416,11 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
           ),
         ),
         if (_grokStatus != null) ...[
-          const SizedBox(height: 4),
-          _statusRow(_grokStatus!),
+          const SizedBox(height: 8),
+          KeyedSubtree(
+            key: _grokStatusKey,
+            child: _statusPanel(_grokStatus!),
+          ),
         ],
       ],
     );
@@ -324,41 +461,68 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
           onChanged: (_) => setState(() => _ollamaStatus = null),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _ollamaModelController,
-          enabled: !_busy,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: const InputDecoration(
-            labelText: 'Model name',
-            labelStyle: TextStyle(color: AppColors.paletteLabel),
-            hintText: AiEnhanceSettings.defaultOllamaModel,
-            helperText:
-                'Vision: llava, moondream, bakllava. Image output: x/flux2-klein',
-            helperStyle: TextStyle(
-              color: AppColors.paletteLabel,
-              fontSize: 11,
-            ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.workspace,
+            border: Border.all(color: AppColors.paletteBorder),
+            borderRadius: BorderRadius.circular(6),
           ),
-          style: const TextStyle(
-            color: AppColors.statusText,
-            fontFamily: 'Menlo',
-            fontSize: 12,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Model',
+                style: TextStyle(
+                  color: AppColors.paletteLabel,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                AiEnhanceSettings.ollamaEnhanceModel,
+                style: const TextStyle(
+                  color: AppColors.statusText,
+                  fontFamily: 'Menlo',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Image-generation model used for sketch enhancement.',
+                style: TextStyle(
+                  color: AppColors.paletteLabel,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
-          onChanged: (_) => setState(() => _ollamaStatus = null),
         ),
         const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _busy ? null : _testOllama,
-            icon: const Icon(Icons.link, size: 18),
-            label: const Text('Test connection'),
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            TextButton.icon(
+              onPressed: _busy ? null : _testOllama,
+              icon: const Icon(Icons.link, size: 18),
+              label: const Text('Test connection'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _busy ? null : _pullOllamaModel,
+              icon: const Icon(Icons.download_outlined, size: 18),
+              label: const Text('Pull model'),
+            ),
+          ],
         ),
         if (_ollamaStatus != null) ...[
-          const SizedBox(height: 4),
-          _statusRow(_ollamaStatus!),
+          const SizedBox(height: 8),
+          KeyedSubtree(
+            key: _ollamaStatusKey,
+            child: _statusPanel(_ollamaStatus!),
+          ),
         ],
       ],
     );
@@ -380,6 +544,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : SingleChildScrollView(
+                controller: _scrollController,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -432,7 +597,7 @@ class _ProviderOptionCard extends StatelessWidget {
     required this.configured,
     required this.enabled,
     required this.onTap,
-    this.status,
+    this.testResult,
   });
 
   final IconData icon;
@@ -442,7 +607,7 @@ class _ProviderOptionCard extends StatelessWidget {
   final bool configured;
   final bool enabled;
   final VoidCallback onTap;
-  final AiEnhanceConnectionStatus? status;
+  final AiEnhanceConnectionResult? testResult;
 
   @override
   Widget build(BuildContext context) {
@@ -535,22 +700,24 @@ class _ProviderOptionCard extends StatelessWidget {
                       fontSize: 11,
                     ),
                   ),
-                  if (status != null) ...[
-                    const Spacer(),
-                    Icon(
-                      status == AiEnhanceConnectionStatus.valid
-                          ? Icons.link
-                          : Icons.link_off,
-                      size: 14,
-                      color: switch (status) {
-                        AiEnhanceConnectionStatus.valid =>
-                          Colors.green.shade600,
-                        AiEnhanceConnectionStatus.networkError =>
-                          Colors.orange.shade800,
-                        AiEnhanceConnectionStatus.invalid =>
-                          Colors.red.shade700,
-                        null => AppColors.paletteLabel,
-                      },
+                  if (testResult != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      testResult!.summary,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: switch (testResult!.status) {
+                          AiEnhanceConnectionStatus.valid =>
+                            Colors.green.shade600,
+                          AiEnhanceConnectionStatus.networkError =>
+                            Colors.orange.shade800,
+                          AiEnhanceConnectionStatus.invalid =>
+                            Colors.red.shade700,
+                        },
+                        fontSize: 11,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ],

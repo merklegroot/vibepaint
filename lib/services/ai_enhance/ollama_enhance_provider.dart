@@ -20,20 +20,26 @@ class OllamaEnhanceProvider implements AiEnhanceProvider {
 
   @override
   bool isConfigured(AiEnhanceSettings settings) =>
-      settings.ollamaBaseUrl.trim().isNotEmpty &&
-      settings.ollamaModel.trim().isNotEmpty;
+      settings.ollamaBaseUrl.trim().isNotEmpty;
 
   @override
   String missingConfigurationMessage(AiEnhanceSettings settings) =>
-      'Ollama base URL and model are required. Open Settings to configure.';
+      'Ollama base URL is required. Open Settings to configure.';
 
   @override
-  Future<AiEnhanceConnectionStatus> testConnection(
+  Future<AiEnhanceConnectionResult> testConnection(
     AiEnhanceSettings settings,
   ) {
-    return _client.testConnection(
+    return _client.testConnection(baseUrl: settings.ollamaBaseUrl);
+  }
+
+  Future<void> pullModel({
+    required AiEnhanceSettings settings,
+    void Function(OllamaPullProgress progress)? onProgress,
+  }) {
+    return _client.pullModel(
       baseUrl: settings.ollamaBaseUrl,
-      model: settings.ollamaModel,
+      onProgress: onProgress,
     );
   }
 
@@ -46,7 +52,7 @@ class OllamaEnhanceProvider implements AiEnhanceProvider {
   }) {
     return _client.enhanceSketch(
       baseUrl: settings.ollamaBaseUrl,
-      model: settings.ollamaModel,
+      model: AiEnhanceSettings.ollamaEnhanceModel,
       sourcePng: sourcePng,
       prompt: prompt,
       onProgress: onProgress,

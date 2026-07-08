@@ -4,15 +4,17 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
+import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 
 const grokApiBaseUrl = 'https://api.x.ai/v1';
 const grokImageEditModel = 'grok-imagine-image-quality';
 
-/// Result of validating a Grok API key.
-enum GrokConnectionStatus {
-  valid,
-  invalid,
-  networkError,
+String _truncateGrokBody(String value, {int maxLength = 280}) {
+  final trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return '${trimmed.substring(0, maxLength)}…';
 }
 
 /// Lightweight HTTP client for xAI Grok image editing.
@@ -29,10 +31,12 @@ class GrokClient {
   };
 
   /// Verifies the API key with a models list request (no image generation).
-  Future<GrokConnectionStatus> testConnection(String apiKey) async {
+  Future<AiEnhanceConnectionResult> testConnection(String apiKey) async {
     final trimmed = apiKey.trim();
     if (trimmed.isEmpty) {
-      return GrokConnectionStatus.invalid;
+      return AiEnhanceConnectionResult.invalid(
+        message: 'Grok API key is empty.',
+      );
     }
 
     try {
@@ -44,14 +48,30 @@ class GrokClient {
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
-        return GrokConnectionStatus.valid;
+        return AiEnhanceConnectionResult.valid(
+          message: 'Connected to xAI.',
+        );
       }
       if (response.statusCode == 401 || response.statusCode == 403) {
-        return GrokConnectionStatus.invalid;
+        return AiEnhanceConnectionResult.invalid(
+          message: 'Grok API key was rejected (HTTP ${response.statusCode}).',
+          details: _truncateGrokBody(response.body),
+        );
       }
-      return GrokConnectionStatus.invalid;
-    } on Exception {
-      return GrokConnectionStatus.networkError;
+      return AiEnhanceConnectionResult.invalid(
+        message: 'xAI returned HTTP ${response.statusCode}.',
+        details: _truncateGrokBody(response.body),
+      );
+    } on http.ClientException catch (error) {
+      return AiEnhanceConnectionResult.networkError(
+        message: 'Could not reach xAI.',
+        details: error.message,
+      );
+    } on Exception catch (error) {
+      return AiEnhanceConnectionResult.networkError(
+        message: 'Could not reach xAI.',
+        details: error.toString(),
+      );
     }
   }
 

@@ -3,9 +3,41 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings_storage.dart';
-import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
+import 'package:vibepaint/services/ai_enhance/ollama_model_utils.dart';
+
+/// Progress update while pulling an Ollama model.
+class OllamaPullProgress {
+  const OllamaPullProgress({
+    required this.status,
+    this.completed,
+    this.total,
+  });
+
+  final String status;
+  final int? completed;
+  final int? total;
+
+  double? get fraction {
+    final done = completed;
+    final expected = total;
+    if (done == null || expected == null || expected <= 0) {
+      return null;
+    }
+    return done / expected;
+  }
+
+  String get message {
+    final fraction = this.fraction;
+    if (fraction != null) {
+      final percent = (fraction * 100).clamp(0, 100).toStringAsFixed(1);
+      return '$status ($percent%)';
+    }
+    return status;
+  }
+}
 
 /// HTTP client for a local or tunneled Ollama instance.
 class OllamaClient {
@@ -19,48 +51,294 @@ class OllamaClient {
       Uri.parse('${AiEnhanceSettingsStorage.normalizeBaseUrl(baseUrl)}$path');
 
   /// Lists models via `GET /api/tags`.
-  Future<AiEnhanceConnectionStatus> testConnection({
+  Future<AiEnhanceConnectionResult> testConnection({
     required String baseUrl,
-    String? model,
+    String model = AiEnhanceSettings.ollamaEnhanceModel,
   }) async {
+    final normalizedUrl = AiEnhanceSettingsStorage.normalizeBaseUrl(baseUrl);
+    final tagsUri = _uri(normalizedUrl, '/api/tags');
+
     try {
       final response = await _http
-          .get(_uri(baseUrl, '/api/tags'))
+          .get(tagsUri)
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
-        return AiEnhanceConnectionStatus.invalid;
+        return AiEnhanceConnectionResult.invalid(
+          message: 'Ollama returned HTTP ${response.statusCode}.',
+          details: _truncate(response.body),
+        );
       }
 
-      if (model == null || model.trim().isEmpty) {
-        return AiEnhanceConnectionStatus.valid;
+      final modelName = model.trim();
+      if (modelName.isEmpty) {
+        return AiEnhanceConnectionResult.valid(
+          message: 'Connected to $normalizedUrl',
+        );
       }
 
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) {
-        return AiEnhanceConnectionStatus.valid;
+      var available = parseOllamaModelNames(response.body);
+      if (available.isEmpty) {
+        available = await _listModelsFromOpenAiEndpoint(normalizedUrl);
       }
 
-      final models = decoded['models'];
-      if (models is! List) {
-        return AiEnhanceConnectionStatus.valid;
+      if (ollamaHasModel(available, modelName)) {
+        return AiEnhanceConnectionResult.valid(
+          message: 'Connected. Model "$modelName" is available.',
+        );
       }
 
-      final target = model.trim().toLowerCase();
-      final found = models.any((entry) {
-        if (entry is! Map<String, dynamic>) {
-          return false;
+      final existsViaShow = await _probeModelExists(
+        baseUrl: normalizedUrl,
+        model: modelName,
+      );
+      if (existsViaShow) {
+        return AiEnhanceConnectionResult.valid(
+          message:
+              'Connected. Model "$modelName" is available '
+              '(verified via /api/show).',
+        );
+      }
+
+      final version = await _fetchOllamaVersion(normalizedUrl);
+
+      if (available.isEmpty) {
+        return AiEnhanceConnectionResult.invalid(
+          message:
+              'Connected to Ollama${version == null ? '' : ' $version'}, '
+              'but this instance has no models.',
+          details:
+              'GET /api/tags returned no models and /api/show could not find '
+              '$modelName.\n\n'
+              'Your SSH tunnel is working, but the Ollama service behind it '
+              'does not see any models. If `ollama ls` on the server shows '
+              '$modelName, the CLI may be using a different model directory '
+              'than the background service.\n\n'
+              'On the server, compare:\n'
+              '  curl -s http://localhost:11434/api/tags\n'
+              '  ollama ls\n\n'
+              'If /api/tags is empty there too, run on the server:\n'
+              '  ollama pull $modelName',
+        );
+      }
+
+      return AiEnhanceConnectionResult.invalid(
+        message: 'Model "$modelName" was not found on the server.',
+        details:
+            'Available models: ${available.join(', ')}. '
+            'Use Pull model to install $modelName.',
+      );
+    } on http.ClientException catch (error) {
+      return AiEnhanceConnectionResult.networkError(
+        message: 'Could not reach Ollama at $normalizedUrl.',
+        details: error.message,
+      );
+    } on Exception catch (error) {
+      return AiEnhanceConnectionResult.networkError(
+        message: 'Could not reach Ollama at $normalizedUrl.',
+        details: error.toString(),
+      );
+    }
+  }
+
+  Future<List<String>> _listModelsFromOpenAiEndpoint(String baseUrl) async {
+    try {
+      final response = await _http
+          .get(_uri(baseUrl, '/v1/models'))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        return const [];
+      }
+      return parseOpenAiModelNames(response.body);
+    } on Exception {
+      return const [];
+    }
+  }
+
+  Future<bool> _probeModelExists({
+    required String baseUrl,
+    required String model,
+  }) async {
+    for (final candidate in ollamaModelProbeCandidates(model)) {
+      try {
+        final response = await _http
+            .post(
+              _uri(baseUrl, '/api/show'),
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode({'model': candidate}),
+            )
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return true;
         }
-        final name = entry['name']?.toString().toLowerCase() ?? '';
-        return name == target || name.startsWith('$target:');
+      } on Exception {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  Future<String?> _fetchOllamaVersion(String baseUrl) async {
+    try {
+      final response = await _http
+          .get(_uri(baseUrl, '/api/version'))
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) {
+        return null;
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map) {
+        final version = decoded['version']?.toString().trim();
+        if (version != null && version.isNotEmpty) {
+          return version;
+        }
+      }
+    } on Exception {
+      return null;
+    }
+    return null;
+  }
+
+  String _truncate(String value, {int maxLength = 280}) {
+    final trimmed = value.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength)}…';
+  }
+
+  /// Downloads a model via `POST /api/pull` (streaming progress).
+  Future<void> pullModel({
+    required String baseUrl,
+    String model = AiEnhanceSettings.ollamaEnhanceModel,
+    void Function(OllamaPullProgress progress)? onProgress,
+  }) async {
+    final trimmedModel = model.trim();
+    if (trimmedModel.isEmpty) {
+      throw AiEnhanceException(
+        'missing_model',
+        'Ollama model name is not set.',
+      );
+    }
+
+    final normalizedUrl = AiEnhanceSettingsStorage.normalizeBaseUrl(baseUrl);
+    final request = http.Request('POST', _uri(normalizedUrl, '/api/pull'))
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({
+        'model': trimmedModel,
+        'stream': true,
       });
 
-      return found
-          ? AiEnhanceConnectionStatus.valid
-          : AiEnhanceConnectionStatus.invalid;
-    } on Exception {
-      return AiEnhanceConnectionStatus.networkError;
+    onProgress?.call(
+      const OllamaPullProgress(status: 'Connecting to Ollama…'),
+    );
+
+    http.StreamedResponse streamed;
+    try {
+      streamed = await _http.send(request).timeout(const Duration(seconds: 30));
+    } on http.ClientException catch (error) {
+      throw AiEnhanceException(
+        'network_error',
+        'Could not reach Ollama at $normalizedUrl.',
+        details: error.message,
+      );
+    } on Exception catch (error) {
+      throw AiEnhanceException(
+        'network_error',
+        'Could not reach Ollama at $normalizedUrl.',
+        details: error.toString(),
+      );
     }
+
+    if (streamed.statusCode != 200) {
+      final body = await streamed.stream.bytesToString();
+      throw AiEnhanceException(
+        'pull_failed',
+        'Ollama pull failed (HTTP ${streamed.statusCode}).',
+        details: _truncate(body),
+      );
+    }
+
+    var buffer = '';
+    var succeeded = false;
+    await for (final chunk in streamed.stream.transform(utf8.decoder)) {
+      buffer += chunk;
+      while (true) {
+        final newline = buffer.indexOf('\n');
+        if (newline < 0) {
+          break;
+        }
+        final line = buffer.substring(0, newline).trim();
+        buffer = buffer.substring(newline + 1);
+        if (line.isEmpty) {
+          continue;
+        }
+        if (_handlePullLine(line, onProgress)) {
+          succeeded = true;
+        }
+      }
+    }
+
+    final remaining = buffer.trim();
+    if (remaining.isNotEmpty && _handlePullLine(remaining, onProgress)) {
+      succeeded = true;
+    }
+
+    if (!succeeded) {
+      throw AiEnhanceException(
+        'pull_failed',
+        'Ollama pull did not complete successfully.',
+      );
+    }
+  }
+
+  /// Returns true when the pull finished with `status: success`.
+  bool _handlePullLine(
+    String line,
+    void Function(OllamaPullProgress progress)? onProgress,
+  ) {
+    Map<String, dynamic> decoded;
+    try {
+      final parsed = jsonDecode(line);
+      if (parsed is! Map<String, dynamic>) {
+        return false;
+      }
+      decoded = parsed;
+    } on FormatException {
+      return false;
+    }
+
+    final status = decoded['status']?.toString() ?? '';
+    final completed = decoded['completed'];
+    final total = decoded['total'];
+
+    onProgress?.call(
+      OllamaPullProgress(
+        status: status.isEmpty ? 'Downloading…' : status,
+        completed: completed is num ? completed.toInt() : null,
+        total: total is num ? total.toInt() : null,
+      ),
+    );
+
+    final error = decoded['error']?.toString();
+    if (error != null && error.isNotEmpty) {
+      throw AiEnhanceException(
+        'pull_failed',
+        'Ollama pull failed.',
+        details: error,
+      );
+    }
+
+    if (status == 'error') {
+      throw AiEnhanceException(
+        'pull_failed',
+        'Ollama pull failed.',
+        details: decoded['status']?.toString(),
+      );
+    }
+
+    return status == 'success';
   }
 
   /// Sends a sketch to Ollama and returns an enhanced image when the model supports it.
@@ -126,8 +404,8 @@ class OllamaClient {
     if (pngBytes == null || pngBytes.isEmpty) {
       throw AiEnhanceException(
         'text_only_model',
-        'Model "$trimmedModel" returned text only. Use an image-generation '
-        'model (e.g. x/flux2-klein) for sketch enhancement, or switch to Grok.',
+        'Model "$trimmedModel" returned text only. '
+        'Ensure ${AiEnhanceSettings.ollamaEnhanceModel} is installed, or switch to Grok.',
       );
     }
 
