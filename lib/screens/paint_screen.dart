@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
@@ -16,6 +17,7 @@ import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/canvas_pointer_input.dart';
+import 'package:vibepaint/utils/canvas_viewport.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/flood_fill.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
@@ -85,12 +87,22 @@ class _PaintScreenState extends State<PaintScreen>
   Uint8List? _eyedropperPixelData;
   int _eyedropperImageWidth = 0;
   int _eyedropperImageHeight = 0;
+  CanvasViewport _viewport = const CanvasViewport();
+  Size _viewportSize = Size.zero;
+  int? _viewportPanPointer;
+  Offset? _viewportPanAnchor;
+  Offset? _viewportPanAtStart;
+  double? _panZoomStartScale;
+  Offset? _panZoomFocal;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
   bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
   bool get _altPressed => HardwareKeyboard.instance.isAltPressed;
+
+  bool get _spacePressed =>
+      HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.space);
 
   bool get _subtractSelectionModifier =>
       HardwareKeyboard.instance.isControlPressed;
@@ -291,6 +303,63 @@ class _PaintScreenState extends State<PaintScreen>
     return hints.join(' · ');
   }
 
+  String get _viewportHint =>
+      'Scroll: zoom · Space+drag or middle-drag: pan · $platformZoomKeyboardHint';
+
+  bool _shouldViewportPan(PointerDownEvent event) {
+    return _spacePressed || (event.buttons & kMiddleMouseButton) != 0;
+  }
+
+  void _resetViewport() {
+    _viewport = const CanvasViewport();
+    _viewportPanPointer = null;
+    _viewportPanAnchor = null;
+    _viewportPanAtStart = null;
+    _panZoomStartScale = null;
+    _panZoomFocal = null;
+  }
+
+  void _setViewport(CanvasViewport viewport) {
+    setState(() => _viewport = viewport);
+  }
+
+  void _zoomAt(Offset viewportFocal, double factor) {
+    _setViewport(_viewport.zoomByAt(viewportFocal, factor));
+  }
+
+  void _zoomToActualSize() {
+    setState(_resetViewport);
+  }
+
+  void _fitCanvasToWindow() {
+    if (_viewportSize == Size.zero || _documentSize == Size.zero) {
+      return;
+    }
+    _setViewport(
+      const CanvasViewport().fitToWindow(_viewportSize, _documentSize),
+    );
+  }
+
+  void _zoomInFromCenter() {
+    if (_viewportSize == Size.zero) {
+      return;
+    }
+    _zoomAt(
+      Offset(_viewportSize.width / 2, _viewportSize.height / 2),
+      CanvasViewport.scrollZoomFactor,
+    );
+  }
+
+  void _zoomOutFromCenter() {
+    if (_viewportSize == Size.zero) {
+      return;
+    }
+    _zoomAt(
+      Offset(_viewportSize.width / 2, _viewportSize.height / 2),
+      1 / CanvasViewport.scrollZoomFactor,
+    );
+  }
+
   bool _isInsideCanvas(Offset position, Rect bounds) {
     return isInsideCanvas(position, bounds.width, bounds.height);
   }
@@ -315,6 +384,16 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _updateCanvasCursor(Offset position) {
+    if (_viewportPanPointer != null) {
+      _setCanvasCursor(SystemMouseCursors.grabbing);
+      return;
+    }
+
+    if (_spacePressed) {
+      _setCanvasCursor(SystemMouseCursors.grab);
+      return;
+    }
+
     if (_resizingSelection && _resizeHandle != null) {
       _setCanvasCursor(
         SelectionCursors.mouseCursorFor(_resizeHandle!),
@@ -956,11 +1035,143 @@ class _PaintScreenState extends State<PaintScreen>
       _resizeHandle = null;
       _resizeOriginalBounds = null;
     });
+    _viewportPanPointer = null;
+    _viewportPanAnchor = null;
+    _viewportPanAtStart = null;
+    _panZoomStartScale = null;
+    _panZoomFocal = null;
     _clearEyedropperCache();
     _resetCanvasCursor();
   }
 
-  void _onCanvasPointerDown(PointerDownEvent event, Rect bounds) {
+  void _onViewportPointerSignal(PointerSignalEvent event) {
+    if (_documentSize == Size.zero) {
+      return;
+    }
+
+    if (event is PointerScrollEvent) {
+      final delta = event.scrollDelta.dy;
+      if (delta == 0) {
+        return;
+      }
+
+      final factor = delta < 0
+          ? CanvasViewport.scrollZoomFactor
+          : 1 / CanvasViewport.scrollZoomFactor;
+      _zoomAt(event.localPosition, factor);
+    }
+  }
+
+  void _onViewportPointerPanZoomStart(PointerPanZoomStartEvent event) {
+    _panZoomStartScale = _viewport.scale;
+    _panZoomFocal = event.localPosition;
+  }
+
+  void _onViewportPointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    if (_panZoomStartScale == null || _panZoomFocal == null) {
+      return;
+    }
+
+    if (event.scale == 1.0) {
+      return;
+    }
+
+    final newScale = (_panZoomStartScale! * event.scale).clamp(
+      CanvasViewport.minScale,
+      CanvasViewport.maxScale,
+    );
+    _setViewport(_viewport.zoomAt(_panZoomFocal!, newScale));
+  }
+
+  void _onViewportPointerPanZoomEnd(PointerPanZoomEndEvent event) {
+    _panZoomStartScale = null;
+    _panZoomFocal = null;
+  }
+
+  void _syncViewportSize(Size viewportSize) {
+    if (_viewportSize == viewportSize) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _viewportSize == viewportSize) {
+        return;
+      }
+      setState(() => _viewportSize = viewportSize);
+    });
+  }
+
+  void _onViewportPointerDown(PointerDownEvent event, Rect bounds) {
+    if (_panZoomStartScale != null) {
+      return;
+    }
+
+    if (_shouldViewportPan(event)) {
+      _viewportPanPointer = event.pointer;
+      _viewportPanAnchor = event.localPosition;
+      _viewportPanAtStart = _viewport.pan;
+      _setCanvasCursor(SystemMouseCursors.grabbing);
+      return;
+    }
+
+    _onCanvasPointerDown(
+      event,
+      bounds,
+      _viewport.viewportToDocument(event.localPosition),
+    );
+  }
+
+  void _onViewportPointerMove(PointerMoveEvent event, Rect bounds) {
+    if (_viewportPanPointer == event.pointer) {
+      setState(() {
+        _viewport = CanvasViewport(
+          scale: _viewport.scale,
+          pan: _viewportPanAtStart! + (event.localPosition - _viewportPanAnchor!),
+        );
+      });
+      return;
+    }
+
+    if (_viewportPanPointer != null) {
+      return;
+    }
+
+    _onCanvasPointerMove(
+      event,
+      bounds,
+      _viewport.viewportToDocument(event.localPosition),
+    );
+  }
+
+  void _onViewportPointerUp(PointerUpEvent event) {
+    if (_viewportPanPointer == event.pointer) {
+      _viewportPanPointer = null;
+      _viewportPanAnchor = null;
+      _viewportPanAtStart = null;
+      _resetCanvasCursor();
+      return;
+    }
+
+    _onCanvasPointerUp(event);
+  }
+
+  void _onViewportPointerCancel(PointerCancelEvent event) {
+    if (_viewportPanPointer == event.pointer) {
+      _viewportPanPointer = null;
+      _viewportPanAnchor = null;
+      _viewportPanAtStart = null;
+      _resetCanvasCursor();
+      return;
+    }
+
+    _onCanvasPointerCancel(event);
+  }
+
+  void _onCanvasPointerDown(
+    PointerDownEvent event,
+    Rect bounds,
+    Offset position,
+  ) {
     _canvasPointers.add(event.pointer);
 
     if (!acceptsCanvasDrawingPointer(event)) {
@@ -977,10 +1188,14 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     _drawingPointer = event.pointer;
-    _beginPan(event.localPosition, bounds);
+    _beginPan(position, bounds);
   }
 
-  void _onCanvasPointerMove(PointerMoveEvent event, Rect bounds) {
+  void _onCanvasPointerMove(
+    PointerMoveEvent event,
+    Rect bounds,
+    Offset position,
+  ) {
     if (_drawingPointer != event.pointer) {
       return;
     }
@@ -991,7 +1206,7 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
-    _extendStroke(event.localPosition, bounds);
+    _extendStroke(position, bounds);
   }
 
   void _onCanvasPointerUp(PointerUpEvent event) {
@@ -1120,6 +1335,7 @@ class _PaintScreenState extends State<PaintScreen>
       _selection = null;
       _selectionDraft = null;
       _lassoPoints = null;
+      _resetViewport();
     });
     _resetDocumentTracking();
   }
@@ -1248,8 +1464,24 @@ class _PaintScreenState extends State<PaintScreen>
         );
         _currentStroke = null;
         _lastPanPosition = null;
+        _resetViewport();
       });
       _resetDocumentTracking(path: picked.path);
+      final openedSize = Size(
+        picked.image.width.toDouble(),
+        picked.image.height.toDouble(),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _viewportSize == Size.zero) {
+          return;
+        }
+        if (openedSize.width > _viewportSize.width ||
+            openedSize.height > _viewportSize.height) {
+          _setViewport(
+            const CanvasViewport().fitToWindow(_viewportSize, openedSize),
+          );
+        }
+      });
       _showMessage('Opened ${picked.path}');
     } catch (error) {
       if (mounted) {
@@ -1577,6 +1809,15 @@ class _PaintScreenState extends State<PaintScreen>
         const SingleActivator(LogicalKeyboardKey.keyW): () {
           setState(() => _activeTool = PaintTool.magicWand);
         },
+        platformZoomInShortcut: _zoomInFromCenter,
+        platformZoomInPlusShortcut: _zoomInFromCenter,
+        platformZoomNumpadShortcut(LogicalKeyboardKey.numpadAdd):
+            _zoomInFromCenter,
+        platformZoomOutShortcut: _zoomOutFromCenter,
+        platformZoomNumpadShortcut(LogicalKeyboardKey.numpadSubtract):
+            _zoomOutFromCenter,
+        platformZoomFitShortcut: _fitCanvasToWindow,
+        platformZoomActualSizeShortcut: _zoomToActualSize,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
         const SingleActivator(
@@ -1773,6 +2014,7 @@ class _PaintScreenState extends State<PaintScreen>
                                           constraints.maxWidth,
                                           constraints.maxHeight,
                                         );
+                                        _syncViewportSize(viewportSize);
                                         if (_documentSize == Size.zero &&
                                             viewportSize != Size.zero) {
                                           WidgetsBinding.instance
@@ -1791,79 +2033,112 @@ class _PaintScreenState extends State<PaintScreen>
                                         final canvasSize = _documentSize;
                                         final bounds = Offset.zero & canvasSize;
 
-                                        return Align(
-                                          alignment: Alignment.topLeft,
-                                          child: SizedBox(
-                                            width: canvasSize.width,
-                                            height: canvasSize.height,
-                                            child: ClipRect(
-                                              child: MouseRegion(
+                                        return ClipRect(
+                                          child: MouseRegion(
                                             cursor: _canvasCursor,
-                                            onHover: (event) => _updateCanvasCursor(
-                                              event.localPosition,
+                                            onHover: (event) =>
+                                                _updateCanvasCursor(
+                                              _viewport.viewportToDocument(
+                                                event.localPosition,
+                                              ),
                                             ),
                                             onExit: (_) => _resetCanvasCursor(),
                                             child: Listener(
                                               behavior: HitTestBehavior.opaque,
+                                              onPointerSignal:
+                                                  _onViewportPointerSignal,
+                                              onPointerPanZoomStart:
+                                                  _onViewportPointerPanZoomStart,
+                                              onPointerPanZoomUpdate:
+                                                  _onViewportPointerPanZoomUpdate,
+                                              onPointerPanZoomEnd:
+                                                  _onViewportPointerPanZoomEnd,
                                               onPointerDown: (event) =>
-                                                  _onCanvasPointerDown(
+                                                  _onViewportPointerDown(
                                                 event,
                                                 bounds,
                                               ),
                                               onPointerMove: (event) =>
-                                                  _onCanvasPointerMove(
+                                                  _onViewportPointerMove(
                                                 event,
                                                 bounds,
                                               ),
-                                              onPointerUp: _onCanvasPointerUp,
+                                              onPointerUp: _onViewportPointerUp,
                                               onPointerCancel:
-                                                  _onCanvasPointerCancel,
-                                              child: AnimatedBuilder(
-                                                animation: _marchingAntsController,
-                                                builder: (context, child) {
-                                                return Stack(
-                                                  fit: StackFit.expand,
-                                                  children: [
-                                                    child!,
-                                                    CustomPaint(
-                                                      painter:
-                                                          SelectionOverlayPainter(
-                                                        selection:
-                                                            _activeSelectionOverlay,
-                                                        dashPhase:
-                                                            _marchingAntsController
-                                                                    .value *
-                                                                16,
-                                                        showHandles:
-                                                            _selection?.canReshape ==
-                                                                    true &&
-                                                                _selectionDraft ==
-                                                                    null &&
-                                                                _activeTool
-                                                                    .isSelectionTool,
+                                                  _onViewportPointerCancel,
+                                              child: ColoredBox(
+                                                color: AppColors.workspace,
+                                                child: Transform(
+                                                  transform: Matrix4.identity()
+                                                    ..translateByDouble(
+                                                      _viewport.pan.dx,
+                                                      _viewport.pan.dy,
+                                                      0,
+                                                      1,
+                                                    )
+                                                    ..scaleByDouble(
+                                                      _viewport.scale,
+                                                      _viewport.scale,
+                                                      1,
+                                                      1,
+                                                    ),
+                                                  child: SizedBox(
+                                                    width: canvasSize.width,
+                                                    height: canvasSize.height,
+                                                    child: AnimatedBuilder(
+                                                      animation:
+                                                          _marchingAntsController,
+                                                      builder: (context, child) {
+                                                        return Stack(
+                                                          fit: StackFit.expand,
+                                                          children: [
+                                                            child!,
+                                                            CustomPaint(
+                                                              painter:
+                                                                  SelectionOverlayPainter(
+                                                                selection:
+                                                                    _activeSelectionOverlay,
+                                                                dashPhase:
+                                                                    _marchingAntsController
+                                                                            .value *
+                                                                        16,
+                                                                showHandles:
+                                                                    _selection?.canReshape ==
+                                                                            true &&
+                                                                        _selectionDraft ==
+                                                                            null &&
+                                                                        _activeTool
+                                                                            .isSelectionTool,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        );
+                                                      },
+                                                      child: CustomPaint(
+                                                        painter: CanvasPainter(
+                                                          layers: _layerStack
+                                                              .layers,
+                                                          activeLayerIndex:
+                                                              _layerStack
+                                                                  .activeIndex,
+                                                          currentStroke:
+                                                              _currentStroke,
+                                                          backgroundImage:
+                                                              _layerStack
+                                                                  .backgroundImage,
+                                                          backgroundColor:
+                                                              _layerStack
+                                                                  .backgroundColor,
+                                                        ),
+                                                        child: const SizedBox
+                                                            .expand(),
                                                       ),
                                                     ),
-                                                  ],
-                                                );
-                                              },
-                                              child: CustomPaint(
-                                                painter: CanvasPainter(
-                                                  layers: _layerStack.layers,
-                                                  activeLayerIndex:
-                                                      _layerStack.activeIndex,
-                                                  currentStroke: _currentStroke,
-                                                  backgroundImage:
-                                                      _layerStack.backgroundImage,
-                                                  backgroundColor:
-                                                      _layerStack.backgroundColor,
+                                                  ),
                                                 ),
-                                                child: const SizedBox.expand(),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                          ),
-                                        ),
                                         );
                                       },
                                     ),
@@ -1989,7 +2264,7 @@ class _PaintScreenState extends State<PaintScreen>
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 color: AppColors.statusBar,
                 child: Text(
-                  '${_activeTool.label} ${_brushSize.round()}px  |  $_colorStatusLabel  |  ${_layerStack.activeLayer.name}  |  $_statusHint',
+                  '${_activeTool.label} ${_brushSize.round()}px  |  ${_viewport.zoomPercentLabel}%  |  $_colorStatusLabel  |  ${_layerStack.activeLayer.name}  |  $_statusHint  |  $_viewportHint',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: const TextStyle(

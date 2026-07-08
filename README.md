@@ -14,6 +14,7 @@ A vibe coded paint app.
 
 ### Canvas & color
 - **Document size** — the canvas has its own dimensions; crop and resize operations shrink or grow the document, not just the window
+- **Zoom & pan** — scroll wheel zooms toward the cursor; Space+drag or middle-mouse drag pans; **macOS:** ⌘+/- zoom, ⌘0 fit, ⌘1 100% · **Windows/Linux:** Ctrl+/- zoom, Ctrl+0 fit, Ctrl+1 100%
 - **Canvas background** — separate from layers; choose via the background color well or when creating a new image (includes transparent)
 - **Color wells** — classic overlapping primary and background swatches with swap and reset; click a well, then pick a preset (background well includes transparent)
 - **Color picker** — double-click either well to open a full picker with hue/saturation wheel, HSV and RGB sliders, alpha, hex input, and foreground/background preview with swap
@@ -55,7 +56,7 @@ Rough order of obvious next steps:
 - [x] **Image menu** — crop, resize, flip, rotate, and flatten
 - [x] **More tools** — fill bucket (G) and magic wand (W); tolerance follows brush size
 - [x] **Toolbar** — tool buttons on the side
-- [ ] **Zoom & pan** — navigate large canvases
+- [x] **Zoom & pan** — scroll to zoom, Space or middle-mouse to pan, keyboard zoom shortcuts
 - [x] **Layers** — stack and edit images independently
 
 ## Run
