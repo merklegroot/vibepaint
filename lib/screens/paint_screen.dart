@@ -461,7 +461,13 @@ class _PaintScreenState extends State<PaintScreen>
     _selectionDragStart = null;
     final draft = _selectionDraft;
     _selectionDraft = null;
-    if (draft == null || draft.isEmpty) {
+    if (draft == null) {
+      return;
+    }
+    if (draft.isEmpty) {
+      if (_selection != null) {
+        _deselect();
+      }
       return;
     }
 

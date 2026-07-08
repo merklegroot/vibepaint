@@ -52,6 +52,16 @@ void main() {
     expect(ellipse.contains(const Offset(50, 40)), isTrue);
   });
 
+  test('zero area selection is empty', () {
+    final selection = CanvasSelection.fromRect(
+      SelectionShape.rectangle,
+      Rect.fromPoints(const Offset(10, 10), const Offset(10, 10)),
+    );
+
+    expect(selection.isEmpty, isTrue);
+    expect(selection.canReshape, isFalse);
+  });
+
   test('withBounds updates simple selection', () {
     final original = CanvasSelection.fromRect(
       SelectionShape.rectangle,
