@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import 'package:vibepaint/models/shape_style.dart';
@@ -7,6 +9,7 @@ enum StrokeShape {
   line,
   rectangle,
   ellipse,
+  raster,
 }
 
 class Stroke {
@@ -18,6 +21,8 @@ class Stroke {
     this.style = ShapeStyle.outline,
     this.isEraser = false,
     this.isPencil = false,
+    this.rasterImage,
+    this.rasterBounds,
   }) : points = points ?? [];
 
   final Color color;
@@ -27,8 +32,15 @@ class Stroke {
   final ShapeStyle style;
   final bool isEraser;
   final bool isPencil;
+  final ui.Image? rasterImage;
+  final Rect? rasterBounds;
 
-  bool get isEmpty => points.isEmpty;
+  bool get isEmpty {
+    if (shape == StrokeShape.raster) {
+      return rasterImage == null || rasterBounds == null;
+    }
+    return points.isEmpty;
+  }
 
   Stroke copyWith({
     Color? color,
@@ -38,6 +50,8 @@ class Stroke {
     ShapeStyle? style,
     bool? isEraser,
     bool? isPencil,
+    ui.Image? rasterImage,
+    Rect? rasterBounds,
   }) {
     return Stroke(
       color: color ?? this.color,
@@ -47,6 +61,8 @@ class Stroke {
       style: style ?? this.style,
       isEraser: isEraser ?? this.isEraser,
       isPencil: isPencil ?? this.isPencil,
+      rasterImage: rasterImage ?? this.rasterImage,
+      rasterBounds: rasterBounds ?? this.rasterBounds,
     );
   }
 }

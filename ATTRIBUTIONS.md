@@ -25,6 +25,8 @@ tools. Local changes: comment headers removed, stroke width set to `1.75`.
 | `rectangle.svg` | `rectangle` |
 | `ellipse.svg` | `oval` |
 | `eraser.svg` | `eraser` |
+| `fill_bucket.svg` | `bucket` |
+| `magic_wand.svg` | `wand` |
 | `eyedropper.svg` | `color-picker` |
 | `rect_select.svg` | `square` |
 | `ellipse_select.svg` | `circle-dashed` |

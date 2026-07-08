@@ -17,7 +17,9 @@ import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/canvas_pointer_input.dart';
 import 'package:vibepaint/utils/document_title.dart';
+import 'package:vibepaint/utils/flood_fill.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
+import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
@@ -267,6 +269,14 @@ class _PaintScreenState extends State<PaintScreen>
       return 'Click or drag to sample a color';
     }
 
+    if (_activeTool == PaintTool.fillBucket) {
+      return 'Click to fill · Tolerance uses brush size';
+    }
+
+    if (_activeTool == PaintTool.magicWand) {
+      return 'Click to select by color · Shift: add · Ctrl: subtract';
+    }
+
     if (!_activeTool.isDragShape) {
       return 'Drag on the canvas to paint';
     }
@@ -337,7 +347,9 @@ class _PaintScreenState extends State<PaintScreen>
       }
     }
 
-    if (_activeTool == PaintTool.eyedropper) {
+    if (_activeTool == PaintTool.eyedropper ||
+        _activeTool == PaintTool.fillBucket ||
+        _activeTool == PaintTool.magicWand) {
       _setCanvasCursor(SystemMouseCursors.precise);
       return;
     }
@@ -889,6 +901,48 @@ class _PaintScreenState extends State<PaintScreen>
     }
   }
 
+  Future<void> _applyFillAt(Offset position, Rect bounds) async {
+    if (!_isInsideCanvas(position, bounds) || _documentSize == Size.zero) {
+      return;
+    }
+
+    final stroke = await buildFillStroke(
+      size: _documentSize,
+      strokes: _layerStack.activeHistory.strokes,
+      position: position,
+      fillColor: _primaryColor,
+      tolerance: floodFillToleranceFromBrushSize(_brushSize),
+    );
+    if (!mounted || stroke == null) {
+      return;
+    }
+
+    setState(() {
+      _layerStack.activeHistory.add(stroke);
+    });
+    _noteDocumentEdited();
+  }
+
+  Future<void> _applyMagicWandSelection(Offset position, Rect bounds) async {
+    if (!_isInsideCanvas(position, bounds) || _documentSize == Size.zero) {
+      return;
+    }
+
+    final selection = await buildMagicWandSelection(
+      size: _documentSize,
+      layers: _layerStack.layers,
+      backgroundImage: _layerStack.backgroundImage,
+      backgroundColor: _layerStack.backgroundColor,
+      position: position,
+      tolerance: floodFillToleranceFromBrushSize(_brushSize),
+    );
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    _commitSelectionDraft(selection);
+  }
+
   void _cancelCanvasInteraction() {
     setState(() {
       _currentStroke = null;
@@ -990,6 +1044,10 @@ class _PaintScreenState extends State<PaintScreen>
         _startBoundingShape(position, bounds, StrokeShape.ellipse);
       case PaintTool.eyedropper:
         _pickColorAt(position, bounds);
+      case PaintTool.fillBucket:
+        _applyFillAt(position, bounds);
+      case PaintTool.magicWand:
+        _applyMagicWandSelection(position, bounds);
       default:
         _startStroke(position, bounds);
     }
@@ -1326,6 +1384,11 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    if (_activeTool == PaintTool.fillBucket ||
+        _activeTool == PaintTool.magicWand) {
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_resizingSelection) {
         _extendResizeSelection(position, bounds);
@@ -1436,6 +1499,12 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    if (_activeTool == PaintTool.fillBucket ||
+        _activeTool == PaintTool.magicWand) {
+      _lastPanPosition = null;
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_resizingSelection) {
         _endResizeSelection();
@@ -1501,6 +1570,12 @@ class _PaintScreenState extends State<PaintScreen>
         },
         const SingleActivator(LogicalKeyboardKey.keyK): () {
           setState(() => _activeTool = PaintTool.eyedropper);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyG): () {
+          setState(() => _activeTool = PaintTool.fillBucket);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyW): () {
+          setState(() => _activeTool = PaintTool.magicWand);
         },
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,

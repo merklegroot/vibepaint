@@ -78,6 +78,22 @@ Stroke transformStroke(
   Offset Function(Offset point) transformPoint, {
   double? brushSize,
 }) {
+  if (stroke.shape == StrokeShape.raster) {
+    final bounds = stroke.rasterBounds;
+    if (bounds == null) {
+      return stroke;
+    }
+
+    return stroke.copyWith(
+      points: [transformPoint(bounds.topLeft)],
+      rasterBounds: Rect.fromPoints(
+        transformPoint(bounds.topLeft),
+        transformPoint(bounds.bottomRight),
+      ),
+      brushSize: brushSize ?? stroke.brushSize,
+    );
+  }
+
   return stroke.copyWith(
     points: [for (final point in stroke.points) transformPoint(point)],
     brushSize: brushSize ?? stroke.brushSize,
@@ -86,6 +102,12 @@ Stroke transformStroke(
 
 Stroke? clipStrokeToRect(Stroke stroke, Rect rect) {
   switch (stroke.shape) {
+    case StrokeShape.raster:
+      final bounds = stroke.rasterBounds;
+      if (bounds == null || !bounds.overlaps(rect)) {
+        return null;
+      }
+      return stroke;
     case StrokeShape.line:
     case StrokeShape.rectangle:
     case StrokeShape.ellipse:
@@ -131,6 +153,11 @@ Offset canvasResizeOffset({
 
 Stroke? clipStrokeToSelection(Stroke stroke, CanvasSelection selection) {
   switch (stroke.shape) {
+    case StrokeShape.raster:
+      if (!strokeIntersectsSelection(selection, stroke)) {
+        return null;
+      }
+      return stroke;
     case StrokeShape.line:
     case StrokeShape.rectangle:
     case StrokeShape.ellipse:

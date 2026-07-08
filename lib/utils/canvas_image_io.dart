@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:vibepaint/models/image_file_format.dart';
 import 'package:vibepaint/models/paint_layer.dart';
+import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/theme/color_wells.dart';
 
@@ -62,6 +63,39 @@ Uint8List encodeRasterImage(
     ImageFileFormat.gif => Uint8List.fromList(img.encodeGif(image)),
     ImageFileFormat.webp => Uint8List.fromList(img.encodeWebP(image)),
   };
+}
+
+Future<Uint8List?> renderStrokesRgbaBytes({
+  required Size size,
+  required List<Stroke> strokes,
+}) async {
+  if (size.width <= 0 || size.height <= 0) {
+    return null;
+  }
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final bounds = Offset.zero & size;
+
+  canvas.saveLayer(bounds, Paint());
+  for (final stroke in strokes) {
+    CanvasPainter.paintStroke(canvas, stroke);
+  }
+  canvas.restore();
+
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(
+    size.width.ceil(),
+    size.height.ceil(),
+  );
+  picture.dispose();
+
+  try {
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    return byteData?.buffer.asUint8List();
+  } finally {
+    image.dispose();
+  }
 }
 
 Future<Uint8List?> renderCanvasRgbaBytes({

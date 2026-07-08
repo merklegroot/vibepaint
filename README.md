@@ -7,7 +7,7 @@ A vibe coded paint app.
 ## Features
 
 ### Drawing
-- **Brush, pencil, line, rectangle, ellipse, eraser & color picker** — soft brush strokes, crisp pencil lines, straight segments, outlined or filled shapes, and an eyedropper (K) to sample colors from the canvas
+- **Brush, pencil, line, rectangle, ellipse, eraser, paint bucket, magic wand & color picker** — soft brush strokes, crisp pencil lines, straight segments, outlined or filled shapes, flood-fill on the active layer, color-based selection, and an eyedropper (K) to sample colors from the canvas
 - **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
@@ -53,7 +53,7 @@ Rough order of obvious next steps:
 - [x] **Save & open** — PNG export and import
 - [x] **Selection tools** — rectangle, ellipse, and lasso select with move, resize, and reshape
 - [x] **Image menu** — crop, resize, flip, rotate, and flatten
-- [ ] **More tools** — fill bucket
+- [x] **More tools** — fill bucket (G) and magic wand (W); tolerance follows brush size
 - [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases
 - [x] **Layers** — stack and edit images independently

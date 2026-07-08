@@ -5,6 +5,10 @@ import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/models/stroke.dart';
 
 Rect strokeBounds(Stroke stroke) {
+  if (stroke.shape == StrokeShape.raster) {
+    return stroke.rasterBounds ?? Rect.zero;
+  }
+
   if (stroke.points.isEmpty) {
     return Rect.zero;
   }
@@ -24,6 +28,8 @@ Rect strokeBounds(Stroke stroke) {
       }
       break;
     case StrokeShape.freehand:
+      break;
+    case StrokeShape.raster:
       break;
   }
 
@@ -58,6 +64,7 @@ Stroke translateStroke(Stroke stroke, Offset delta) {
     points: [
       for (final point in stroke.points) point + delta,
     ],
+    rasterBounds: stroke.rasterBounds?.shift(delta),
   );
 }
 

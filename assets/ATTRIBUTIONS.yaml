@@ -48,6 +48,10 @@ collections:
         upstream: oval.svg
       - asset: eraser.svg
         upstream: eraser.svg
+      - asset: fill_bucket.svg
+        upstream: bucket.svg
+      - asset: magic_wand.svg
+        upstream: wand.svg
       - asset: eyedropper.svg
         upstream: color-picker.svg
       - asset: rect_select.svg

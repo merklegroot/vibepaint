@@ -124,17 +124,42 @@ class CanvasPainter extends CustomPainter {
     );
 
     for (final stroke in layer.history.strokes) {
-      _paintStroke(canvas, stroke);
+      paintStroke(canvas, stroke);
     }
 
     if (currentStroke != null) {
-      _paintStroke(canvas, currentStroke);
+      paintStroke(canvas, currentStroke);
     }
 
     canvas.restore();
   }
 
-  static void _paintStroke(Canvas canvas, Stroke stroke) {
+  static void paintStroke(Canvas canvas, Stroke stroke) {
+    if (stroke.isEmpty) {
+      return;
+    }
+
+    if (stroke.shape == StrokeShape.raster) {
+      final image = stroke.rasterImage;
+      final bounds = stroke.rasterBounds;
+      if (image == null || bounds == null) {
+        return;
+      }
+
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(
+          0,
+          0,
+          image.width.toDouble(),
+          image.height.toDouble(),
+        ),
+        bounds,
+        Paint()..blendMode = BlendMode.srcOver,
+      );
+      return;
+    }
+
     if (stroke.points.isEmpty) {
       return;
     }
@@ -189,6 +214,8 @@ class CanvasPainter extends CustomPainter {
           return;
         }
         break;
+      case StrokeShape.raster:
+        return;
     }
 
     if (stroke.points.length == 1) {
