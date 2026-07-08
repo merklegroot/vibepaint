@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_edit_menus.dart';
+import 'package:vibepaint/menus/platform_image_menus.dart';
 
 List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback? onNew,
@@ -13,6 +14,16 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onInvertSelection,
   required VoidCallback onDeleteSelection,
   required bool hasSelection,
+  required VoidCallback? onCropToSelection,
+  required VoidCallback onAutoCrop,
+  required VoidCallback onResizeImage,
+  required VoidCallback onResizeCanvas,
+  required VoidCallback onFlipHorizontal,
+  required VoidCallback onFlipVertical,
+  required VoidCallback onRotate90Clockwise,
+  required VoidCallback onRotate90CounterClockwise,
+  required VoidCallback onRotate180,
+  required VoidCallback onFlatten,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
     if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
@@ -102,6 +113,21 @@ List<PlatformMenu> buildMacosPlatformMenus({
           ),
         ),
       ],
+    ),
+    PlatformMenu(
+      label: 'Image',
+      menus: buildImagePlatformMenuGroups(
+        onCropToSelection: onCropToSelection,
+        onAutoCrop: onAutoCrop,
+        onResizeImage: onResizeImage,
+        onResizeCanvas: onResizeCanvas,
+        onFlipHorizontal: onFlipHorizontal,
+        onFlipVertical: onFlipVertical,
+        onRotate90Clockwise: onRotate90Clockwise,
+        onRotate90CounterClockwise: onRotate90CounterClockwise,
+        onRotate180: onRotate180,
+        onFlatten: onFlatten,
+      ),
     ),
   ];
 }

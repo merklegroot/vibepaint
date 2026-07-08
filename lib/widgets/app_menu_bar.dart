@@ -17,6 +17,16 @@ class AppMenuBar extends StatelessWidget {
     required this.onInvertSelection,
     required this.onDeleteSelection,
     required this.hasSelection,
+    required this.onCropToSelection,
+    required this.onAutoCrop,
+    required this.onResizeImage,
+    required this.onResizeCanvas,
+    required this.onFlipHorizontal,
+    required this.onFlipVertical,
+    required this.onRotate90Clockwise,
+    required this.onRotate90CounterClockwise,
+    required this.onRotate180,
+    required this.onFlatten,
   });
 
   final bool canNew;
@@ -29,6 +39,16 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onInvertSelection;
   final VoidCallback onDeleteSelection;
   final bool hasSelection;
+  final VoidCallback? onCropToSelection;
+  final VoidCallback onAutoCrop;
+  final VoidCallback onResizeImage;
+  final VoidCallback onResizeCanvas;
+  final VoidCallback onFlipHorizontal;
+  final VoidCallback onFlipVertical;
+  final VoidCallback onRotate90Clockwise;
+  final VoidCallback onRotate90CounterClockwise;
+  final VoidCallback onRotate180;
+  final VoidCallback onFlatten;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +147,78 @@ class AppMenuBar extends StatelessWidget {
             ),
           ],
           child: const Text('Edit'),
+        ),
+        SubmenuButton(
+          style: menuStyle,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+          ),
+          menuChildren: [
+            MenuItemButton(
+              onPressed: onCropToSelection,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyX,
+                shift: true,
+              ),
+              child: const Text('Crop to Selection'),
+            ),
+            MenuItemButton(
+              onPressed: onAutoCrop,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyX,
+                control: true,
+                alt: true,
+              ),
+              child: const Text('Auto Crop'),
+            ),
+            MenuItemButton(
+              onPressed: onResizeImage,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyR),
+              child: const Text('Resize Image...'),
+            ),
+            MenuItemButton(
+              onPressed: onResizeCanvas,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyR,
+                shift: true,
+              ),
+              child: const Text('Resize Canvas...'),
+            ),
+            const Divider(height: 1),
+            MenuItemButton(
+              onPressed: onFlipHorizontal,
+              child: const Text('Flip Horizontal'),
+            ),
+            MenuItemButton(
+              onPressed: onFlipVertical,
+              child: const Text('Flip Vertical'),
+            ),
+            const Divider(height: 1),
+            MenuItemButton(
+              onPressed: onRotate90Clockwise,
+              child: const Text('Rotate 90° Clockwise'),
+            ),
+            MenuItemButton(
+              onPressed: onRotate90CounterClockwise,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyG),
+              child: const Text('Rotate 90° Counter-Clockwise'),
+            ),
+            MenuItemButton(
+              onPressed: onRotate180,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyJ),
+              child: const Text('Rotate 180°'),
+            ),
+            const Divider(height: 1),
+            MenuItemButton(
+              onPressed: onFlatten,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyF,
+                shift: true,
+              ),
+              child: const Text('Flatten'),
+            ),
+          ],
+          child: const Text('Image'),
         ),
       ],
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
@@ -15,6 +16,8 @@ import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/document_title.dart';
+import 'package:vibepaint/utils/image_transforms.dart';
+import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
@@ -25,6 +28,7 @@ import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
+import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
 
@@ -389,6 +393,174 @@ class _PaintScreenState extends State<PaintScreen>
         (stroke) => strokeIntersectsSelection(_selection!, stroke),
       );
     });
+    _noteDocumentEdited();
+  }
+
+  bool get _canCropToSelection =>
+      _selection != null && !_selection!.isEmpty && _canvasSize != Size.zero;
+
+  Future<void> _applyCropRect(Rect rect) async {
+    if (_canvasSize == Size.zero || rect.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _layerStack.cropContentToRect(rect);
+    });
+    await _layerStack.cropBackgroundToRect(rect, _canvasSize);
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _cropToSelection() async {
+    final selection = _selection;
+    if (selection == null || selection.isEmpty || _canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() {
+      _layerStack.cropContentToSelection(selection);
+    });
+    await _layerStack.cropBackgroundToRect(selection.bounds, _canvasSize);
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _autoCrop() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    final bounds = contentBounds(
+      layers: _layerStack.layers,
+      canvasSize: _canvasSize,
+      includeBackground: _layerStack.backgroundImage != null,
+    );
+    if (bounds == null || bounds.isEmpty) {
+      _showMessage('Nothing to crop');
+      return;
+    }
+
+    await _applyCropRect(bounds);
+  }
+
+  Future<void> _resizeImage() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    final result = await showDialog<ResizeDimensionsResult>(
+      context: context,
+      builder: (context) => ResizeDimensionsDialog(
+        title: 'Resize Image',
+        initialWidth: _canvasSize.width.ceil(),
+        initialHeight: _canvasSize.height.ceil(),
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final newSize = Size(result.width.toDouble(), result.height.toDouble());
+    setState(() {
+      _layerStack.resizeImageContent(_canvasSize, newSize);
+    });
+    await _layerStack.resizeBackgroundImage(_canvasSize, newSize);
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _resizeCanvas() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    final result = await showDialog<ResizeDimensionsResult>(
+      context: context,
+      builder: (context) => ResizeDimensionsDialog(
+        title: 'Resize Canvas',
+        initialWidth: _canvasSize.width.ceil(),
+        initialHeight: _canvasSize.height.ceil(),
+        showAnchor: true,
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final newSize = Size(result.width.toDouble(), result.height.toDouble());
+    setState(() {
+      _layerStack.resizeCanvasContent(
+        currentSize: _canvasSize,
+        newSize: newSize,
+        anchor: result.anchor,
+      );
+    });
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _flipHorizontal() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _layerStack.flipHorizontal(_canvasSize));
+    await _layerStack.flipBackgroundHorizontal();
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _flipVertical() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _layerStack.flipVertical(_canvasSize));
+    await _layerStack.flipBackgroundVertical();
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _rotate90Clockwise() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _layerStack.rotate90Clockwise(_canvasSize));
+    await _layerStack.rotateBackground90Clockwise();
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _rotate90CounterClockwise() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _layerStack.rotate90CounterClockwise(_canvasSize));
+    await _layerStack.rotateBackground90CounterClockwise();
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  Future<void> _rotate180() async {
+    if (_canvasSize == Size.zero) {
+      return;
+    }
+
+    setState(() => _layerStack.rotate180(_canvasSize));
+    await _layerStack.rotateBackground180();
+    _deselect();
+    _noteDocumentEdited();
+  }
+
+  void _flattenImage() {
+    if (_layerStack.layers.length <= 1) {
+      return;
+    }
+
+    setState(_layerStack.flattenLayers);
     _noteDocumentEdited();
   }
 
@@ -1111,9 +1283,6 @@ class _PaintScreenState extends State<PaintScreen>
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
         },
-        const SingleActivator(LogicalKeyboardKey.keyF): () {
-          setState(() => _activeTool = PaintTool.lassoSelect);
-        },
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
         const SingleActivator(
@@ -1168,6 +1337,51 @@ class _PaintScreenState extends State<PaintScreen>
         const SingleActivator(LogicalKeyboardKey.delete): _deleteSelection,
         const SingleActivator(LogicalKeyboardKey.backspace): _deleteSelection,
         const SingleActivator(LogicalKeyboardKey.escape): _deselect,
+        SingleActivator(
+          LogicalKeyboardKey.keyX,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+          shift: true,
+        ): () {
+          if (_canCropToSelection) {
+            _cropToSelection();
+          }
+        },
+        const SingleActivator(
+          LogicalKeyboardKey.keyX,
+          control: true,
+          alt: true,
+        ): _autoCrop,
+        SingleActivator(
+          LogicalKeyboardKey.keyR,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+        ): _resizeImage,
+        SingleActivator(
+          LogicalKeyboardKey.keyR,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+          shift: true,
+        ): _resizeCanvas,
+        SingleActivator(
+          LogicalKeyboardKey.keyG,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+        ): _rotate90CounterClockwise,
+        SingleActivator(
+          LogicalKeyboardKey.keyJ,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+        ): _rotate180,
+        SingleActivator(
+          LogicalKeyboardKey.keyF,
+          meta: defaultTargetPlatform == TargetPlatform.macOS,
+          control: defaultTargetPlatform != TargetPlatform.macOS,
+          shift: true,
+        ): _flattenImage,
+        const SingleActivator(LogicalKeyboardKey.keyF): () {
+          setState(() => _activeTool = PaintTool.lassoSelect);
+        },
         const SingleActivator(LogicalKeyboardKey.keyS): () {
           setState(() => _activeTool = PaintTool.rectSelect);
         },
@@ -1208,6 +1422,18 @@ class _PaintScreenState extends State<PaintScreen>
                               onInvertSelection: _invertSelection,
                               onDeleteSelection: _deleteSelection,
                               hasSelection: _selection != null,
+                              onCropToSelection:
+                                  _canCropToSelection ? _cropToSelection : null,
+                              onAutoCrop: _autoCrop,
+                              onResizeImage: _resizeImage,
+                              onResizeCanvas: _resizeCanvas,
+                              onFlipHorizontal: _flipHorizontal,
+                              onFlipVertical: _flipVertical,
+                              onRotate90Clockwise: _rotate90Clockwise,
+                              onRotate90CounterClockwise:
+                                  _rotate90CounterClockwise,
+                              onRotate180: _rotate180,
+                              onFlatten: _flattenImage,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -1461,6 +1687,17 @@ class _PaintScreenState extends State<PaintScreen>
           onInvertSelection: _invertSelection,
           onDeleteSelection: _deleteSelection,
           hasSelection: _selection != null,
+          onCropToSelection:
+              _canCropToSelection ? _cropToSelection : null,
+          onAutoCrop: _autoCrop,
+          onResizeImage: _resizeImage,
+          onResizeCanvas: _resizeCanvas,
+          onFlipHorizontal: _flipHorizontal,
+          onFlipVertical: _flipVertical,
+          onRotate90Clockwise: _rotate90Clockwise,
+          onRotate90CounterClockwise: _rotate90CounterClockwise,
+          onRotate180: _rotate180,
+          onFlatten: _flattenImage,
         ),
         child: body,
       );

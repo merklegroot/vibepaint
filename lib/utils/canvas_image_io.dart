@@ -86,6 +86,11 @@ Future<Uint8List> renderCanvasToBytes({
   }
 }
 
+Future<ui.Image> rasterImageToUiImage(img.Image image) async {
+  final bytes = img.encodePng(image);
+  return decodeImageBytes(Uint8List.fromList(bytes));
+}
+
 Future<ui.Image> decodeImageBytes(Uint8List bytes) async {
   final codec = await ui.instantiateImageCodec(bytes);
   final frame = await codec.getNextFrame();
