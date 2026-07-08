@@ -29,7 +29,6 @@ import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
-import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/canvas_text_editor.dart';
@@ -1584,10 +1583,9 @@ class _PaintScreenState extends State<PaintScreen>
           return;
         case AiEnhanceAvailability.unavailableOnDevice:
           _showMessage(
-            'Image Playground isn’t available yet. On this Mac, open '
-            'System Settings → Apple Intelligence & Siri, turn on Apple '
-            'Intelligence, wait for models to finish downloading, then retry. '
-            'Also check Screen Time → Intelligence & Siri → Image Creation.',
+            'Apple Intelligence image generation isn’t available. Open '
+            'System Settings → Apple Intelligence & Siri, turn it on, wait '
+            'for models to finish downloading, then retry.',
           );
           return;
         case AiEnhanceAvailability.unknown:
@@ -1614,48 +1612,30 @@ class _PaintScreenState extends State<PaintScreen>
         return;
       }
 
-      while (mounted) {
-        final generated = await presentAiEnhance(sourcePng: source.pngBytes);
-        if (!mounted) {
-          return;
-        }
-        if (generated == null) {
-          return;
-        }
-
-        final action = await showAiEnhancePreviewDialog(
-          context: context,
-          pngBytes: generated.pngBytes,
-          width: generated.width,
-          height: generated.height,
-        );
-        if (!mounted) {
-          return;
-        }
-
-        if (action == null) {
-          return;
-        }
-        if (action == false) {
-          continue;
-        }
-
-        final stroke = await strokeFromAiEnhanceResult(
-          result: generated,
-          placement: source.placement,
-        );
-        if (!mounted) {
-          stroke.rasterImage?.dispose();
-          return;
-        }
-
-        setState(() {
-          _layerStack.activeHistory.add(stroke);
-          _noteDocumentEdited();
-        });
-        _showMessage('AI Enhance applied (⌘Z to undo).');
+      _showMessage('Enhancing…');
+      final generated = await enhanceSketch(sourcePng: source.pngBytes);
+      if (!mounted) {
         return;
       }
+      if (generated == null) {
+        _showMessage('AI Enhance was cancelled.');
+        return;
+      }
+
+      final stroke = await strokeFromAiEnhanceResult(
+        result: generated,
+        placement: source.placement,
+      );
+      if (!mounted) {
+        stroke.rasterImage?.dispose();
+        return;
+      }
+
+      setState(() {
+        _layerStack.activeHistory.add(stroke);
+        _noteDocumentEdited();
+      });
+      _showMessage('AI Enhance applied (⌘Z to undo).');
     } on AiEnhanceException catch (error) {
       if (mounted) {
         _showMessage(error.message);

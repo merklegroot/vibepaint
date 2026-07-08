@@ -11,7 +11,7 @@ const _channel = MethodChannel('vibepaint/ai_enhance');
 
 /// Default prompt seed for Image Playground when enhancing a sketch.
 const defaultAiEnhancePrompt =
-    'Polish and color this sketch into a clean finished illustration';
+    'colorful finished illustration based on this drawing';
 
 enum AiEnhanceAvailability {
   available,
@@ -63,7 +63,7 @@ Future<AiEnhanceAvailability> checkAiEnhanceAvailability() async {
   }
 }
 
-Future<AiEnhanceResult?> presentAiEnhance({
+Future<AiEnhanceResult?> enhanceSketch({
   required Uint8List sourcePng,
   String prompt = defaultAiEnhancePrompt,
 }) async {
@@ -73,7 +73,7 @@ Future<AiEnhanceResult?> presentAiEnhance({
 
   try {
     final result = await _channel.invokeMethod<Map<Object?, Object?>>(
-      'present',
+      'enhance',
       <String, Object>{
         'pngBytes': sourcePng,
         'prompt': prompt,
@@ -97,7 +97,14 @@ Future<AiEnhanceResult?> presentAiEnhance({
     }
     return AiEnhanceResult(pngBytes: png, width: width, height: height);
   } on PlatformException catch (error) {
-    throw AiEnhanceException(error.code, error.message ?? 'AI Enhance failed');
+    final detail = error.details;
+    final suffix = (detail is String && detail.trim().isNotEmpty)
+        ? ' ($detail)'
+        : '';
+    throw AiEnhanceException(
+      error.code,
+      '${error.message ?? 'AI Enhance failed'}$suffix',
+    );
   }
 }
 
@@ -182,10 +189,41 @@ Future<AiEnhanceSource?> captureAiEnhanceSource({
     return null;
   }
 
+  // ImageCreator rejects many transparent / tiny inputs; flatten onto white.
+  final prepared = _flattenOntoWhite(cropped);
+
   return AiEnhanceSource(
-    pngBytes: Uint8List.fromList(img.encodePng(cropped)),
+    pngBytes: Uint8List.fromList(img.encodePng(prepared)),
     placement: placement,
   );
+}
+
+img.Image _flattenOntoWhite(img.Image source) {
+  final out = img.Image(
+    width: source.width,
+    height: source.height,
+    numChannels: 4,
+  );
+  img.fill(out, color: img.ColorRgba8(255, 255, 255, 255));
+  for (var y = 0; y < source.height; y++) {
+    for (var x = 0; x < source.width; x++) {
+      final pixel = source.getPixel(x, y);
+      final a = pixel.a;
+      if (a == 0) {
+        continue;
+      }
+      if (a == 255) {
+        out.setPixel(x, y, pixel);
+        continue;
+      }
+      final alpha = a / 255.0;
+      final r = (pixel.r * alpha + 255 * (1 - alpha)).round().clamp(0, 255);
+      final g = (pixel.g * alpha + 255 * (1 - alpha)).round().clamp(0, 255);
+      final b = (pixel.b * alpha + 255 * (1 - alpha)).round().clamp(0, 255);
+      out.setPixelRgba(x, y, r, g, b, 255);
+    }
+  }
+  return out;
 }
 
 Future<Stroke> strokeFromAiEnhanceResult({

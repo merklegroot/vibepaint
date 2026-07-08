@@ -5,11 +5,9 @@ import FlutterMacOS
 import ImagePlayground
 #endif
 
-/// Presents Apple Image Playground (macOS 15.1+ / Apple Intelligence) seeded with
-/// the user's sketch, then returns the generated PNG to Flutter.
+/// Silently enhances a sketch via Apple's ImageCreator (no Playground sheet).
 final class AiEnhancePlugin: NSObject, FlutterPlugin {
-  private var pendingResult: FlutterResult?
-  private var presenter: NSViewController?
+  private var isBusy = false
 
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
@@ -23,43 +21,38 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "isAvailable":
-      result(Self.isImagePlaygroundAvailable)
-    case "present":
-      present(call: call, result: result)
+      Task { @MainActor in
+        result(await Self.canCreateImages())
+      }
+    case "enhance", "present":
+      enhance(call: call, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
-  private static var isImagePlaygroundAvailable: Bool {
+  private static func canCreateImages() async -> Bool {
     #if canImport(ImagePlayground)
-    if #available(macOS 15.1, *) {
-      return ImagePlaygroundViewController.isAvailable
+    if #available(macOS 15.4, *) {
+      do {
+        let creator = try await ImageCreator()
+        return !creator.availableStyles.isEmpty
+      } catch {
+        return false
+      }
     }
     #endif
     return false
   }
 
-  private func present(call: FlutterMethodCall, result: @escaping FlutterResult) {
+  private func enhance(call: FlutterMethodCall, result: @escaping FlutterResult) {
     #if canImport(ImagePlayground)
-    if #available(macOS 15.1, *) {
-      guard Self.isImagePlaygroundAvailable else {
-        result(
-          FlutterError(
-            code: "unavailable",
-            message:
-              "Image Playground is not available. Requires Apple Intelligence on a supported Mac, with image generation enabled.",
-            details: nil
-          )
-        )
-        return
-      }
-
-      if pendingResult != nil {
+    if #available(macOS 15.4, *) {
+      if isBusy {
         result(
           FlutterError(
             code: "busy",
-            message: "An AI Enhance session is already in progress.",
+            message: "An AI Enhance request is already in progress.",
             details: nil
           )
         )
@@ -70,7 +63,7 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
       let flutterData = args["pngBytes"] as? FlutterStandardTypedData
       let prompt =
         (args["prompt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        ?? "Polish and color this sketch into a clean finished illustration"
+        ?? "colorful finished illustration based on this drawing"
 
       guard let flutterData else {
         result(
@@ -83,36 +76,54 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
         return
       }
 
-      guard let nsImage = NSImage(data: flutterData.data), nsImage.isValid else {
+      guard let sketch = Self.prepareSketchCGImage(pngData: flutterData.data) else {
         result(
           FlutterError(
             code: "invalid_image",
-            message: "Could not decode source sketch PNG",
+            message: "Could not prepare the sketch for enhancement",
             details: nil
           )
         )
         return
       }
 
-      guard let host = Self.keyWindowViewController() else {
-        result(
-          FlutterError(
-            code: "no_window",
-            message: "No key window available to present Image Playground",
-            details: nil
+      isBusy = true
+      Task { @MainActor in
+        defer { self.isBusy = false }
+
+        // ImageCreator refuses background / inactive apps.
+        Self.bringAppToForeground()
+
+        do {
+          let created = try await Self.generate(sketch: sketch, prompt: prompt)
+          guard let png = Self.pngData(from: created) else {
+            result(
+              FlutterError(
+                code: "encode_failed",
+                message: "Could not encode the generated image.",
+                details: nil
+              )
+            )
+            return
+          }
+          result(
+            [
+              "pngBytes": FlutterStandardTypedData(bytes: png),
+              "width": created.width,
+              "height": created.height,
+            ] as [String: Any]
           )
-        )
-        return
+        } catch {
+          NSLog("VibePaint AI Enhance failed: \(error)")
+          result(
+            FlutterError(
+              code: "creation_failed",
+              message: Self.message(for: error),
+              details: String(describing: error)
+            )
+          )
+        }
       }
-
-      let playground = ImagePlaygroundViewController()
-      playground.concepts = [.text(prompt)]
-      playground.sourceImage = nsImage
-      playground.delegate = self
-
-      pendingResult = result
-      presenter = host
-      host.presentAsSheet(playground)
       return
     }
     #endif
@@ -120,76 +131,155 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
     result(
       FlutterError(
         code: "unsupported",
-        message: "AI Enhance requires macOS 15.1 or later with Image Playground.",
+        message: "AI Enhance requires macOS 15.4 or later with Apple Intelligence.",
         details: nil
       )
     )
   }
 
-  private static func keyWindowViewController() -> NSViewController? {
-    if let key = NSApp.keyWindow?.contentViewController {
-      return key
+  private static func bringAppToForeground() {
+    NSApp.activate(ignoringOtherApps: true)
+    if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: \.isVisible) {
+      window.makeKeyAndOrderFront(nil)
     }
-    return NSApp.windows.first(where: { $0.isVisible })?.contentViewController
   }
 
-  private func finish(with payload: [String: Any]?) {
-    let callback = pendingResult
-    pendingResult = nil
-    if let presenter, let sheet = presenter.presentedViewControllers?.last {
-      presenter.dismiss(sheet)
+  #if canImport(ImagePlayground)
+  @available(macOS 15.4, *)
+  private static func generate(sketch: CGImage, prompt: String) async throws -> CGImage {
+    let creator = try await ImageCreator()
+    let styles = preferredStyles(from: creator.availableStyles)
+    guard !styles.isEmpty else {
+      throw ImageCreator.Error.unavailable
     }
-    presenter = nil
-    callback?(payload)
+
+    let imageConcept = ImagePlaygroundConcept.image(sketch)
+    let shortPrompt = String(prompt.prefix(80))
+
+    // Prefer conditioning on the sketch; fall back to text-only if needed.
+    let conceptSets: [[ImagePlaygroundConcept]] = [
+      [imageConcept, .text(shortPrompt)],
+      [imageConcept, .text("illustration")],
+      [imageConcept],
+      [.text(shortPrompt)],
+      [.text("cute colorful illustration")],
+    ]
+
+    var lastError: Error = ImageCreator.Error.creationFailed
+    for style in styles {
+      for concepts in conceptSets {
+        do {
+          NSLog(
+            "VibePaint AI Enhance trying style=\(style.id) concepts=\(concepts.count)"
+          )
+          for try await image in creator.images(for: concepts, style: style, limit: 1) {
+            return image.cgImage
+          }
+        } catch {
+          lastError = error
+          NSLog("VibePaint AI Enhance attempt failed: \(error)")
+          if let creatorError = error as? ImageCreator.Error,
+            creatorError == .backgroundCreationForbidden
+              || creatorError == .unavailable
+              || creatorError == .notSupported
+          {
+            throw error
+          }
+          continue
+        }
+      }
+    }
+    throw lastError
   }
 
-  private func finishError(code: String, message: String) {
-    let callback = pendingResult
-    pendingResult = nil
-    if let presenter, let sheet = presenter.presentedViewControllers?.last {
-      presenter.dismiss(sheet)
+  @available(macOS 15.4, *)
+  private static func preferredStyles(
+    from available: [ImagePlaygroundStyle]
+  ) -> [ImagePlaygroundStyle] {
+    // Animation is the most commonly documented reliable style.
+    let preferred: [ImagePlaygroundStyle] = [.animation, .illustration, .sketch]
+    let ordered = preferred.filter { available.contains($0) }
+    return ordered.isEmpty ? available : ordered
+  }
+  #endif
+
+  /// Flatten transparency onto white and pad to a size Image Playground accepts well.
+  private static func prepareSketchCGImage(pngData: Data) -> CGImage? {
+    guard let source = NSImage(data: pngData) else {
+      return nil
     }
-    presenter = nil
-    callback?(
-      FlutterError(code: code, message: message, details: nil)
+
+    let minSide: CGFloat = 512
+    let maxSide: CGFloat = 1024
+    let sourceSize = source.size
+    guard sourceSize.width > 0, sourceSize.height > 0 else {
+      return nil
+    }
+
+    let longest = max(sourceSize.width, sourceSize.height)
+    let shortest = min(sourceSize.width, sourceSize.height)
+    let scaleUp = shortest < minSide ? (minSide / shortest) : 1
+    let scaleDown = longest > maxSide ? (maxSide / longest) : 1
+    let scale = min(scaleUp, scaleDown)
+    let drawSize = NSSize(
+      width: max(1, (sourceSize.width * scale).rounded()),
+      height: max(1, (sourceSize.height * scale).rounded())
     )
+    let canvasSide = max(minSide, max(drawSize.width, drawSize.height))
+    let canvasSize = NSSize(width: canvasSide, height: canvasSide)
+
+    let canvas = NSImage(size: canvasSize)
+    canvas.lockFocus()
+    NSColor.white.setFill()
+    NSRect(origin: .zero, size: canvasSize).fill()
+    let origin = NSPoint(
+      x: ((canvasSide - drawSize.width) / 2).rounded(.down),
+      y: ((canvasSide - drawSize.height) / 2).rounded(.down)
+    )
+    source.draw(
+      in: NSRect(origin: origin, size: drawSize),
+      from: NSRect(origin: .zero, size: sourceSize),
+      operation: .sourceOver,
+      fraction: 1.0,
+      respectFlipped: true,
+      hints: [.interpolation: NSImageInterpolation.high]
+    )
+    canvas.unlockFocus()
+
+    var proposed = CGRect(origin: .zero, size: canvasSize)
+    return canvas.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
+  }
+
+  private static func pngData(from image: CGImage) -> Data? {
+    let rep = NSBitmapImageRep(cgImage: image)
+    return rep.representation(using: .png, properties: [:])
+  }
+
+  private static func message(for error: Error) -> String {
+    #if canImport(ImagePlayground)
+    if #available(macOS 15.4, *), let creatorError = error as? ImageCreator.Error {
+      switch creatorError {
+      case .notSupported:
+        return "AI Enhance isn’t supported on this Mac."
+      case .unavailable:
+        return
+          "Apple Intelligence image generation isn’t available. Turn it on in System Settings → Apple Intelligence & Siri."
+      case .creationCancelled:
+        return "AI Enhance was cancelled."
+      case .backgroundCreationForbidden:
+        return "Keep VibePaint in the front and try AI Enhance again."
+      case .unsupportedLanguage:
+        return "AI Enhance needs a supported system language (match Siri and macOS language)."
+      case .unsupportedInputImage:
+        return "That sketch couldn’t be used as input. Try a larger or clearer drawing."
+      case .creationFailed:
+        return
+          "Image generation failed. Keep VibePaint frontmost, confirm Apple Intelligence finished downloading, and try a clearer sketch."
+      default:
+        return creatorError.localizedDescription
+      }
+    }
+    #endif
+    return error.localizedDescription
   }
 }
-
-#if canImport(ImagePlayground)
-@available(macOS 15.1, *)
-extension AiEnhancePlugin: ImagePlaygroundViewController.Delegate {
-  func imagePlaygroundViewController(
-    _ imagePlaygroundViewController: ImagePlaygroundViewController,
-    didCreateImageAt imageURL: URL
-  ) {
-    defer {
-      // Image Playground writes a temporary file — copy bytes then clean up.
-      try? FileManager.default.removeItem(at: imageURL)
-    }
-
-    guard let nsImage = NSImage(contentsOf: imageURL),
-      let tiff = nsImage.tiffRepresentation,
-      let bitmap = NSBitmapImageRep(data: tiff),
-      let png = bitmap.representation(using: .png, properties: [:])
-    else {
-      finishError(code: "read_failed", message: "Could not read the generated image")
-      return
-    }
-
-    finish(
-      with: [
-        "pngBytes": FlutterStandardTypedData(bytes: png),
-        "width": bitmap.pixelsWide,
-        "height": bitmap.pixelsHigh,
-      ]
-    )
-  }
-
-  func imagePlaygroundViewControllerDidCancel(
-    _ imagePlaygroundViewController: ImagePlaygroundViewController
-  ) {
-    finish(with: nil)
-  }
-}
-#endif
