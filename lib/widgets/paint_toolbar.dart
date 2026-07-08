@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
+import 'package:vibepaint/widgets/selection_shape_control.dart';
 import 'package:vibepaint/widgets/shape_style_control.dart';
 
 class PaintToolbar extends StatelessWidget {
@@ -20,6 +22,9 @@ class PaintToolbar extends StatelessWidget {
     required this.onDeselect,
     required this.onInvertSelection,
     required this.onDeleteSelection,
+    this.canReshapeSelection = false,
+    this.selectionShape,
+    this.onSelectionShapeChanged,
   });
 
   final double brushSize;
@@ -35,6 +40,9 @@ class PaintToolbar extends StatelessWidget {
   final VoidCallback onDeselect;
   final VoidCallback onInvertSelection;
   final VoidCallback onDeleteSelection;
+  final bool canReshapeSelection;
+  final SelectionShape? selectionShape;
+  final ValueChanged<SelectionShape>? onSelectionShapeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +95,15 @@ class PaintToolbar extends StatelessWidget {
             enabled: hasSelection,
             onPressed: onDeleteSelection,
           ),
+          if (canReshapeSelection &&
+              selectionShape != null &&
+              onSelectionShapeChanged != null) ...[
+            const SizedBox(width: 16),
+            SelectionShapeControl(
+              shape: selectionShape!,
+              onChanged: onSelectionShapeChanged!,
+            ),
+          ],
           const Spacer(),
           _ToolbarIconButton(
             icon: Icons.undo,

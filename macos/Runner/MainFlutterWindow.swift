@@ -12,6 +12,9 @@ class MainFlutterWindow: NSWindow {
     NativeSaveDialogPlugin.register(
       with: flutterViewController.registrar(forPlugin: "NativeSaveDialogPlugin")
     )
+    SelectionCursorPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "SelectionCursorPlugin")
+    )
 
     super.awakeFromNib()
   }

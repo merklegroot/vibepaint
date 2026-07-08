@@ -16,7 +16,9 @@ import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
+import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
+import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
@@ -64,6 +66,10 @@ class _PaintScreenState extends State<PaintScreen>
   bool _movingSelection = false;
   Offset? _moveStart;
   List<Stroke>? _strokesBeforeMove;
+  bool _resizingSelection = false;
+  SelectionResizeHandle? _resizeHandle;
+  Rect? _resizeOriginalBounds;
+  MouseCursor _canvasCursor = MouseCursor.defer;
   late final AnimationController _marchingAntsController;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
@@ -212,6 +218,9 @@ class _PaintScreenState extends State<PaintScreen>
       }
       hints.add('Shift: add');
       hints.add('Ctrl: subtract');
+      if (_selection?.canReshape ?? false) {
+        hints.add('Drag handles to resize');
+      }
       return hints.join(' · ');
     }
 
@@ -231,6 +240,56 @@ class _PaintScreenState extends State<PaintScreen>
 
   bool _isInsideCanvas(Offset position, Rect bounds) {
     return isInsideCanvas(position, bounds.width, bounds.height);
+  }
+
+  void _setCanvasCursor(MouseCursor cursor, {SelectionResizeHandle? handle}) {
+    if (handle != null) {
+      SelectionCursors.applyForHandle(handle);
+      cursor = SelectionCursors.mouseCursorFor(handle);
+    } else {
+      SelectionCursors.clearNativeOverride();
+    }
+
+    if (_canvasCursor == cursor) {
+      return;
+    }
+    setState(() => _canvasCursor = cursor);
+  }
+
+  void _resetCanvasCursor() {
+    SelectionCursors.clearNativeOverride();
+    _setCanvasCursor(MouseCursor.defer);
+  }
+
+  void _updateCanvasCursor(Offset position) {
+    if (_resizingSelection && _resizeHandle != null) {
+      _setCanvasCursor(
+        SelectionCursors.mouseCursorFor(_resizeHandle!),
+        handle: _resizeHandle,
+      );
+      return;
+    }
+
+    if (_activeTool.isSelectionTool) {
+      if (_selection?.canReshape == true && _selectionDraft == null) {
+        final handle = hitTestSelectionHandle(position, _selection!.bounds);
+        if (handle != null) {
+          _setCanvasCursor(
+            SelectionCursors.mouseCursorFor(handle),
+            handle: handle,
+          );
+          return;
+        }
+      }
+
+      if (_selection != null && _selection!.contains(position)) {
+        SelectionCursors.clearNativeOverride();
+        _setCanvasCursor(SystemMouseCursors.move);
+        return;
+      }
+    }
+
+    _resetCanvasCursor();
   }
 
   SelectionShape get _activeSelectionShape =>
@@ -261,6 +320,42 @@ class _PaintScreenState extends State<PaintScreen>
       _movingSelection = false;
       _moveStart = null;
       _strokesBeforeMove = null;
+      _resizingSelection = false;
+      _resizeHandle = null;
+      _resizeOriginalBounds = null;
+      _resetCanvasCursor();
+    });
+  }
+
+  void _changeSelectionShape(SelectionShape shape) {
+    if (_selection == null || !_selection!.canReshape) {
+      return;
+    }
+    if (_selection!.shape == shape) {
+      return;
+    }
+
+    setState(() {
+      _selection = _selection!.withShape(shape);
+      _activeTool = shape == SelectionShape.rectangle
+          ? PaintTool.rectSelect
+          : PaintTool.ellipseSelect;
+    });
+  }
+
+  void _applySelectionTool(PaintTool tool) {
+    setState(() {
+      if (tool.isSelectionTool &&
+          _selection?.canReshape == true &&
+          _selectionDraft == null) {
+        final shape = tool == PaintTool.rectSelect
+            ? SelectionShape.rectangle
+            : SelectionShape.ellipse;
+        if (_selection!.shape != shape) {
+          _selection = _selection!.withShape(shape);
+        }
+      }
+      _activeTool = tool;
     });
   }
 
@@ -284,6 +379,44 @@ class _PaintScreenState extends State<PaintScreen>
       );
     });
     _noteDocumentEdited();
+  }
+
+  void _beginResizeSelection(SelectionResizeHandle handle) {
+    _resizingSelection = true;
+    _resizeHandle = handle;
+    _resizeOriginalBounds = _selection!.bounds;
+    _setCanvasCursor(
+      SelectionCursors.mouseCursorFor(handle),
+      handle: handle,
+    );
+  }
+
+  void _extendResizeSelection(Offset position, Rect canvasBounds) {
+    if (!_resizingSelection ||
+        _resizeHandle == null ||
+        _resizeOriginalBounds == null ||
+        _selection == null) {
+      return;
+    }
+
+    setState(() {
+      _selection = _selection!.withBounds(
+        resizeSelectionBounds(
+          original: _resizeOriginalBounds!,
+          handle: _resizeHandle!,
+          current: position,
+          canvasBounds: canvasBounds,
+          constrainSquare: _shiftPressed,
+        ),
+      );
+    });
+  }
+
+  void _endResizeSelection() {
+    _resizingSelection = false;
+    _resizeHandle = null;
+    _resizeOriginalBounds = null;
+    _resetCanvasCursor();
   }
 
   void _beginSelectionDrag(Offset position, Rect bounds) {
@@ -353,6 +486,7 @@ class _PaintScreenState extends State<PaintScreen>
     _movingSelection = true;
     _moveStart = position;
     _strokesBeforeMove = List<Stroke>.from(_layerStack.activeHistory.strokes);
+    _setCanvasCursor(SystemMouseCursors.move);
   }
 
   void _extendMoveSelection(Offset position) {
@@ -383,6 +517,7 @@ class _PaintScreenState extends State<PaintScreen>
     _movingSelection = false;
     _moveStart = null;
     _strokesBeforeMove = null;
+    _resetCanvasCursor();
     _noteDocumentEdited();
   }
 
@@ -398,6 +533,14 @@ class _PaintScreenState extends State<PaintScreen>
   void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
     if (_activeTool.isSelectionTool) {
+      if (_selection?.canReshape == true && _selectionDraft == null) {
+        final handle = hitTestSelectionHandle(position, _selection!.bounds);
+        if (handle != null) {
+          _beginResizeSelection(handle);
+          return;
+        }
+      }
+
       if (_selection != null && _selection!.contains(position)) {
         _beginMoveSelection(position);
       } else {
@@ -737,7 +880,9 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _extendStroke(Offset position, Rect bounds) {
     if (_activeTool.isSelectionTool) {
-      if (_movingSelection) {
+      if (_resizingSelection) {
+        _extendResizeSelection(position, bounds);
+      } else if (_movingSelection) {
         _extendMoveSelection(position);
       } else {
         _extendSelectionDrag(position, bounds);
@@ -836,7 +981,9 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _endStroke() {
     if (_activeTool.isSelectionTool) {
-      if (_movingSelection) {
+      if (_resizingSelection) {
+        _endResizeSelection();
+      } else if (_movingSelection) {
         _endMoveSelection();
       } else {
         _endSelectionDrag();
@@ -961,9 +1108,7 @@ class _PaintScreenState extends State<PaintScreen>
                   children: [
                     ToolToolbar(
                       selected: _activeTool,
-                      onSelected: (tool) {
-                        setState(() => _activeTool = tool);
-                      },
+                      onSelected: _applySelectionTool,
                     ),
                     Expanded(
                       child: DecoratedBox(
@@ -1011,6 +1156,15 @@ class _PaintScreenState extends State<PaintScreen>
                               onDeselect: _deselect,
                               onInvertSelection: _invertSelection,
                               onDeleteSelection: _deleteSelection,
+                              canReshapeSelection:
+                                  _selection?.canReshape ?? false,
+                              selectionShape: _selection?.canReshape == true
+                                  ? _selection!.shape
+                                  : null,
+                              onSelectionShapeChanged:
+                                  _selection?.canReshape == true
+                                      ? _changeSelectionShape
+                                      : null,
                             ),
                             Expanded(
                               child: Row(
@@ -1027,21 +1181,27 @@ class _PaintScreenState extends State<PaintScreen>
                                         final bounds = Offset.zero & size;
 
                                         return ClipRect(
-                                          child: GestureDetector(
-                                            onPanStart: (details) => _beginPan(
-                                              details.localPosition,
-                                              bounds,
+                                          child: MouseRegion(
+                                            cursor: _canvasCursor,
+                                            onHover: (event) => _updateCanvasCursor(
+                                              event.localPosition,
                                             ),
-                                            onPanUpdate: (details) =>
-                                                _extendStroke(
-                                              details.localPosition,
-                                              bounds,
-                                            ),
-                                            onPanEnd: (_) => _endStroke(),
-                                            onPanCancel: () => _endStroke(),
-                                            child: AnimatedBuilder(
-                                              animation: _marchingAntsController,
-                                              builder: (context, child) {
+                                            onExit: (_) => _resetCanvasCursor(),
+                                            child: GestureDetector(
+                                              onPanStart: (details) => _beginPan(
+                                                details.localPosition,
+                                                bounds,
+                                              ),
+                                              onPanUpdate: (details) =>
+                                                  _extendStroke(
+                                                details.localPosition,
+                                                bounds,
+                                              ),
+                                              onPanEnd: (_) => _endStroke(),
+                                              onPanCancel: () => _endStroke(),
+                                              child: AnimatedBuilder(
+                                                animation: _marchingAntsController,
+                                                builder: (context, child) {
                                                 return Stack(
                                                   fit: StackFit.expand,
                                                   children: [
@@ -1055,6 +1215,13 @@ class _PaintScreenState extends State<PaintScreen>
                                                             _marchingAntsController
                                                                     .value *
                                                                 16,
+                                                        showHandles:
+                                                            _selection?.canReshape ==
+                                                                    true &&
+                                                                _selectionDraft ==
+                                                                    null &&
+                                                                _activeTool
+                                                                    .isSelectionTool,
                                                       ),
                                                     ),
                                                   ],
@@ -1075,6 +1242,7 @@ class _PaintScreenState extends State<PaintScreen>
                                               ),
                                             ),
                                           ),
+                                        ),
                                         );
                                       },
                                     ),

@@ -35,5 +35,35 @@ void main() {
     expect(inner.contains(const Offset(50, 50)), isTrue);
     expect(inverted.contains(const Offset(50, 50)), isFalse);
     expect(inverted.contains(const Offset(5, 5)), isTrue);
+    expect(inverted.canReshape, isFalse);
+  });
+
+  test('withShape converts rectangle to ellipse', () {
+    final rect = CanvasSelection.fromRect(
+      SelectionShape.rectangle,
+      const Rect.fromLTWH(10, 10, 80, 60),
+    );
+
+    final ellipse = rect.withShape(SelectionShape.ellipse);
+
+    expect(ellipse.shape, SelectionShape.ellipse);
+    expect(ellipse.bounds, rect.bounds);
+    expect(ellipse.canReshape, isTrue);
+    expect(ellipse.contains(const Offset(50, 40)), isTrue);
+  });
+
+  test('withBounds updates simple selection', () {
+    final original = CanvasSelection.fromRect(
+      SelectionShape.rectangle,
+      const Rect.fromLTWH(10, 10, 50, 50),
+    );
+
+    final resized = original.withBounds(
+      const Rect.fromLTWH(20, 20, 60, 40),
+    );
+
+    expect(resized.bounds, const Rect.fromLTWH(20, 20, 60, 40));
+    expect(resized.contains(const Offset(25, 25)), isTrue);
+    expect(resized.contains(const Offset(10, 10)), isFalse);
   });
 }
