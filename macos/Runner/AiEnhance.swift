@@ -5,7 +5,7 @@ import FlutterMacOS
 import ImagePlayground
 #endif
 
-/// Silently enhances a sketch via Apple's ImageCreator (no Playground sheet).
+/// Silently enhances a sketch with Apple's ImageCreator (no Image Playground UI).
 final class AiEnhancePlugin: NSObject, FlutterPlugin {
   private var isBusy = false
 
@@ -19,6 +19,13 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
   }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    Task { @MainActor in
+      self.handleOnMain(call, result: result)
+    }
+  }
+
+  @MainActor
+  private func handleOnMain(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "isAvailable":
       Task { @MainActor in
@@ -31,6 +38,7 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
     }
   }
 
+  @MainActor
   private static func canCreateImages() async -> Bool {
     #if canImport(ImagePlayground)
     if #available(macOS 15.4, *) {
@@ -45,6 +53,7 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
     return false
   }
 
+  @MainActor
   private func enhance(call: FlutterMethodCall, result: @escaping FlutterResult) {
     #if canImport(ImagePlayground)
     if #available(macOS 15.4, *) {
@@ -91,11 +100,28 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
       Task { @MainActor in
         defer { self.isBusy = false }
 
-        // ImageCreator refuses background / inactive apps.
-        Self.bringAppToForeground()
+        self.forceForeground()
+        // Let AppKit finish activation before ImageCreator checks it.
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        self.forceForeground()
+
+        guard NSApp.isActive else {
+          result(
+            FlutterError(
+              code: "inactive",
+              message:
+                "Click once inside the VibePaint window to make it active, then press AI Enhance again.",
+              details: "NSApp.isActive == false"
+            )
+          )
+          return
+        }
 
         do {
-          let created = try await Self.generate(sketch: sketch, prompt: prompt)
+          let created = try await self.generateOnMainActor(
+            sketch: sketch,
+            prompt: prompt
+          )
           guard let png = Self.pngData(from: created) else {
             result(
               FlutterError(
@@ -137,40 +163,59 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
     )
   }
 
-  private static func bringAppToForeground() {
-    NSApp.activate(ignoringOtherApps: true)
-    if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: \.isVisible) {
-      window.makeKeyAndOrderFront(nil)
+  @MainActor
+  private func forceForeground() {
+    NSApp.setActivationPolicy(.regular)
+    NSApp.unhide(nil)
+    if #available(macOS 14.0, *) {
+      NSRunningApplication.current.activate()
     }
+    NSApp.activate(ignoringOtherApps: true)
+
+    let window =
+      NSApp.keyWindow
+      ?? NSApp.mainWindow
+      ?? NSApp.windows.first(where: \.isVisible)
+      ?? NSApp.windows.first
+    window?.deminiaturize(nil)
+    window?.makeKeyAndOrderFront(nil)
+    window?.orderFrontRegardless()
   }
 
   #if canImport(ImagePlayground)
   @available(macOS 15.4, *)
-  private static func generate(sketch: CGImage, prompt: String) async throws -> CGImage {
+  @MainActor
+  private func generateOnMainActor(
+    sketch: CGImage,
+    prompt: String
+  ) async throws -> CGImage {
+    // Must stay on the main actor — ImageCreator treats off-main / inactive
+    // sessions as backgroundCreationForbidden.
     let creator = try await ImageCreator()
-    let styles = preferredStyles(from: creator.availableStyles)
+    let styles = Self.preferredStyles(from: creator.availableStyles)
     guard !styles.isEmpty else {
       throw ImageCreator.Error.unavailable
     }
 
     let imageConcept = ImagePlaygroundConcept.image(sketch)
     let shortPrompt = String(prompt.prefix(80))
-
-    // Prefer conditioning on the sketch; fall back to text-only if needed.
     let conceptSets: [[ImagePlaygroundConcept]] = [
       [imageConcept, .text(shortPrompt)],
       [imageConcept, .text("illustration")],
       [imageConcept],
       [.text(shortPrompt)],
-      [.text("cute colorful illustration")],
     ]
 
     var lastError: Error = ImageCreator.Error.creationFailed
     for style in styles {
       for concepts in conceptSets {
+        forceForeground()
+        guard NSApp.isActive else {
+          throw ImageCreator.Error.backgroundCreationForbidden
+        }
         do {
           NSLog(
-            "VibePaint AI Enhance trying style=\(style.id) concepts=\(concepts.count)"
+            "VibePaint AI Enhance style=\(style.id) concepts=\(concepts.count) active=\(NSApp.isActive)"
           )
           for try await image in creator.images(for: concepts, style: style, limit: 1) {
             return image.cgImage
@@ -178,12 +223,13 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
         } catch {
           lastError = error
           NSLog("VibePaint AI Enhance attempt failed: \(error)")
-          if let creatorError = error as? ImageCreator.Error,
-            creatorError == .backgroundCreationForbidden
-              || creatorError == .unavailable
-              || creatorError == .notSupported
-          {
-            throw error
+          if let creatorError = error as? ImageCreator.Error {
+            switch creatorError {
+            case .backgroundCreationForbidden, .unavailable, .notSupported:
+              throw error
+            default:
+              continue
+            }
           }
           continue
         }
@@ -196,14 +242,12 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
   private static func preferredStyles(
     from available: [ImagePlaygroundStyle]
   ) -> [ImagePlaygroundStyle] {
-    // Animation is the most commonly documented reliable style.
     let preferred: [ImagePlaygroundStyle] = [.animation, .illustration, .sketch]
     let ordered = preferred.filter { available.contains($0) }
     return ordered.isEmpty ? available : ordered
   }
   #endif
 
-  /// Flatten transparency onto white and pad to a size Image Playground accepts well.
   private static func prepareSketchCGImage(pngData: Data) -> CGImage? {
     guard let source = NSImage(data: pngData) else {
       return nil
@@ -267,14 +311,15 @@ final class AiEnhancePlugin: NSObject, FlutterPlugin {
       case .creationCancelled:
         return "AI Enhance was cancelled."
       case .backgroundCreationForbidden:
-        return "Keep VibePaint in the front and try AI Enhance again."
+        return
+          "Click once inside the VibePaint window so it’s frontmost, then press AI Enhance again."
       case .unsupportedLanguage:
         return "AI Enhance needs a supported system language (match Siri and macOS language)."
       case .unsupportedInputImage:
         return "That sketch couldn’t be used as input. Try a larger or clearer drawing."
       case .creationFailed:
         return
-          "Image generation failed. Keep VibePaint frontmost, confirm Apple Intelligence finished downloading, and try a clearer sketch."
+          "Image generation failed. Keep VibePaint frontmost and confirm Apple Intelligence finished downloading."
       default:
         return creatorError.localizedDescription
       }

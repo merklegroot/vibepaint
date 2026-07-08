@@ -41,6 +41,7 @@ import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/text_tool_options_control.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
+import 'package:window_manager/window_manager.dart';
 
 class PaintScreen extends StatefulWidget {
   const PaintScreen({
@@ -1610,6 +1611,14 @@ class _PaintScreenState extends State<PaintScreen>
               : 'Draw something on the active layer first.',
         );
         return;
+      }
+
+      // ImageCreator only runs while the host app is active/frontmost.
+      try {
+        await windowManager.show();
+        await windowManager.focus();
+      } on Object {
+        // Headless / test environments may not support window controls.
       }
 
       _showMessage('Enhancing…');
