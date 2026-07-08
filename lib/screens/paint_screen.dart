@@ -9,6 +9,7 @@ import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/models/text_run.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
@@ -29,6 +30,7 @@ import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
+import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/color_picker_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
@@ -94,6 +96,9 @@ class _PaintScreenState extends State<PaintScreen>
   Offset? _viewportPanAtStart;
   double? _panZoomStartScale;
   Offset? _panZoomFocal;
+  TextRun? _textDraft;
+  bool _textBold = false;
+  bool _textItalic = false;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
@@ -256,6 +261,9 @@ class _PaintScreenState extends State<PaintScreen>
       _layerStack.setBackgroundColor(result.secondary);
       _colorTarget = target;
     });
+    if (_textDraft != null) {
+      _syncTextDraftStyleFromToolbar();
+    }
     _noteDocumentEdited();
   }
 
@@ -287,6 +295,13 @@ class _PaintScreenState extends State<PaintScreen>
 
     if (_activeTool == PaintTool.magicWand) {
       return 'Click to select by color · Shift: add · Ctrl: subtract';
+    }
+
+    if (_activeTool == PaintTool.text) {
+      if (_textDraft != null) {
+        return 'Type text · Enter: finish · Shift+Enter: new line · Esc: cancel';
+      }
+      return 'Click to place text · Font size uses brush size';
     }
 
     if (!_activeTool.isDragShape) {
@@ -428,7 +443,8 @@ class _PaintScreenState extends State<PaintScreen>
 
     if (_activeTool == PaintTool.eyedropper ||
         _activeTool == PaintTool.fillBucket ||
-        _activeTool == PaintTool.magicWand) {
+        _activeTool == PaintTool.magicWand ||
+        _activeTool == PaintTool.text) {
       _setCanvasCursor(SystemMouseCursors.precise);
       return;
     }
@@ -489,6 +505,9 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _applySelectionTool(PaintTool tool) {
+    if (_textDraft != null && tool != PaintTool.text) {
+      _commitTextDraft();
+    }
     setState(() {
       if (tool.isBoxSelectionTool &&
           _selection?.canReshape == true &&
@@ -501,6 +520,80 @@ class _PaintScreenState extends State<PaintScreen>
         }
       }
       _activeTool = tool;
+    });
+  }
+
+  void _beginTextEditing(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds) || _documentSize == Size.zero) {
+      return;
+    }
+
+    if (_textDraft != null) {
+      final boundsBox = _textDraft!.bounds();
+      if (boundsBox.inflate(8).contains(position)) {
+        return;
+      }
+      _commitTextDraft();
+    }
+
+    setState(() {
+      _textDraft = TextRun(
+        text: '',
+        position: position,
+        color: _primaryColor,
+        fontSize: _brushSize.clamp(8, BrushSizeControl.maxSize),
+        bold: _textBold,
+        italic: _textItalic,
+      );
+    });
+  }
+
+  void _updateTextDraft(TextRun draft) {
+    setState(() => _textDraft = draft);
+  }
+
+  void _commitTextDraft() {
+    final draft = _textDraft;
+    if (draft == null) {
+      return;
+    }
+
+    setState(() {
+      _textDraft = null;
+      if (!draft.isEmpty) {
+        _layerStack.activeHistory.add(
+          Stroke(
+            color: draft.color,
+            brushSize: draft.fontSize,
+            shape: StrokeShape.text,
+            points: [draft.position],
+            textRun: draft,
+          ),
+        );
+        _noteDocumentEdited();
+      }
+    });
+  }
+
+  void _cancelTextDraft() {
+    if (_textDraft == null) {
+      return;
+    }
+    setState(() => _textDraft = null);
+  }
+
+  void _syncTextDraftStyleFromToolbar() {
+    final draft = _textDraft;
+    if (draft == null) {
+      return;
+    }
+    setState(() {
+      _textDraft = draft.copyWith(
+        color: _primaryColor,
+        fontSize: _brushSize.clamp(8, BrushSizeControl.maxSize),
+        bold: _textBold,
+        italic: _textItalic,
+      );
     });
   }
 
@@ -977,6 +1070,8 @@ class _PaintScreenState extends State<PaintScreen>
     });
     if (_colorTarget == ColorWellTarget.canvasBackground) {
       _noteDocumentEdited();
+    } else if (_textDraft != null) {
+      _syncTextDraftStyleFromToolbar();
     }
   }
 
@@ -1263,6 +1358,8 @@ class _PaintScreenState extends State<PaintScreen>
         _applyFillAt(position, bounds);
       case PaintTool.magicWand:
         _applyMagicWandSelection(position, bounds);
+      case PaintTool.text:
+        _beginTextEditing(position, bounds);
       default:
         _startStroke(position, bounds);
     }
@@ -1314,7 +1411,9 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   Future<void> _clearCanvas() async {
-    if (!_layerStack.hasContent && _currentStroke == null) {
+    if (!_layerStack.hasContent &&
+        _currentStroke == null &&
+        _textDraft == null) {
       return;
     }
 
@@ -1335,12 +1434,16 @@ class _PaintScreenState extends State<PaintScreen>
       _selection = null;
       _selectionDraft = null;
       _lassoPoints = null;
+      _textDraft = null;
       _resetViewport();
     });
     _resetDocumentTracking();
   }
 
   Future<Uint8List?> _renderCanvasBytes(ImageFileFormat format) async {
+    if (_textDraft != null) {
+      _commitTextDraft();
+    }
     if (_currentStroke != null) {
       setState(_commitCurrentStroke);
     }
@@ -1464,6 +1567,7 @@ class _PaintScreenState extends State<PaintScreen>
         );
         _currentStroke = null;
         _lastPanPosition = null;
+        _textDraft = null;
         _resetViewport();
       });
       _resetDocumentTracking(path: picked.path);
@@ -1617,7 +1721,8 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (_activeTool == PaintTool.fillBucket ||
-        _activeTool == PaintTool.magicWand) {
+        _activeTool == PaintTool.magicWand ||
+        _activeTool == PaintTool.text) {
       return;
     }
 
@@ -1732,7 +1837,8 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (_activeTool == PaintTool.fillBucket ||
-        _activeTool == PaintTool.magicWand) {
+        _activeTool == PaintTool.magicWand ||
+        _activeTool == PaintTool.text) {
       _lastPanPosition = null;
       return;
     }
@@ -1776,151 +1882,168 @@ class _PaintScreenState extends State<PaintScreen>
   Widget build(BuildContext context) {
     final canNew = true;
 
-    final body = CallbackShortcuts(
-        bindings: {
-        const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
-            _changeBrushSize(-2),
-        const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
-            _changeBrushSize(2),
-        const SingleActivator(LogicalKeyboardKey.keyB): () {
-          setState(() => _activeTool = PaintTool.brush);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyP): () {
-          setState(() => _activeTool = PaintTool.pencil);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyL): () {
-          setState(() => _activeTool = PaintTool.line);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyR): () {
-          setState(() => _activeTool = PaintTool.rectangle);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyC): () {
-          setState(() => _activeTool = PaintTool.ellipse);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyE): () {
-          setState(() => _activeTool = PaintTool.eraser);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyK): () {
-          setState(() => _activeTool = PaintTool.eyedropper);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyG): () {
-          setState(() => _activeTool = PaintTool.fillBucket);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyW): () {
-          setState(() => _activeTool = PaintTool.magicWand);
-        },
-        platformZoomInShortcut: _zoomInFromCenter,
-        platformZoomInPlusShortcut: _zoomInFromCenter,
-        platformZoomNumpadShortcut(LogicalKeyboardKey.numpadAdd):
-            _zoomInFromCenter,
-        platformZoomOutShortcut: _zoomOutFromCenter,
-        platformZoomNumpadShortcut(LogicalKeyboardKey.numpadSubtract):
-            _zoomOutFromCenter,
-        platformZoomFitShortcut: _fitCanvasToWindow,
-        platformZoomActualSizeShortcut: _zoomToActualSize,
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
-        const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          meta: true,
-          shift: true,
-        ): _redo,
-        const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          control: true,
-          shift: true,
-        ): _redo,
-        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
-        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () =>
-            _saveCanvas(),
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
-            _saveCanvas(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyS,
-          meta: true,
-          shift: true,
-        ): () => _saveCanvasAs(),
-        const SingleActivator(
-          LogicalKeyboardKey.keyS,
-          control: true,
-          shift: true,
-        ): () => _saveCanvasAs(),
-        const SingleActivator(LogicalKeyboardKey.keyO, meta: true): () =>
-            _openCanvas(),
-        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () =>
-            _openCanvas(),
-        const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () =>
-            _clearCanvas(),
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
-            _clearCanvas(),
-        const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _selectAll,
-        const SingleActivator(LogicalKeyboardKey.keyA, control: true):
-            _selectAll,
-        const SingleActivator(LogicalKeyboardKey.keyD, meta: true): _deselect,
-        const SingleActivator(LogicalKeyboardKey.keyD, control: true):
-            _deselect,
-        const SingleActivator(
-          LogicalKeyboardKey.keyI,
-          control: true,
-          shift: true,
-        ): _invertSelection,
-        const SingleActivator(
-          LogicalKeyboardKey.keyI,
-          meta: true,
-          shift: true,
-        ): _invertSelection,
-        const SingleActivator(LogicalKeyboardKey.delete): _deleteSelection,
-        const SingleActivator(LogicalKeyboardKey.backspace): _deleteSelection,
-        const SingleActivator(LogicalKeyboardKey.escape): _deselect,
-        SingleActivator(
-          LogicalKeyboardKey.keyX,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-          shift: true,
-        ): () {
-          if (_canCropToSelection) {
-            _cropToSelection();
+    // While typing text, ignore canvas tools and bare-key app shortcuts so
+    // letters reach the TextField. Keep Escape to cancel editing.
+    final Map<ShortcutActivator, VoidCallback> bindings = _textDraft != null
+        ? {
+            const SingleActivator(LogicalKeyboardKey.escape): _cancelTextDraft,
           }
-        },
-        const SingleActivator(
-          LogicalKeyboardKey.keyX,
-          control: true,
-          alt: true,
-        ): _autoCrop,
-        SingleActivator(
-          LogicalKeyboardKey.keyR,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-        ): _resizeImage,
-        SingleActivator(
-          LogicalKeyboardKey.keyR,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-          shift: true,
-        ): _resizeCanvas,
-        SingleActivator(
-          LogicalKeyboardKey.keyG,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-        ): _rotate90CounterClockwise,
-        SingleActivator(
-          LogicalKeyboardKey.keyJ,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-        ): _rotate180,
-        SingleActivator(
-          LogicalKeyboardKey.keyF,
-          meta: defaultTargetPlatform == TargetPlatform.macOS,
-          control: defaultTargetPlatform != TargetPlatform.macOS,
-          shift: true,
-        ): _flattenImage,
-        const SingleActivator(LogicalKeyboardKey.keyF): () {
-          setState(() => _activeTool = PaintTool.lassoSelect);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyS): () {
-          setState(() => _activeTool = PaintTool.rectSelect);
-        },
-      },
+        : {
+            const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
+                _changeBrushSize(-2),
+            const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
+                _changeBrushSize(2),
+            const SingleActivator(LogicalKeyboardKey.keyB): () {
+              setState(() => _activeTool = PaintTool.brush);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyP): () {
+              setState(() => _activeTool = PaintTool.pencil);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyL): () {
+              setState(() => _activeTool = PaintTool.line);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyR): () {
+              setState(() => _activeTool = PaintTool.rectangle);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyC): () {
+              setState(() => _activeTool = PaintTool.ellipse);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyE): () {
+              setState(() => _activeTool = PaintTool.eraser);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyK): () {
+              setState(() => _activeTool = PaintTool.eyedropper);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyG): () {
+              setState(() => _activeTool = PaintTool.fillBucket);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyT): () {
+              _applySelectionTool(PaintTool.text);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyW): () {
+              setState(() => _activeTool = PaintTool.magicWand);
+            },
+            const SingleActivator(LogicalKeyboardKey.escape): _deselect,
+            platformZoomInShortcut: _zoomInFromCenter,
+            platformZoomInPlusShortcut: _zoomInFromCenter,
+            platformZoomNumpadShortcut(LogicalKeyboardKey.numpadAdd):
+                _zoomInFromCenter,
+            platformZoomOutShortcut: _zoomOutFromCenter,
+            platformZoomNumpadShortcut(LogicalKeyboardKey.numpadSubtract):
+                _zoomOutFromCenter,
+            platformZoomFitShortcut: _fitCanvasToWindow,
+            platformZoomActualSizeShortcut: _zoomToActualSize,
+            const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
+            const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
+                _undo,
+            const SingleActivator(
+              LogicalKeyboardKey.keyZ,
+              meta: true,
+              shift: true,
+            ): _redo,
+            const SingleActivator(
+              LogicalKeyboardKey.keyZ,
+              control: true,
+              shift: true,
+            ): _redo,
+            const SingleActivator(LogicalKeyboardKey.keyY, control: true):
+                _redo,
+            const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () =>
+                _saveCanvas(),
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+                () => _saveCanvas(),
+            const SingleActivator(
+              LogicalKeyboardKey.keyS,
+              meta: true,
+              shift: true,
+            ): () => _saveCanvasAs(),
+            const SingleActivator(
+              LogicalKeyboardKey.keyS,
+              control: true,
+              shift: true,
+            ): () => _saveCanvasAs(),
+            const SingleActivator(LogicalKeyboardKey.keyO, meta: true): () =>
+                _openCanvas(),
+            const SingleActivator(LogicalKeyboardKey.keyO, control: true):
+                () => _openCanvas(),
+            const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () =>
+                _clearCanvas(),
+            const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+                () => _clearCanvas(),
+            const SingleActivator(LogicalKeyboardKey.keyA, meta: true):
+                _selectAll,
+            const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+                _selectAll,
+            const SingleActivator(LogicalKeyboardKey.keyD, meta: true):
+                _deselect,
+            const SingleActivator(LogicalKeyboardKey.keyD, control: true):
+                _deselect,
+            const SingleActivator(
+              LogicalKeyboardKey.keyI,
+              control: true,
+              shift: true,
+            ): _invertSelection,
+            const SingleActivator(
+              LogicalKeyboardKey.keyI,
+              meta: true,
+              shift: true,
+            ): _invertSelection,
+            const SingleActivator(LogicalKeyboardKey.delete):
+                _deleteSelection,
+            const SingleActivator(LogicalKeyboardKey.backspace):
+                _deleteSelection,
+            SingleActivator(
+              LogicalKeyboardKey.keyX,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): () {
+              if (_canCropToSelection) {
+                _cropToSelection();
+              }
+            },
+            const SingleActivator(
+              LogicalKeyboardKey.keyX,
+              control: true,
+              alt: true,
+            ): _autoCrop,
+            SingleActivator(
+              LogicalKeyboardKey.keyR,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): _resizeImage,
+            SingleActivator(
+              LogicalKeyboardKey.keyR,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): _resizeCanvas,
+            SingleActivator(
+              LogicalKeyboardKey.keyG,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): _rotate90CounterClockwise,
+            SingleActivator(
+              LogicalKeyboardKey.keyJ,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): _rotate180,
+            SingleActivator(
+              LogicalKeyboardKey.keyF,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): _flattenImage,
+            const SingleActivator(LogicalKeyboardKey.keyF): () {
+              setState(() => _activeTool = PaintTool.lassoSelect);
+            },
+            const SingleActivator(LogicalKeyboardKey.keyS): () {
+              setState(() => _activeTool = PaintTool.rectSelect);
+            },
+          };
+
+    final body = CallbackShortcuts(
+      bindings: bindings,
       child: Focus(
         autofocus: true,
         child: Scaffold(
@@ -1974,6 +2097,9 @@ class _PaintScreenState extends State<PaintScreen>
                               brushSize: _brushSize,
                               onBrushSizeChanged: (size) {
                                 setState(() => _brushSize = size);
+                                if (_textDraft != null) {
+                                  _syncTextDraftStyleFromToolbar();
+                                }
                               },
                               shapeStyle: _activeTool.supportsFillStyle
                                   ? _shapeStyle
@@ -1984,6 +2110,21 @@ class _PaintScreenState extends State<PaintScreen>
                                           setState(() => _shapeStyle = style);
                                         }
                                       : null,
+                              textBold: _activeTool.isTextTool ? _textBold : null,
+                              textItalic:
+                                  _activeTool.isTextTool ? _textItalic : null,
+                              onTextBoldChanged: _activeTool.isTextTool
+                                  ? (value) {
+                                      setState(() => _textBold = value);
+                                      _syncTextDraftStyleFromToolbar();
+                                    }
+                                  : null,
+                              onTextItalicChanged: _activeTool.isTextTool
+                                  ? (value) {
+                                      setState(() => _textItalic = value);
+                                      _syncTextDraftStyleFromToolbar();
+                                    }
+                                  : null,
                               canUndo: _layerStack.canUndo,
                               canRedo: _layerStack.canRedo,
                               onUndo: _undo,
@@ -2034,7 +2175,11 @@ class _PaintScreenState extends State<PaintScreen>
                                         final bounds = Offset.zero & canvasSize;
 
                                         return ClipRect(
-                                          child: MouseRegion(
+                                          child: Stack(
+                                            clipBehavior: Clip.hardEdge,
+                                            children: [
+                                              Positioned.fill(
+                                                child: MouseRegion(
                                             cursor: _canvasCursor,
                                             onHover: (event) =>
                                                 _updateCanvasCursor(
@@ -2139,6 +2284,21 @@ class _PaintScreenState extends State<PaintScreen>
                                               ),
                                             ),
                                           ),
+                                              ),
+                                              if (_textDraft != null)
+                                                CanvasTextEditor(
+                                                  draft: _textDraft!,
+                                                  viewportPosition: _viewport
+                                                      .documentToViewport(
+                                                    _textDraft!.position,
+                                                  ),
+                                                  scale: _viewport.scale,
+                                                  onChanged: _updateTextDraft,
+                                                  onCommit: _commitTextDraft,
+                                                  onCancel: _cancelTextDraft,
+                                                ),
+                                            ],
+                                          ),
                                         );
                                       },
                                     ),
@@ -2233,6 +2393,9 @@ class _PaintScreenState extends State<PaintScreen>
                                       () => _primaryColor =
                                           AppColors.presetColors[index],
                                     );
+                                    if (_textDraft != null) {
+                                      _syncTextDraftStyleFromToolbar();
+                                    }
                                   },
                                   onCanvasBackgroundChanged: (color) {
                                     setState(

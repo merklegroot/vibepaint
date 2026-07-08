@@ -50,6 +50,8 @@ collections:
         upstream: eraser.svg
       - asset: fill_bucket.svg
         upstream: bucket.svg
+      - asset: text.svg
+        upstream: typography.svg
       - asset: magic_wand.svg
         upstream: wand.svg
       - asset: eyedropper.svg

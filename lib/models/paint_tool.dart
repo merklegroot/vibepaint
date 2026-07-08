@@ -6,6 +6,7 @@ enum PaintTool {
   ellipse,
   eraser,
   fillBucket,
+  text,
   magicWand,
   eyedropper,
   rectSelect,
@@ -22,6 +23,7 @@ extension PaintToolLabel on PaintTool {
         PaintTool.ellipse => 'Ellipse',
         PaintTool.eraser => 'Eraser',
         PaintTool.fillBucket => 'Paint Bucket',
+        PaintTool.text => 'Text',
         PaintTool.magicWand => 'Magic Wand',
         PaintTool.eyedropper => 'Color Picker',
         PaintTool.rectSelect => 'Rectangle Select',
@@ -44,7 +46,8 @@ extension PaintToolLabel on PaintTool {
   bool get isClickTool =>
       this == PaintTool.eyedropper ||
       this == PaintTool.fillBucket ||
-      this == PaintTool.magicWand;
+      this == PaintTool.magicWand ||
+      this == PaintTool.text;
 
   bool get isSelectionTool =>
       this == PaintTool.rectSelect ||
@@ -56,4 +59,6 @@ extension PaintToolLabel on PaintTool {
 
   bool get supportsFillStyle =>
       this == PaintTool.rectangle || this == PaintTool.ellipse;
+
+  bool get isTextTool => this == PaintTool.text;
 }

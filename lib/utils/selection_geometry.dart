@@ -9,6 +9,10 @@ Rect strokeBounds(Stroke stroke) {
     return stroke.rasterBounds ?? Rect.zero;
   }
 
+  if (stroke.shape == StrokeShape.text) {
+    return stroke.textRun?.bounds() ?? Rect.zero;
+  }
+
   if (stroke.points.isEmpty) {
     return Rect.zero;
   }
@@ -30,6 +34,7 @@ Rect strokeBounds(Stroke stroke) {
     case StrokeShape.freehand:
       break;
     case StrokeShape.raster:
+    case StrokeShape.text:
       break;
   }
 
@@ -65,6 +70,9 @@ Stroke translateStroke(Stroke stroke, Offset delta) {
       for (final point in stroke.points) point + delta,
     ],
     rasterBounds: stroke.rasterBounds?.shift(delta),
+    textRun: stroke.textRun?.copyWith(
+      position: stroke.textRun!.position + delta,
+    ),
   );
 }
 

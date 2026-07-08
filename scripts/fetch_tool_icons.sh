@@ -16,6 +16,7 @@ declare -A icons=(
   [ellipse]=oval
   [eraser]=eraser
   [fill_bucket]=bucket
+  [text]=typography
   [magic_wand]=wand
   [eyedropper]=color-picker
   [rect_select]=square

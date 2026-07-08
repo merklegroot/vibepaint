@@ -160,6 +160,20 @@ class CanvasPainter extends CustomPainter {
       return;
     }
 
+    if (stroke.shape == StrokeShape.text) {
+      final textRun = stroke.textRun;
+      if (textRun == null || textRun.isEmpty) {
+        return;
+      }
+      final painter = textRun.createPainter();
+      try {
+        painter.paint(canvas, textRun.position);
+      } finally {
+        painter.dispose();
+      }
+      return;
+    }
+
     if (stroke.points.isEmpty) {
       return;
     }
@@ -215,6 +229,7 @@ class CanvasPainter extends CustomPainter {
         }
         break;
       case StrokeShape.raster:
+      case StrokeShape.text:
         return;
     }
 

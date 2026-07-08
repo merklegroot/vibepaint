@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'package:vibepaint/models/shape_style.dart';
+import 'package:vibepaint/models/text_run.dart';
 
 enum StrokeShape {
   freehand,
@@ -10,6 +11,7 @@ enum StrokeShape {
   rectangle,
   ellipse,
   raster,
+  text,
 }
 
 class Stroke {
@@ -23,6 +25,7 @@ class Stroke {
     this.isPencil = false,
     this.rasterImage,
     this.rasterBounds,
+    this.textRun,
   }) : points = points ?? [];
 
   final Color color;
@@ -34,10 +37,14 @@ class Stroke {
   final bool isPencil;
   final ui.Image? rasterImage;
   final Rect? rasterBounds;
+  final TextRun? textRun;
 
   bool get isEmpty {
     if (shape == StrokeShape.raster) {
       return rasterImage == null || rasterBounds == null;
+    }
+    if (shape == StrokeShape.text) {
+      return textRun == null || textRun!.isEmpty;
     }
     return points.isEmpty;
   }
@@ -52,6 +59,7 @@ class Stroke {
     bool? isPencil,
     ui.Image? rasterImage,
     Rect? rasterBounds,
+    TextRun? textRun,
   }) {
     return Stroke(
       color: color ?? this.color,
@@ -63,6 +71,7 @@ class Stroke {
       isPencil: isPencil ?? this.isPencil,
       rasterImage: rasterImage ?? this.rasterImage,
       rasterBounds: rasterBounds ?? this.rasterBounds,
+      textRun: textRun ?? this.textRun,
     );
   }
 }

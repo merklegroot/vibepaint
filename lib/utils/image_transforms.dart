@@ -94,6 +94,22 @@ Stroke transformStroke(
     );
   }
 
+  if (stroke.shape == StrokeShape.text) {
+    final textRun = stroke.textRun;
+    if (textRun == null) {
+      return stroke;
+    }
+    final nextFontSize = brushSize ?? textRun.fontSize;
+    return stroke.copyWith(
+      points: [transformPoint(textRun.position)],
+      brushSize: nextFontSize,
+      textRun: textRun.copyWith(
+        position: transformPoint(textRun.position),
+        fontSize: nextFontSize,
+      ),
+    );
+  }
+
   return stroke.copyWith(
     points: [for (final point in stroke.points) transformPoint(point)],
     brushSize: brushSize ?? stroke.brushSize,
@@ -104,6 +120,12 @@ Stroke? clipStrokeToRect(Stroke stroke, Rect rect) {
   switch (stroke.shape) {
     case StrokeShape.raster:
       final bounds = stroke.rasterBounds;
+      if (bounds == null || !bounds.overlaps(rect)) {
+        return null;
+      }
+      return stroke;
+    case StrokeShape.text:
+      final bounds = stroke.textRun?.bounds();
       if (bounds == null || !bounds.overlaps(rect)) {
         return null;
       }
@@ -154,6 +176,11 @@ Offset canvasResizeOffset({
 Stroke? clipStrokeToSelection(Stroke stroke, CanvasSelection selection) {
   switch (stroke.shape) {
     case StrokeShape.raster:
+      if (!strokeIntersectsSelection(selection, stroke)) {
+        return null;
+      }
+      return stroke;
+    case StrokeShape.text:
       if (!strokeIntersectsSelection(selection, stroke)) {
         return null;
       }
