@@ -14,7 +14,6 @@ import 'package:vibepaint/painters/canvas_painter.dart';
 import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
-import 'package:vibepaint/services/ai_enhance/ai_enhance_service.dart';
 import 'package:vibepaint/utils/ai_enhance.dart';
 import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_progress_dialog.dart';
@@ -1625,17 +1624,13 @@ class _PaintScreenState extends State<PaintScreen>
       return false;
     }
 
-    final settings = await AiEnhanceService().loadSettings();
-    final providerName = settings.activeProviderLabel;
-
     final openSettings = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('$providerName not configured'),
-          content: Text(
-            'AI Enhance uses $providerName. '
-            'Open Settings to finish setup.',
+          title: const Text('Grok not configured'),
+          content: const Text(
+            'AI Enhance uses Grok. Open Settings to add your API key.',
           ),
           actions: [
             TextButton(

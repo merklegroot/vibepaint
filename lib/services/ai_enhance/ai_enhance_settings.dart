@@ -1,41 +1,11 @@
-/// Which backend powers AI Enhance.
-enum AiEnhanceProviderId {
-  grok,
-  ollama,
-}
-
 /// Persisted AI Enhance configuration.
 class AiEnhanceSettings {
-  const AiEnhanceSettings({
-    this.activeProvider = AiEnhanceProviderId.grok,
-    this.grokApiKey = '',
-    this.ollamaBaseUrl = defaultOllamaBaseUrl,
-  });
+  const AiEnhanceSettings({this.grokApiKey = ''});
 
-  static const defaultOllamaBaseUrl = 'http://localhost:11434';
-
-  /// Fixed Ollama vision model for AI Enhance.
-  static const ollamaEnhanceModel = 'moondream';
-
-  final AiEnhanceProviderId activeProvider;
   final String grokApiKey;
-  final String ollamaBaseUrl;
 
-  String get activeProviderLabel => switch (activeProvider) {
-    AiEnhanceProviderId.grok => 'Grok',
-    AiEnhanceProviderId.ollama => 'Ollama',
-  };
-
-  AiEnhanceSettings copyWith({
-    AiEnhanceProviderId? activeProvider,
-    String? grokApiKey,
-    String? ollamaBaseUrl,
-  }) {
-    return AiEnhanceSettings(
-      activeProvider: activeProvider ?? this.activeProvider,
-      grokApiKey: grokApiKey ?? this.grokApiKey,
-      ollamaBaseUrl: ollamaBaseUrl ?? this.ollamaBaseUrl,
-    );
+  AiEnhanceSettings copyWith({String? grokApiKey}) {
+    return AiEnhanceSettings(grokApiKey: grokApiKey ?? this.grokApiKey);
   }
 }
 
