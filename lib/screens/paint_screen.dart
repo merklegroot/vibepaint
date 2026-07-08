@@ -1579,34 +1579,39 @@ class _PaintScreenState extends State<PaintScreen>
 
     await showDialog<void>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('AI Enhance failed'),
-          content: SizedBox(
-            width: 520,
-            child: SelectableText(
-              fullText,
-              style: const TextStyle(fontFamily: 'Menlo', fontSize: 12),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: fullText));
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-                if (mounted) {
-                  _showMessage('Error copied to clipboard');
-                }
-              },
-              child: const Text('Copy'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+      builder: (dialogContext) {
+        var copied = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('AI Enhance failed'),
+              content: SizedBox(
+                width: 520,
+                child: SelectableText(
+                  fullText,
+                  style: const TextStyle(fontFamily: 'Menlo', fontSize: 12),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: fullText));
+                    setDialogState(() => copied = true);
+                    await Future<void>.delayed(const Duration(seconds: 2));
+                    if (context.mounted) {
+                      setDialogState(() => copied = false);
+                    }
+                  },
+                  child: Text(copied ? 'Copied' : 'Copy'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

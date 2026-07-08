@@ -14,8 +14,8 @@ class AiEnhanceSettings {
 
   static const defaultOllamaBaseUrl = 'http://localhost:11434';
 
-  /// Fixed Ollama image model for AI Enhance.
-  static const ollamaEnhanceModel = 'x/flux2-klein';
+  /// Fixed Ollama vision model for AI Enhance.
+  static const ollamaEnhanceModel = 'moondream';
 
   final AiEnhanceProviderId activeProvider;
   final String grokApiKey;

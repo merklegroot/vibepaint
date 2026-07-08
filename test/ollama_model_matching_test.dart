@@ -101,11 +101,11 @@ void main() {
     });
   });
 
-  test('ollamaHasModel finds flux2-klein in tag list', () {
+  test('ollamaHasModel finds moondream in tag list', () {
     expect(
       ollamaHasModel(
-        const ['llama3.2:latest', 'x/flux2-klein:latest'],
-        'x/flux2-klein',
+        const ['llama3.2:latest', 'moondream:latest'],
+        'moondream',
       ),
       isTrue,
     );

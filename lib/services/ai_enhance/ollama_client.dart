@@ -401,8 +401,8 @@ class OllamaClient {
     if (pngBytes == null || pngBytes.isEmpty) {
       throw AiEnhanceException(
         'text_only_model',
-        'Model "$trimmedModel" returned text only. '
-        'Ensure ${AiEnhanceSettings.ollamaEnhanceModel} is installed, or switch to Grok.',
+        'Model "$trimmedModel" returned text only, not an image. '
+        'Use an image-generation model or switch to Grok.',
       );
     }
 

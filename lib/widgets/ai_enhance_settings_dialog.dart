@@ -39,6 +39,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
   AiEnhanceProviderId _activeProvider = AiEnhanceProviderId.grok;
   AiEnhanceConnectionResult? _grokStatus;
   AiEnhanceConnectionResult? _ollamaStatus;
+  String? _copiedStatusPanelKey;
 
   @override
   void initState() {
@@ -80,14 +81,17 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
     setState(() => _busy = true);
     try {
       await _service.saveSettings(_currentSettings());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('AI Enhance settings saved.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+      if (!mounted) {
+        return;
       }
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('AI Enhance settings saved.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -227,20 +231,24 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
   }
 
   Future<void> _copyConnectionResult(
-    AiEnhanceConnectionResult result,
-  ) async {
+    AiEnhanceConnectionResult result, {
+    required String panelKey,
+  }) async {
     await Clipboard.setData(ClipboardData(text: result.copyableText));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connection message copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _copiedStatusPanelKey = panelKey);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (mounted && _copiedStatusPanelKey == panelKey) {
+      setState(() => _copiedStatusPanelKey = null);
     }
   }
 
-  Widget _statusPanel(AiEnhanceConnectionResult result) {
+  Widget _statusPanel(
+    AiEnhanceConnectionResult result, {
+    required String panelKey,
+  }) {
     final color = _statusColor(result.status);
     final headline = result.message?.trim().isNotEmpty == true
         ? result.message!.trim()
@@ -279,8 +287,16 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
               ),
               IconButton(
                 tooltip: 'Copy message',
-                onPressed: () => _copyConnectionResult(result),
-                icon: const Icon(Icons.copy, size: 18),
+                onPressed: () => _copyConnectionResult(
+                  result,
+                  panelKey: panelKey,
+                ),
+                icon: Icon(
+                  _copiedStatusPanelKey == panelKey
+                      ? Icons.check
+                      : Icons.copy,
+                  size: 18,
+                ),
                 color: AppColors.paletteLabel,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
@@ -419,7 +435,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
           const SizedBox(height: 8),
           KeyedSubtree(
             key: _grokStatusKey,
-            child: _statusPanel(_grokStatus!),
+            child: _statusPanel(_grokStatus!, panelKey: 'grok'),
           ),
         ],
       ],
@@ -491,7 +507,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Image-generation model used for sketch enhancement.',
+                'Vision model used for sketch enhancement.',
                 style: TextStyle(
                   color: AppColors.paletteLabel,
                   fontSize: 11,
@@ -521,7 +537,7 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
           const SizedBox(height: 8),
           KeyedSubtree(
             key: _ollamaStatusKey,
-            child: _statusPanel(_ollamaStatus!),
+            child: _statusPanel(_ollamaStatus!, panelKey: 'ollama'),
           ),
         ],
       ],
@@ -700,34 +716,41 @@ class _ProviderOptionCard extends StatelessWidget {
                       fontSize: 11,
                     ),
                   ),
-                  if (testResult != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      testResult!.summary,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: switch (testResult!.status) {
-                          AiEnhanceConnectionStatus.valid =>
-                            Colors.green.shade600,
-                          AiEnhanceConnectionStatus.networkError =>
-                            Colors.orange.shade800,
-                          AiEnhanceConnectionStatus.invalid =>
-                            Colors.red.shade700,
-                        },
-                        fontSize: 11,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
                 ],
               ),
+              if (testResult != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _providerCardStatusText(testResult!),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: switch (testResult!.status) {
+                      AiEnhanceConnectionStatus.valid =>
+                        Colors.green.shade600,
+                      AiEnhanceConnectionStatus.networkError =>
+                        Colors.orange.shade800,
+                      AiEnhanceConnectionStatus.invalid => Colors.red.shade700,
+                    },
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
+
+String _providerCardStatusText(AiEnhanceConnectionResult result) {
+  final message = result.message?.trim();
+  if (message != null && message.isNotEmpty) {
+    return message;
+  }
+  return result.summary;
 }
 
 class _SectionHeader extends StatelessWidget {
