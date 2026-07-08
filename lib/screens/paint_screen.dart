@@ -15,6 +15,7 @@ import 'package:vibepaint/theme/color_wells.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
+import 'package:vibepaint/utils/canvas_pointer_input.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_stack_image_ops.dart';
@@ -77,6 +78,8 @@ class _PaintScreenState extends State<PaintScreen>
   Rect? _resizeOriginalBounds;
   MouseCursor _canvasCursor = MouseCursor.defer;
   late final AnimationController _marchingAntsController;
+  final Set<int> _canvasPointers = {};
+  int? _drawingPointer;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
@@ -805,6 +808,76 @@ class _PaintScreenState extends State<PaintScreen>
         BrushSizeControl.maxSize,
       );
     });
+  }
+
+  void _cancelCanvasInteraction() {
+    setState(() {
+      _currentStroke = null;
+      _lastPanPosition = null;
+      _selectionDraft = null;
+      _lassoPoints = null;
+      _movingSelection = false;
+      _moveStart = null;
+      _strokesBeforeMove = null;
+      _resizingSelection = false;
+      _resizeHandle = null;
+      _resizeOriginalBounds = null;
+    });
+    _resetCanvasCursor();
+  }
+
+  void _onCanvasPointerDown(PointerDownEvent event, Rect bounds) {
+    _canvasPointers.add(event.pointer);
+
+    if (!acceptsCanvasDrawingPointer(event)) {
+      if (_drawingPointer != null) {
+        _cancelCanvasInteraction();
+      }
+      return;
+    }
+
+    if (_canvasPointers.length > 1) {
+      _drawingPointer = null;
+      _cancelCanvasInteraction();
+      return;
+    }
+
+    _drawingPointer = event.pointer;
+    _beginPan(event.localPosition, bounds);
+  }
+
+  void _onCanvasPointerMove(PointerMoveEvent event, Rect bounds) {
+    if (_drawingPointer != event.pointer) {
+      return;
+    }
+
+    if (!acceptsCanvasDrawingPointer(event)) {
+      _drawingPointer = null;
+      _cancelCanvasInteraction();
+      return;
+    }
+
+    _extendStroke(event.localPosition, bounds);
+  }
+
+  void _onCanvasPointerUp(PointerUpEvent event) {
+    _canvasPointers.remove(event.pointer);
+    if (_drawingPointer != event.pointer) {
+      return;
+    }
+
+    _drawingPointer = null;
+    _endStroke();
+  }
+
+  void _onCanvasPointerCancel(PointerCancelEvent event) {
+    _canvasPointers.remove(event.pointer);
+    if (_drawingPointer != event.pointer) {
+      return;
+    }
+
+    _drawingPointer = null;
+    _cancelCanvasInteraction();
   }
 
   void _beginPan(Offset position, Rect bounds) {
@@ -1552,18 +1625,21 @@ class _PaintScreenState extends State<PaintScreen>
                                               event.localPosition,
                                             ),
                                             onExit: (_) => _resetCanvasCursor(),
-                                            child: GestureDetector(
-                                              onPanStart: (details) => _beginPan(
-                                                details.localPosition,
+                                            child: Listener(
+                                              behavior: HitTestBehavior.opaque,
+                                              onPointerDown: (event) =>
+                                                  _onCanvasPointerDown(
+                                                event,
                                                 bounds,
                                               ),
-                                              onPanUpdate: (details) =>
-                                                  _extendStroke(
-                                                details.localPosition,
+                                              onPointerMove: (event) =>
+                                                  _onCanvasPointerMove(
+                                                event,
                                                 bounds,
                                               ),
-                                              onPanEnd: (_) => _endStroke(),
-                                              onPanCancel: () => _endStroke(),
+                                              onPointerUp: _onCanvasPointerUp,
+                                              onPointerCancel:
+                                                  _onCanvasPointerCancel,
                                               child: AnimatedBuilder(
                                                 animation: _marchingAntsController,
                                                 builder: (context, child) {

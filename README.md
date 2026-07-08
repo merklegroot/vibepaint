@@ -6,32 +6,52 @@ A vibe coded paint app.
 
 ## Features
 
-- **Canvas** — white document that fills the space between the toolbar and color bar
+### Drawing
 - **Brush, line, rectangle, ellipse & eraser** — freehand paint, straight segments, and outlined or filled shapes
 - **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas
-- **Canvas background** — separate from layers; choose via the Canvas color well or when creating a new image (includes transparent)
+
+### Canvas & color
+- **Document size** — the canvas has its own dimensions; crop and resize operations shrink or grow the document, not just the window
+- **Canvas background** — separate from layers; choose via the background color well or when creating a new image (includes transparent)
 - **Color wells** — classic overlapping primary and background swatches with swap and reset; click a well, then pick a preset (background well includes transparent)
-- **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
+- **Color picker** — double-click either well to open a full picker with hue/saturation wheel, HSV and RGB sliders, alpha, hex input, and foreground/background preview with swap
+
+### Layers
 - **Layers** — stack transparent layers (top of list = front), show/hide, reorder, opacity, blend modes, duplicate, merge down, and rename; eraser clears pixels on the active layer
-- **Selection** — rectangle and ellipse select tools, marching ants, select all, deselect, invert, move, and delete
+- **Undo & redo** — step through stroke history on the active layer (toolbar buttons or ⌘Z / ⌘⇧Z)
+
+### Selection
+- **Selection tools** — rectangle, ellipse, and lasso select with custom toolbar icons
+- **Marching ants** — animated selection outline with resize handles and proper edge/corner cursors
+- **Selection editing** — select all, deselect, invert, move, delete; switch rectangle ↔ ellipse after creating a box selection; zero-area selections deselect automatically
+- **Edit menu** — selection commands with keyboard shortcuts (macOS menu bar; in-window on Windows and Linux)
+
+### Image
+- **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
+
+### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
 - **Image formats** — Save As supports PNG, JPEG, BMP, GIF, and WebP; macOS uses the system save panel format menu
 - **Document title** — filename in the window title; `*` prefix when there are unsaved changes
+
+### Platform
 - **Desktop** — macOS, Windows, and Linux
 
 ## Roadmap
 
 Rough order of obvious next steps:
 
-- [x] **Color picker** — primary color swatch (and eventually secondary)
+- [x] **Color picker** — full HSV/RGB/hex dialog on double-click
 - [x] **Brush size** — adjustable width
-- [x] **Eraser** — paint back to white
+- [x] **Eraser** — paint back to transparent/background
 - [x] **Undo / redo** — history for brush strokes
 - [x] **New / clear** — reset the canvas
 - [x] **Save & open** — PNG export and import
-- [ ] **More tools** — fill bucket (line, rectangle & ellipse done)
+- [x] **Selection tools** — rectangle, ellipse, and lasso select with move, resize, and reshape
+- [x] **Image menu** — crop, resize, flip, rotate, and flatten
+- [ ] **More tools** — fill bucket
 - [x] **Toolbar** — tool buttons on the side
 - [ ] **Zoom & pan** — navigate large canvases
 - [x] **Layers** — stack and edit images independently
