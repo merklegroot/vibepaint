@@ -64,6 +64,52 @@ Uint8List encodeRasterImage(
   };
 }
 
+Future<Uint8List?> renderCanvasRgbaBytes({
+  required Size size,
+  required List<PaintLayer> layers,
+  ui.Image? backgroundImage,
+  Color backgroundColor = defaultCanvasBackground,
+}) async {
+  final uiImage = await renderCanvasToUiImage(
+    size: size,
+    layers: layers,
+    backgroundImage: backgroundImage,
+    backgroundColor: backgroundColor,
+  );
+
+  try {
+    final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    return byteData?.buffer.asUint8List();
+  } finally {
+    uiImage.dispose();
+  }
+}
+
+Color? readCanvasPixel({
+  required Uint8List rgba,
+  required int width,
+  required int height,
+  required Offset position,
+}) {
+  if (width <= 0 || height <= 0 || rgba.isEmpty) {
+    return null;
+  }
+
+  final x = position.dx.floor().clamp(0, width - 1);
+  final y = position.dy.floor().clamp(0, height - 1);
+  final index = (y * width + x) * 4;
+  if (index + 3 >= rgba.length) {
+    return null;
+  }
+
+  return Color.fromARGB(
+    rgba[index + 3],
+    rgba[index],
+    rgba[index + 1],
+    rgba[index + 2],
+  );
+}
+
 Future<Uint8List> renderCanvasToBytes({
   required Size size,
   required List<PaintLayer> layers,

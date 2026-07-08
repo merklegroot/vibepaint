@@ -7,7 +7,7 @@ A vibe coded paint app.
 ## Features
 
 ### Drawing
-- **Brush, line, rectangle, ellipse & eraser** — freehand paint, straight segments, and outlined or filled shapes
+- **Brush, line, rectangle, ellipse, eraser & color picker** — freehand paint, straight segments, outlined or filled shapes, and an eyedropper (K) to sample colors from the canvas
 - **Shape modifiers** — Shift constrains lines to 45°, rectangles to squares, ellipses to circles; Alt draws from center
 - **Shape style** — outline, filled, or filled with outline (rectangle & ellipse)
 - **Toolbar** — tool picker on the left, brush width above the canvas

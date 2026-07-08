@@ -80,6 +80,9 @@ class _PaintScreenState extends State<PaintScreen>
   late final AnimationController _marchingAntsController;
   final Set<int> _canvasPointers = {};
   int? _drawingPointer;
+  Uint8List? _eyedropperPixelData;
+  int _eyedropperImageWidth = 0;
+  int _eyedropperImageHeight = 0;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
 
@@ -177,6 +180,7 @@ class _PaintScreenState extends State<PaintScreen>
 
   @override
   void dispose() {
+    _clearEyedropperCache();
     _marchingAntsController.dispose();
     _layerStack.dispose();
     super.dispose();
@@ -257,6 +261,10 @@ class _PaintScreenState extends State<PaintScreen>
       return hints.join(' · ');
     }
 
+    if (_activeTool == PaintTool.eyedropper) {
+      return 'Click or drag to sample a color';
+    }
+
     if (!_activeTool.isDragShape) {
       return 'Drag on the canvas to paint';
     }
@@ -325,6 +333,11 @@ class _PaintScreenState extends State<PaintScreen>
         _setCanvasCursor(SystemMouseCursors.precise);
         return;
       }
+    }
+
+    if (_activeTool == PaintTool.eyedropper) {
+      _setCanvasCursor(SystemMouseCursors.precise);
+      return;
     }
 
     _resetCanvasCursor();
@@ -810,6 +823,70 @@ class _PaintScreenState extends State<PaintScreen>
     });
   }
 
+  void _clearEyedropperCache() {
+    _eyedropperPixelData = null;
+    _eyedropperImageWidth = 0;
+    _eyedropperImageHeight = 0;
+  }
+
+  Future<void> _refreshEyedropperCache() async {
+    _clearEyedropperCache();
+    if (_documentSize == Size.zero) {
+      return;
+    }
+
+    final rgba = await renderCanvasRgbaBytes(
+      size: _documentSize,
+      layers: _layerStack.layers,
+      backgroundImage: _layerStack.backgroundImage,
+      backgroundColor: _layerStack.backgroundColor,
+    );
+    if (!mounted || rgba == null) {
+      return;
+    }
+
+    _eyedropperPixelData = rgba;
+    _eyedropperImageWidth = _documentSize.width.ceil();
+    _eyedropperImageHeight = _documentSize.height.ceil();
+  }
+
+  Future<void> _pickColorAt(Offset position, Rect bounds) async {
+    if (!_isInsideCanvas(position, bounds) || _documentSize == Size.zero) {
+      return;
+    }
+
+    if (_eyedropperPixelData == null) {
+      await _refreshEyedropperCache();
+    }
+
+    final rgba = _eyedropperPixelData;
+    if (!mounted || rgba == null) {
+      return;
+    }
+
+    final color = readCanvasPixel(
+      rgba: rgba,
+      width: _eyedropperImageWidth,
+      height: _eyedropperImageHeight,
+      position: position,
+    );
+    if (color == null) {
+      return;
+    }
+
+    setState(() {
+      switch (_colorTarget) {
+        case ColorWellTarget.primary:
+          _primaryColor = color;
+        case ColorWellTarget.canvasBackground:
+          _layerStack.setBackgroundColor(color);
+      }
+    });
+    if (_colorTarget == ColorWellTarget.canvasBackground) {
+      _noteDocumentEdited();
+    }
+  }
+
   void _cancelCanvasInteraction() {
     setState(() {
       _currentStroke = null;
@@ -823,6 +900,7 @@ class _PaintScreenState extends State<PaintScreen>
       _resizeHandle = null;
       _resizeOriginalBounds = null;
     });
+    _clearEyedropperCache();
     _resetCanvasCursor();
   }
 
@@ -908,6 +986,8 @@ class _PaintScreenState extends State<PaintScreen>
         _startBoundingShape(position, bounds, StrokeShape.rectangle);
       case PaintTool.ellipse:
         _startBoundingShape(position, bounds, StrokeShape.ellipse);
+      case PaintTool.eyedropper:
+        _pickColorAt(position, bounds);
       default:
         _startStroke(position, bounds);
     }
@@ -1236,6 +1316,11 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _extendStroke(Offset position, Rect bounds) {
+    if (_activeTool == PaintTool.eyedropper) {
+      _pickColorAt(position, bounds);
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_resizingSelection) {
         _extendResizeSelection(position, bounds);
@@ -1339,6 +1424,12 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _endStroke() {
+    if (_activeTool == PaintTool.eyedropper) {
+      _clearEyedropperCache();
+      _lastPanPosition = null;
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_resizingSelection) {
         _endResizeSelection();
@@ -1398,6 +1489,9 @@ class _PaintScreenState extends State<PaintScreen>
         },
         const SingleActivator(LogicalKeyboardKey.keyE): () {
           setState(() => _activeTool = PaintTool.eraser);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyK): () {
+          setState(() => _activeTool = PaintTool.eyedropper);
         },
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,

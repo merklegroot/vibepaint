@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vibepaint/models/image_file_format.dart';
@@ -8,6 +10,23 @@ import 'package:vibepaint/utils/canvas_image_io.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('readCanvasPixel returns color at position', () {
+    final rgba = Uint8List.fromList([
+      255, 0, 0, 255, 0, 255, 0, 255,
+      0, 0, 255, 255, 255, 255, 255, 255,
+    ]);
+
+    expect(
+      readCanvasPixel(
+        rgba: rgba,
+        width: 2,
+        height: 2,
+        position: const Offset(1, 0),
+      ),
+      const Color(0xFF00FF00),
+    );
+  });
 
   test('renderCanvasToBytes returns PNG bytes for strokes', () async {
     final layer = PaintLayer(
