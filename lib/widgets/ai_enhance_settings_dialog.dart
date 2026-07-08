@@ -90,11 +90,10 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
     });
     try {
       final result = await _service.testConnection(_currentSettings());
-      setState(() => _status = result);
-
       if (!mounted) {
         return;
       }
+      setState(() => _status = result);
 
       if (!result.isValid) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,8 +105,11 @@ class _AiEnhanceSettingsDialogState extends State<AiEnhanceSettingsDialog> {
       }
 
       await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (!mounted) {
+        return;
+      }
       final statusContext = _statusKey.currentContext;
-      if (statusContext != null && mounted) {
+      if (statusContext != null && statusContext.mounted) {
         await Scrollable.ensureVisible(
           statusContext,
           duration: const Duration(milliseconds: 250),

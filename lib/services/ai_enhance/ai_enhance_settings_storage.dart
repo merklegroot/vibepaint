@@ -13,7 +13,7 @@ class AiEnhanceSettingsStorage {
             iOptions: IOSOptions(
               accessibility: KeychainAccessibility.first_unlock,
             ),
-            mOptions: const MacOsOptions(
+            mOptions: MacOsOptions(
               useDataProtectionKeyChain: false,
             ),
             wOptions: WindowsOptions(),
