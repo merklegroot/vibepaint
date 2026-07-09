@@ -9,7 +9,6 @@ import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_file_menus.dart';
 import 'package:vibepaint/models/canvas_selection.dart';
 import 'package:vibepaint/formats/openraster/openraster_io.dart';
-import 'package:vibepaint/models/image_file_format.dart';
 import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';

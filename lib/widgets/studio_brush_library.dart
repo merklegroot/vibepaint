@@ -80,7 +80,7 @@ class _StudioBrushLibraryState extends State<StudioBrushLibrary> {
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
                       itemCount: _visiblePresets.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      separatorBuilder: (_, _) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {
                         final preset = _visiblePresets[index];
                         return _BrushPresetTile(

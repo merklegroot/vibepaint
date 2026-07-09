@@ -176,23 +176,23 @@ Future<Uint8List> writeOpenRasterBytes({
     archive.addFile(ArchiveFile(path, pngBytes.length, pngBytes));
 
     layerElements.add(
-      XmlElement(
-        XmlName('layer'),
-        [
-          XmlAttribute(XmlName('src'), path),
-          XmlAttribute(XmlName('name'), exportLayer.layer.name),
-          XmlAttribute(XmlName('x'), '0'),
-          XmlAttribute(XmlName('y'), '0'),
+      XmlElement.tag(
+        'layer',
+        attributes: [
+          XmlAttribute(XmlName.parts('src'), path),
+          XmlAttribute(XmlName.parts('name'), exportLayer.layer.name),
+          XmlAttribute(XmlName.parts('x'), '0'),
+          XmlAttribute(XmlName.parts('y'), '0'),
           XmlAttribute(
-            XmlName('opacity'),
+            XmlName.parts('opacity'),
             exportLayer.layer.opacity.toStringAsFixed(3),
           ),
           XmlAttribute(
-            XmlName('visibility'),
+            XmlName.parts('visibility'),
             oraVisibilityAttribute(exportLayer.layer.visible),
           ),
           XmlAttribute(
-            XmlName('composite-op'),
+            XmlName.parts('composite-op'),
             oraCompositeOpFromLayerBlendMode(exportLayer.layer.blendMode),
           ),
         ],
@@ -200,19 +200,18 @@ Future<Uint8List> writeOpenRasterBytes({
     );
   }
 
-  final stackElement = XmlElement(
-    XmlName('stack'),
-    const [],
-    layerElements,
+  final stackElement = XmlElement.tag(
+    'stack',
+    children: layerElements,
   );
-  final imageElement = XmlElement(
-    XmlName('image'),
-    [
-      XmlAttribute(XmlName('w'), size.width.ceil().toString()),
-      XmlAttribute(XmlName('h'), size.height.ceil().toString()),
-      XmlAttribute(XmlName('version'), _openRasterVersion),
+  final imageElement = XmlElement.tag(
+    'image',
+    attributes: [
+      XmlAttribute(XmlName.parts('w'), size.width.ceil().toString()),
+      XmlAttribute(XmlName.parts('h'), size.height.ceil().toString()),
+      XmlAttribute(XmlName.parts('version'), _openRasterVersion),
     ],
-    [stackElement],
+    children: [stackElement],
   );
   final stackXml = '<?xml version="1.0" encoding="UTF-8"?>\n'
       '${imageElement.toXmlString(pretty: true)}';
@@ -303,7 +302,12 @@ img.Image _solidColorRaster(Size size, Color color) {
   final raster = img.Image(width: width, height: height, numChannels: 4);
   img.fill(
     raster,
-    color: img.ColorRgba8(color.red, color.green, color.blue, color.alpha),
+    color: img.ColorRgba8(
+      (color.r * 255.0).round().clamp(0, 255),
+      (color.g * 255.0).round().clamp(0, 255),
+      (color.b * 255.0).round().clamp(0, 255),
+      (color.a * 255.0).round().clamp(0, 255),
+    ),
   );
   return raster;
 }
