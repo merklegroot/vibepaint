@@ -185,6 +185,8 @@ jobs:
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.AppImage
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.deb
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.rpm
+            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.pkg.tar.zst
+            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64-aur.tar.gz
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.flatpak
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe
@@ -231,8 +233,10 @@ jobs:
             | **AppImage** | `VibePaint-<version>-linux-x64.AppImage` | `chmod +x VibePaint-*.AppImage && ./VibePaint-*.AppImage` — runs on most distros without installing |
             | **Debian/Ubuntu** | `VibePaint-<version>-linux-x64.deb` | `sudo apt install ./VibePaint-<version>-linux-x64.deb` |
             | **Fedora/RHEL/openSUSE** | `VibePaint-<version>-linux-x64.rpm` | `sudo dnf install ./VibePaint-<version>-linux-x64.rpm` (or `zypper in` on openSUSE) |
+            | **Arch Linux** | `VibePaint-<version>-linux-x64.pkg.tar.zst` | `sudo pacman -U ./VibePaint-<version>-linux-x64.pkg.tar.zst` |
+            | **Arch (yay/paru/AUR)** | `VibePaint-<version>-linux-x64-aur.tar.gz` | Extract, then `makepkg -si` (or publish the included `PKGBUILD` to AUR as `vibepaint-bin`) |
             | **Flatpak** | `VibePaint-<version>-linux-x64.flatpak` | `flatpak install --user ./VibePaint-<version>-linux-x64.flatpak` then launch **VibePaint** from your app menu |
             | **Portable tarball** | `VibePaint-<version>-linux-x64.tar.gz` | Extract and run `bundle/vibepaint` |
 
-            Installed `.deb` / `.rpm` packages place the app in `/opt/vibepaint` and add a **VibePaint** launcher to your application menu.
+            Installed `.deb`, `.rpm`, and `.pkg.tar.zst` packages place the app in `/opt/vibepaint` and add a **VibePaint** launcher to your application menu.
           files: dist/*

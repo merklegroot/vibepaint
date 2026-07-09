@@ -21,7 +21,9 @@ Creates:
   VibePaint-<version>-linux-x64.AppImage
   VibePaint-<version>-linux-x64.deb
   VibePaint-<version>-linux-x64.rpm
+  VibePaint-<version>-linux-x64.pkg.tar.zst
   VibePaint-<version>-linux-x64.flatpak
+  VibePaint-<version>-linux-x64-aur.tar.gz  (PKGBUILD for AUR / yay / paru)
 EOF
 }
 
@@ -73,6 +75,8 @@ TARBALL="${OUTPUT_DIR}/${PREFIX}.tar.gz"
 APPIMAGE="${OUTPUT_DIR}/${PREFIX}.AppImage"
 DEB="${OUTPUT_DIR}/${PREFIX}.deb"
 RPM="${OUTPUT_DIR}/${PREFIX}.rpm"
+ARCH_PKG="${OUTPUT_DIR}/${PREFIX}.pkg.tar.zst"
+AUR_SRC="${OUTPUT_DIR}/${PREFIX}-aur.tar.gz"
 FLATPAK="${OUTPUT_DIR}/${PREFIX}.flatpak"
 
 echo "==> Portable tarball"
@@ -112,7 +116,44 @@ build_deb_and_rpm() {
     --packager rpm \
     --target "$RPM"
 
-  ls -lh "$DEB" "$RPM"
+  echo "==> Arch Linux package"
+  BUNDLE_DIR="$pkg_root" VERSION="$VERSION" nfpm pkg \
+    --config "$ROOT/linux/nfpm-arch.yaml" \
+    --packager archlinux \
+    --target "$ARCH_PKG"
+
+  ls -lh "$DEB" "$RPM" "$ARCH_PKG"
+}
+
+build_aur_source() {
+  echo "==> AUR source bundle"
+  local aur_dir="$WORK/aur"
+  mkdir -p "$aur_dir"
+
+  sed "s/VERSION_PLACEHOLDER/${VERSION}/g" "$ROOT/linux/aur/PKGBUILD" >"$aur_dir/PKGBUILD"
+
+  cat >"$aur_dir/.SRCINFO" <<EOF
+pkgbase = vibepaint-bin
+	pkgname = vibepaint-bin
+	pkgdesc = A vibe coded paint app
+	pkgver = ${VERSION}
+	pkgrel = 1
+	url = https://github.com/merklegroot/vibepaint
+	arch = x86_64
+	license = MIT
+	depends = gtk3
+	depends = libsecret
+	provides = vibepaint
+	conflicts = vibepaint
+	options = !strip
+	source = https://github.com/merklegroot/vibepaint/releases/download/v${VERSION}/VibePaint-${VERSION}-linux-x64.pkg.tar.zst
+	sha256sums = SKIP
+
+pkgname = vibepaint-bin
+EOF
+
+  tar -C "$aur_dir" -czf "$AUR_SRC" PKGBUILD .SRCINFO
+  ls -lh "$AUR_SRC"
 }
 
 build_appimage() {
@@ -208,9 +249,10 @@ build_flatpak() {
 }
 
 build_deb_and_rpm
+build_aur_source
 build_appimage
 build_flatpak
 
 echo
 echo "Linux release artifacts:"
-ls -lh "$TARBALL" "$APPIMAGE" "$DEB" "$RPM" "${FLATPAK}" 2>/dev/null || true
+ls -lh "$TARBALL" "$APPIMAGE" "$DEB" "$RPM" "$ARCH_PKG" "$AUR_SRC" "${FLATPAK}" 2>/dev/null || true

@@ -127,7 +127,7 @@ scripts/linux/package_release.sh \
   --output-dir .
 ```
 
-Requires `flatpak-builder` for the Flatpak bundle; `.deb`, `.rpm`, AppImage, and tarball are always produced.
+Requires `flatpak-builder` for the Flatpak bundle; `.deb`, `.rpm`, `.pkg.tar.zst`, AppImage, and tarball are always produced.
 
 ## Releases
 
@@ -152,7 +152,7 @@ git push origin v0.1.0
 | --- | --- |
 | macOS | `VibePaint-<version>-macos.dmg` (drag into Applications) and `VibePaint-<version>-macos.app.zip` |
 | Windows | `VibePaint-<version>-win-x64-setup.exe` (installer) or `VibePaint-<version>-win-x64.zip` (portable) |
-| Linux | `VibePaint-<version>-linux-x64.AppImage`, `.deb`, `.rpm`, `.flatpak`, and `.tar.gz` |
+| Linux | `VibePaint-<version>-linux-x64.AppImage`, `.deb`, `.rpm`, `.pkg.tar.zst`, `.flatpak`, `-aur.tar.gz`, and `.tar.gz` |
 
 ### Install (Linux)
 
@@ -163,10 +163,12 @@ Download artifacts from [Releases](https://github.com/merklegroot/vibepaint/rele
 | **AppImage** | Any distro, no install | `chmod +x VibePaint-*-linux-x64.AppImage && ./VibePaint-*-linux-x64.AppImage` |
 | **.deb** | Debian, Ubuntu, Mint, Pop!\_OS | `sudo apt install ./VibePaint-*-linux-x64.deb` |
 | **.rpm** | Fedora, RHEL, openSUSE | `sudo dnf install ./VibePaint-*-linux-x64.rpm` |
+| **.pkg.tar.zst** | Arch Linux | `sudo pacman -U ./VibePaint-*-linux-x64.pkg.tar.zst` |
+| **AUR bundle** | Arch (yay/paru) | Extract `VibePaint-*-linux-x64-aur.tar.gz`, then `makepkg -si` |
 | **Flatpak** | Sandboxed install on any distro with Flatpak | `flatpak install --user ./VibePaint-*-linux-x64.flatpak` |
 | **.tar.gz** | Portable / manual | Extract, then run `bundle/vibepaint` from the extracted folder |
 
-`.deb` and `.rpm` packages install to `/opt/vibepaint` and add a **VibePaint** entry to your application menu.
+`.deb`, `.rpm`, and `.pkg.tar.zst` packages install to `/opt/vibepaint` and add a **VibePaint** entry to your application menu.
 
 No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**. Windows builds are unsigned; on first launch use **More info → Run anyway** if SmartScreen appears.
 

@@ -1,0 +1,23 @@
+# AUR-style binary package: downloads the official pacman package from GitHub
+# Releases and installs it. Useful for yay/paru or manual makepkg -si.
+#
+# Bump pkgver/pkgrel when cutting a release, or generate this file in CI.
+pkgname=vibepaint-bin
+pkgver=VERSION_PLACEHOLDER
+pkgrel=1
+pkgdesc="A vibe coded paint app"
+arch=('x86_64')
+url="https://github.com/merklegroot/vibepaint"
+license=('MIT')
+depends=('gtk3' 'libsecret')
+provides=('vibepaint')
+conflicts=('vibepaint')
+options=('!strip')
+source=("https://github.com/merklegroot/vibepaint/releases/download/v${pkgver}/VibePaint-${pkgver}-linux-x64.pkg.tar.zst")
+sha256sums=('SKIP')
+
+package() {
+  bsdtar -C "$pkgdir" -xf \
+    "$srcdir/VibePaint-${pkgver}-linux-x64.pkg.tar.zst" \
+    -x usr -x opt
+}
