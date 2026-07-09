@@ -23,6 +23,7 @@ Creates:
   VibePaint-<version>-linux-x64.rpm
   VibePaint-<version>-linux-x64.pkg.tar.zst
   VibePaint-<version>-linux-x64.flatpak
+  VibePaint-<version>-linux-x64.snap
   VibePaint-<version>-linux-x64-aur.tar.gz  (PKGBUILD for AUR / yay / paru)
 EOF
 }
@@ -78,6 +79,7 @@ RPM="${OUTPUT_DIR}/${PREFIX}.rpm"
 ARCH_PKG="${OUTPUT_DIR}/${PREFIX}.pkg.tar.zst"
 AUR_SRC="${OUTPUT_DIR}/${PREFIX}-aur.tar.gz"
 FLATPAK="${OUTPUT_DIR}/${PREFIX}.flatpak"
+SNAP="${OUTPUT_DIR}/${PREFIX}.snap"
 
 echo "==> Portable tarball"
 tar -C "$(dirname "$BUNDLE_DIR")" -czf "$TARBALL" "$(basename "$BUNDLE_DIR")"
@@ -248,11 +250,42 @@ build_flatpak() {
   ls -lh "$FLATPAK"
 }
 
+build_snap() {
+  if ! command -v snapcraft >/dev/null 2>&1; then
+    echo "warning: snapcraft not found; skipping Snap package" >&2
+    return
+  fi
+
+  echo "==> Snap"
+  local snap_root="$WORK/snap-build"
+  local built_snap=""
+
+  mkdir -p "$snap_root/bundle" "$snap_root/icons"
+  cp -a "$BUNDLE_DIR"/. "$snap_root/bundle/"
+  cp "$ROOT/linux/com.merklegroot.vibepaint.desktop" "$snap_root/"
+  cp "$ROOT/linux/icons/hicolor/256x256/apps/com.merklegroot.vibepaint.png" \
+    "$snap_root/icons/icon.png"
+  sed "s/VERSION_PLACEHOLDER/${VERSION}/g" "$ROOT/linux/snap/snapcraft.yaml" \
+    >"$snap_root/snapcraft.yaml"
+
+  (cd "$snap_root" && snapcraft pack --destructive-mode)
+
+  built_snap="$(find "$snap_root" -maxdepth 1 -name '*.snap' -print -quit)"
+  if [[ -z "$built_snap" ]]; then
+    echo "error: snapcraft did not produce a .snap file" >&2
+    exit 1
+  fi
+
+  mv "$built_snap" "$SNAP"
+  ls -lh "$SNAP"
+}
+
 build_deb_and_rpm
 build_aur_source
 build_appimage
 build_flatpak
+build_snap
 
 echo
 echo "Linux release artifacts:"
-ls -lh "$TARBALL" "$APPIMAGE" "$DEB" "$RPM" "$ARCH_PKG" "$AUR_SRC" "${FLATPAK}" 2>/dev/null || true
+ls -lh "$TARBALL" "$APPIMAGE" "$DEB" "$RPM" "$ARCH_PKG" "$AUR_SRC" "${FLATPAK}" "$SNAP" 2>/dev/null || true

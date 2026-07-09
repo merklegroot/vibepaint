@@ -111,7 +111,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev \
-            flatpak flatpak-builder desktop-file-utils curl
+            flatpak flatpak-builder desktop-file-utils curl snapd
+
+      - name: Install Snapcraft
+        if: matrix.platform == 'linux'
+        run: |
+          sudo systemctl enable --now snapd.socket
+          sudo snap install snapcraft --classic
 
       - name: Install dependencies
         run: flutter pub get
@@ -188,6 +194,7 @@ jobs:
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.pkg.tar.zst
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64-aur.tar.gz
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.flatpak
+            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.snap
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe
           if-no-files-found: error
@@ -236,6 +243,7 @@ jobs:
             | **Arch Linux** | `VibePaint-<version>-linux-x64.pkg.tar.zst` | `sudo pacman -U ./VibePaint-<version>-linux-x64.pkg.tar.zst` |
             | **Arch (yay/paru/AUR)** | `VibePaint-<version>-linux-x64-aur.tar.gz` | Extract, then `makepkg -si` (or publish the included `PKGBUILD` to AUR as `vibepaint-bin`) |
             | **Flatpak** | `VibePaint-<version>-linux-x64.flatpak` | `flatpak install --user ./VibePaint-<version>-linux-x64.flatpak` then launch **VibePaint** from your app menu |
+            | **Snap** | `VibePaint-<version>-linux-x64.snap` | `sudo snap install ./VibePaint-<version>-linux-x64.snap --dangerous` |
             | **Portable tarball** | `VibePaint-<version>-linux-x64.tar.gz` | Extract and run `bundle/vibepaint` |
 
             Installed `.deb`, `.rpm`, and `.pkg.tar.zst` packages place the app in `/opt/vibepaint` and add a **VibePaint** launcher to your application menu.

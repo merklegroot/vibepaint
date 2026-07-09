@@ -1,0 +1,44 @@
+name: vibepaint
+title: VibePaint
+base: core22
+version: "VERSION_PLACEHOLDER"
+summary: A vibe coded paint app
+description: |
+  VibePaint is a desktop paint app with layers, selections, and common image
+  tools.
+
+grade: stable
+confinement: strict
+license: MIT
+
+apps:
+  vibepaint:
+    command: bin/vibepaint-launch
+    extensions: [gnome]
+    plugs:
+      - network
+      - home
+      - removable-media
+    desktop: com.merklegroot.vibepaint.desktop
+
+parts:
+  vibepaint:
+    plugin: nil
+    stage-packages:
+      - libsecret-1-0
+    override-build: |
+      set -eu
+      mkdir -p "$CRAFT_PART_INSTALL/opt/vibepaint"
+      cp -a "$CRAFT_PROJECT_DIR/bundle/." "$CRAFT_PART_INSTALL/opt/vibepaint/"
+      mkdir -p "$CRAFT_PART_INSTALL/bin"
+      cat > "$CRAFT_PART_INSTALL/bin/vibepaint-launch" << 'EOF'
+      #!/bin/sh
+      cd "$SNAP/opt/vibepaint" || exit 1
+      exec ./vibepaint "$@"
+      EOF
+      chmod +x "$CRAFT_PART_INSTALL/bin/vibepaint-launch"
+      mkdir -p "$CRAFT_PART_INSTALL/meta/gui"
+      install -Dm644 "$CRAFT_PROJECT_DIR/com.merklegroot.vibepaint.desktop" \
+        "$CRAFT_PART_INSTALL/meta/gui/com.merklegroot.vibepaint.desktop"
+      install -Dm644 "$CRAFT_PROJECT_DIR/icons/icon.png" \
+        "$CRAFT_PART_INSTALL/meta/gui/com.merklegroot.vibepaint.png"
