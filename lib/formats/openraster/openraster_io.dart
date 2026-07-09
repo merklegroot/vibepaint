@@ -203,6 +203,7 @@ Future<Uint8List> writeOpenRasterBytes({
   final stackElement = XmlElement.tag(
     'stack',
     children: layerElements,
+    isSelfClosing: false,
   );
   final imageElement = XmlElement.tag(
     'image',
@@ -212,6 +213,7 @@ Future<Uint8List> writeOpenRasterBytes({
       XmlAttribute(XmlName.parts('version'), _openRasterVersion),
     ],
     children: [stackElement],
+    isSelfClosing: false,
   );
   final stackXml = '<?xml version="1.0" encoding="UTF-8"?>\n'
       '${imageElement.toXmlString(pretty: true)}';

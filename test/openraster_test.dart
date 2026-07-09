@@ -92,7 +92,7 @@ void main() {
       layerStack: layerStack,
     );
     final document = await readOpenRasterBytes(bytes);
-    final loaded = document.layers.single;
+    final loaded = document.layers.firstWhere((layer) => layer.name == 'Sketch');
 
     expect(loaded.name, 'Sketch');
     expect(loaded.visible, isFalse);

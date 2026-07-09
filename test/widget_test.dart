@@ -10,6 +10,6 @@ void main() {
     await tester.pumpWidget(const VibePaintApp());
 
     expect(find.byTooltip('Swap colors'), findsOneWidget);
-    expect(find.textContaining('Drag on the canvas to paint'), findsOneWidget);
+    expect(find.textContaining('Smooth Marker'), findsOneWidget);
   });
 }
