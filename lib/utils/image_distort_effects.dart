@@ -38,11 +38,42 @@ img.Image pixelateEffect(img.Image source, {required double cellSize}) {
   if (size <= 1) {
     return cloneImage(source);
   }
-  return img.pixelate(
-    cloneImage(source),
-    size: size,
-    mode: img.PixelateMode.average,
-  );
+
+  final orig = cloneImage(source);
+  final result = cloneImage(source);
+  for (var blockY = 0; blockY < source.height; blockY += size) {
+    for (var blockX = 0; blockX < source.width; blockX += size) {
+      final maxY = math.min(blockY + size, source.height);
+      final maxX = math.min(blockX + size, source.width);
+      var r = 0.0;
+      var g = 0.0;
+      var b = 0.0;
+      var a = 0.0;
+      var count = 0;
+      for (var y = blockY; y < maxY; y++) {
+        for (var x = blockX; x < maxX; x++) {
+          final pixel = orig.getPixel(x, y);
+          r += pixel.r;
+          g += pixel.g;
+          b += pixel.b;
+          a += pixel.a;
+          count++;
+        }
+      }
+      final color = img.ColorRgba8(
+        (r / count).round(),
+        (g / count).round(),
+        (b / count).round(),
+        (a / count).round(),
+      );
+      for (var y = blockY; y < maxY; y++) {
+        for (var x = blockX; x < maxX; x++) {
+          result.setPixel(x, y, color);
+        }
+      }
+    }
+  }
+  return result;
 }
 
 img.Image polarInversionEffect(img.Image source, {required double amount}) {
