@@ -140,10 +140,10 @@ git push origin v0.1.0
 | Platform | Artifact |
 | --- | --- |
 | macOS | `VibePaint-<version>-macos.dmg` (drag into Applications) and `VibePaint-<version>-macos.app.zip` |
-| Windows | `VibePaint-<version>-win-x64.zip` |
+| Windows | `VibePaint-<version>-win-x64-setup.exe` (installer) or `VibePaint-<version>-win-x64.zip` (portable) |
 | Linux | `VibePaint-<version>-linux-x64.tar.gz` |
 
-No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**.
+No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**. Windows builds are unsigned; on first launch use **More info → Run anyway** if SmartScreen appears.
 
 ## License
 

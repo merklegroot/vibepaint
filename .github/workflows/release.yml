@@ -155,12 +155,19 @@ jobs:
           cd build/linux/x64/release
           tar -czf "$GITHUB_WORKSPACE/VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz" bundle
 
+      - name: Install Inno Setup
+        if: matrix.platform == 'windows'
+        run: choco install innosetup -y --no-progress
+
       - name: Package Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path build/windows/x64/runner/Release/* `
-            -DestinationPath "VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip"
+          pwsh scripts/windows/package_release.ps1 `
+            -SourceDir build/windows/x64/runner/Release `
+            -Version "${{ needs.prepare.outputs.version }}" `
+            -OutputZip "VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip" `
+            -InstallerOutput "VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -171,6 +178,7 @@ jobs:
             VibePaint-${{ needs.prepare.outputs.version }}-macos.app.zip
             VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz
             VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
+            VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe
           if-no-files-found: error
 
   release:
@@ -201,7 +209,12 @@ jobs:
             - Open the disk image and drag **VibePaint** into **Applications**
             - First launch: **right-click → Open → Open** (unsigned build; one-time Gatekeeper prompt)
 
-            ### Windows / Linux
-            - Windows: `VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip`
-            - Linux: `VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz`
+            ### Windows
+            - **Recommended:** **`VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe`** — run the installer (Start menu shortcut, uninstall via Settings → Apps)
+            - **Portable:** **`VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip`** — extract and run `VibePaint\VibePaint.exe` without installing
+            - First launch: if SmartScreen appears, click **More info → Run anyway** (unsigned build; one-time prompt)
+
+            ### Linux
+            - Download **`VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz`**
+            - Extract and run the `bundle/vibepaint` executable
           files: dist/*
