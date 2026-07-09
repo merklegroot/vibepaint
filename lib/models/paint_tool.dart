@@ -10,6 +10,7 @@ enum PaintTool {
   text,
   magicWand,
   eyedropper,
+  moveSelection,
   rectSelect,
   ellipseSelect,
   lassoSelect,
@@ -28,6 +29,7 @@ extension PaintToolLabel on PaintTool {
         PaintTool.text => 'Text',
         PaintTool.magicWand => 'Magic Wand',
         PaintTool.eyedropper => 'Color Picker',
+        PaintTool.moveSelection => 'Move Selection',
         PaintTool.rectSelect => 'Rectangle Select',
         PaintTool.ellipseSelect => 'Ellipse Select',
         PaintTool.lassoSelect => 'Lasso Select',
@@ -51,6 +53,8 @@ extension PaintToolLabel on PaintTool {
       this == PaintTool.fillBucket ||
       this == PaintTool.magicWand ||
       this == PaintTool.text;
+
+  bool get isMoveTool => this == PaintTool.moveSelection;
 
   bool get isSelectionTool =>
       this == PaintTool.rectSelect ||

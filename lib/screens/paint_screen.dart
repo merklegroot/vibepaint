@@ -109,6 +109,7 @@ class _PaintScreenState extends State<PaintScreen>
   bool _aiEnhanceBusy = false;
   Offset? _moveStart;
   List<Stroke>? _strokesBeforeMove;
+  CanvasSelection? _selectionBeforeMove;
   bool _resizingSelection = false;
   SelectionResizeHandle? _resizeHandle;
   Rect? _resizeOriginalBounds;
@@ -355,6 +356,13 @@ class _PaintScreenState extends State<PaintScreen>
       return 'Rotate · $degrees° · Adjust angle in dialog';
     }
 
+    if (_activeTool.isMoveTool) {
+      if (_selection != null) {
+        return 'Drag inside selection to move pixels';
+      }
+      return 'Select an area first';
+    }
+
     if (_activeTool.isSelectionTool) {
       final hints = <String>[
         _activeTool == PaintTool.lassoSelect
@@ -513,6 +521,15 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    if (_activeTool.isMoveTool) {
+      if (_selection != null && _selection!.contains(position)) {
+        _setCanvasCursor(SystemMouseCursors.move);
+        return;
+      }
+      _setCanvasCursor(SystemMouseCursors.precise);
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_selection?.canReshape == true && _selectionDraft == null) {
         final handle = hitTestSelectionHandle(position, _selection!.bounds);
@@ -587,6 +604,7 @@ class _PaintScreenState extends State<PaintScreen>
       _movingSelection = false;
       _moveStart = null;
       _strokesBeforeMove = null;
+      _selectionBeforeMove = null;
       _resizingSelection = false;
       _resizeHandle = null;
       _resizeOriginalBounds = null;
@@ -2269,13 +2287,14 @@ class _PaintScreenState extends State<PaintScreen>
     _movingSelection = true;
     _moveStart = position;
     _strokesBeforeMove = List<Stroke>.from(_layerStack.activeHistory.strokes);
+    _selectionBeforeMove = _selection;
     _setCanvasCursor(SystemMouseCursors.move);
   }
 
   void _extendMoveSelection(Offset position) {
     if (!_movingSelection ||
         _moveStart == null ||
-        _selection == null ||
+        _selectionBeforeMove == null ||
         _strokesBeforeMove == null) {
       return;
     }
@@ -2285,10 +2304,11 @@ class _PaintScreenState extends State<PaintScreen>
       _layerStack.activeHistory.replaceStrokes(
         translateSelectedStrokes(
           _strokesBeforeMove!,
-          _selection!,
+          _selectionBeforeMove!,
           delta,
         ),
       );
+      _selection = translateSelection(_selectionBeforeMove!, delta);
     });
   }
 
@@ -2301,6 +2321,7 @@ class _PaintScreenState extends State<PaintScreen>
     _movingSelection = false;
     _moveStart = null;
     _strokesBeforeMove = null;
+    _selectionBeforeMove = null;
     _resetCanvasCursor();
     if (moved) {
       setState(() {
@@ -2431,7 +2452,15 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _cancelCanvasInteraction() {
+    final restoringStrokes = _movingSelection ? _strokesBeforeMove : null;
+    final restoringSelection = _movingSelection ? _selectionBeforeMove : null;
     setState(() {
+      if (restoringStrokes != null) {
+        _layerStack.activeHistory.replaceStrokes(restoringStrokes);
+      }
+      if (restoringSelection != null) {
+        _selection = restoringSelection;
+      }
       _currentStroke = null;
       _lastPanPosition = null;
       _selectionDraft = null;
@@ -2439,6 +2468,7 @@ class _PaintScreenState extends State<PaintScreen>
       _movingSelection = false;
       _moveStart = null;
       _strokesBeforeMove = null;
+      _selectionBeforeMove = null;
       _resizingSelection = false;
       _resizeHandle = null;
       _resizeOriginalBounds = null;
@@ -2641,6 +2671,12 @@ class _PaintScreenState extends State<PaintScreen>
     _lastPanPosition = position;
     if (_freeRotateActive) {
       _beginRotateDrag(position);
+      return;
+    }
+    if (_activeTool.isMoveTool) {
+      if (_selection != null && _selection!.contains(position)) {
+        _beginMoveSelection(position);
+      }
       return;
     }
     if (_activeTool.isSelectionTool) {
@@ -3277,6 +3313,13 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    if (_activeTool.isMoveTool) {
+      if (_movingSelection) {
+        _extendMoveSelection(position);
+      }
+      return;
+    }
+
     if (_activeTool.isSelectionTool) {
       if (_resizingSelection) {
         _extendResizeSelection(position, bounds);
@@ -3398,6 +3441,14 @@ class _PaintScreenState extends State<PaintScreen>
     if (_activeTool == PaintTool.fillBucket ||
         _activeTool == PaintTool.magicWand ||
         _activeTool == PaintTool.text) {
+      _lastPanPosition = null;
+      return;
+    }
+
+    if (_activeTool.isMoveTool) {
+      if (_movingSelection) {
+        _endMoveSelection();
+      }
       _lastPanPosition = null;
       return;
     }
@@ -3654,6 +3705,9 @@ class _PaintScreenState extends State<PaintScreen>
               control: defaultTargetPlatform != TargetPlatform.macOS,
               shift: true,
             ): _flattenImage,
+            const SingleActivator(LogicalKeyboardKey.keyV): () {
+              setState(() => _activeTool = PaintTool.moveSelection);
+            },
             const SingleActivator(LogicalKeyboardKey.keyF): () {
               setState(() => _activeTool = PaintTool.lassoSelect);
             },

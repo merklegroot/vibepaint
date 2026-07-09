@@ -30,7 +30,7 @@ class ToolToolbar extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           for (final tool in PaintTool.values) ...[
-            if (tool == PaintTool.rectSelect)
+            if (tool == PaintTool.moveSelection)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 child: Divider(height: 1, color: AppColors.paletteBorder),

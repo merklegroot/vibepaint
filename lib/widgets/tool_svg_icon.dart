@@ -38,6 +38,7 @@ extension PaintToolIconAsset on PaintTool {
         PaintTool.text => 'assets/icons/tools/text.svg',
         PaintTool.magicWand => 'assets/icons/tools/magic_wand.svg',
         PaintTool.eyedropper => 'assets/icons/tools/eyedropper.svg',
+        PaintTool.moveSelection => 'assets/icons/tools/move_selection.svg',
         PaintTool.rectSelect => 'assets/icons/tools/rect_select.svg',
         PaintTool.ellipseSelect => 'assets/icons/tools/ellipse_select.svg',
         PaintTool.lassoSelect => 'assets/icons/tools/lasso.svg',
