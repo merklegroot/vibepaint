@@ -46,6 +46,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onRadialBlur,
   required VoidCallback onUnfocus,
   required VoidCallback onZoomBlur,
+  required VoidCallback onDithering,
   VoidCallback? onOpenSettings,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
@@ -190,6 +191,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
         onRadialBlur: onRadialBlur,
         onUnfocus: onUnfocus,
         onZoomBlur: onZoomBlur,
+        onDithering: onDithering,
       ),
     ),
   ];

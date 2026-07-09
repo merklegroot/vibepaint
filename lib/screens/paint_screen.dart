@@ -33,6 +33,7 @@ import 'package:vibepaint/utils/flood_fill.dart';
 import 'package:vibepaint/utils/image_adjustments.dart';
 import 'package:vibepaint/utils/image_artistic_effects.dart';
 import 'package:vibepaint/utils/image_blur_effects.dart';
+import 'package:vibepaint/utils/image_color_effects.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_adjustments.dart';
@@ -46,6 +47,7 @@ import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/color_picker_dialog.dart';
+import 'package:vibepaint/widgets/dithering_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
@@ -1471,6 +1473,55 @@ class _PaintScreenState extends State<PaintScreen>
     if (applied) {
       _noteDocumentEdited();
     }
+  }
+
+  Future<void> _dithering() async {
+    if (!_ensureActiveLayerAdjustable()) {
+      return;
+    }
+
+    final source = await _layerStack.captureActiveLayerRaster(_documentSize);
+    if (source == null || !mounted) {
+      return;
+    }
+
+    final backup = _layerStack.backupActiveLayerStrokes();
+
+    Future<void> preview(DitheringSettings settings) async {
+      final result = ditheringEffect(
+        source,
+        colorLevels: settings.colorLevels,
+        kernel: settings.kernel,
+        serpentine: settings.serpentine,
+      );
+      await _layerStack.replaceActiveLayerWithRaster(
+        size: _documentSize,
+        raster: result,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    }
+
+    final result = await showDialog<DitheringSettings>(
+      context: context,
+      builder: (context) => DitheringDialog(
+        onSettingsChanged: preview,
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == null) {
+      _layerStack.restoreActiveLayerStrokes(backup);
+      setState(() {});
+      return;
+    }
+
+    await preview(result);
+    _noteDocumentEdited();
   }
 
   void _beginResizeSelection(SelectionResizeHandle handle) {
@@ -3031,6 +3082,7 @@ class _PaintScreenState extends State<PaintScreen>
                               onRadialBlur: _radialBlur,
                               onUnfocus: _unfocusBlur,
                               onZoomBlur: _zoomBlur,
+                              onDithering: _dithering,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -3443,6 +3495,7 @@ class _PaintScreenState extends State<PaintScreen>
           onRadialBlur: _radialBlur,
           onUnfocus: _unfocusBlur,
           onZoomBlur: _zoomBlur,
+          onDithering: _dithering,
         ),
         child: body,
       );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vibepaint/menus/platform_artistic_menus.dart';
 import 'package:vibepaint/menus/platform_blur_menus.dart';
+import 'package:vibepaint/menus/platform_color_menus.dart';
 
 List<PlatformMenuItemGroup> buildEffectsPlatformMenuGroups({
   required VoidCallback onInkSketch,
@@ -12,6 +13,7 @@ List<PlatformMenuItemGroup> buildEffectsPlatformMenuGroups({
   required VoidCallback onRadialBlur,
   required VoidCallback onUnfocus,
   required VoidCallback onZoomBlur,
+  required VoidCallback onDithering,
 }) {
   return [
     PlatformMenuItemGroup(
@@ -33,6 +35,12 @@ List<PlatformMenuItemGroup> buildEffectsPlatformMenuGroups({
             onRadialBlur: onRadialBlur,
             onUnfocus: onUnfocus,
             onZoomBlur: onZoomBlur,
+          ),
+        ),
+        PlatformMenu(
+          label: 'Color',
+          menus: buildColorPlatformMenuGroups(
+            onDithering: onDithering,
           ),
         ),
       ],

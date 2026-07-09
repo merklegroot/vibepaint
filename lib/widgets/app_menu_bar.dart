@@ -47,6 +47,7 @@ class AppMenuBar extends StatelessWidget {
     required this.onRadialBlur,
     required this.onUnfocus,
     required this.onZoomBlur,
+    required this.onDithering,
     this.onOpenSettings,
   });
 
@@ -90,6 +91,7 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onRadialBlur;
   final VoidCallback onUnfocus;
   final VoidCallback onZoomBlur;
+  final VoidCallback onDithering;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -410,6 +412,19 @@ class AppMenuBar extends StatelessWidget {
                 ),
               ],
               child: const Text('Blurs'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onDithering,
+                  child: const Text('Dithering...'),
+                ),
+              ],
+              child: const Text('Color'),
             ),
           ],
           child: const Text('Effects'),
