@@ -106,6 +106,29 @@ void main() {
     expect(bytes.length, greaterThan(100));
   });
 
+  test('renderCanvasToBytes renders gradient strokes', () async {
+    final layer = PaintLayer(
+      name: 'Layer 1',
+      history: StrokeHistory([
+        Stroke(
+          color: Colors.red,
+          secondaryColor: Colors.blue,
+          brushSize: 0,
+          points: const [Offset(0, 0), Offset(100, 100)],
+          shape: StrokeShape.gradient,
+        ),
+      ]),
+    );
+
+    final bytes = await renderCanvasToBytes(
+      size: const Size(100, 100),
+      layers: [layer],
+      format: ImageFileFormat.png,
+    );
+
+    expect(bytes.length, greaterThan(100));
+  });
+
   test('imageFormatFromPath recognizes common extensions', () {
     expect(imageFormatFromPath('/tmp/sketch.JPG'), ImageFileFormat.jpeg);
     expect(imageFormatFromPath('/tmp/sketch.webp'), ImageFileFormat.webp);

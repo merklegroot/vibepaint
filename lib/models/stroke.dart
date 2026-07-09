@@ -10,6 +10,7 @@ enum StrokeShape {
   line,
   rectangle,
   ellipse,
+  gradient,
   raster,
   text,
 }
@@ -21,6 +22,7 @@ class Stroke {
     List<Offset>? points,
     this.shape = StrokeShape.freehand,
     this.style = ShapeStyle.outline,
+    this.secondaryColor,
     this.isEraser = false,
     this.isPencil = false,
     this.rasterImage,
@@ -33,6 +35,7 @@ class Stroke {
   final List<Offset> points;
   final StrokeShape shape;
   final ShapeStyle style;
+  final Color? secondaryColor;
   final bool isEraser;
   final bool isPencil;
   final ui.Image? rasterImage;
@@ -55,6 +58,7 @@ class Stroke {
     List<Offset>? points,
     StrokeShape? shape,
     ShapeStyle? style,
+    Color? secondaryColor,
     bool? isEraser,
     bool? isPencil,
     ui.Image? rasterImage,
@@ -67,6 +71,7 @@ class Stroke {
       points: points ?? List<Offset>.from(this.points),
       shape: shape ?? this.shape,
       style: style ?? this.style,
+      secondaryColor: secondaryColor ?? this.secondaryColor,
       isEraser: isEraser ?? this.isEraser,
       isPencil: isPencil ?? this.isPencil,
       rasterImage: rasterImage ?? this.rasterImage,

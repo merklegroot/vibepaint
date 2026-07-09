@@ -124,17 +124,21 @@ class CanvasPainter extends CustomPainter {
     );
 
     for (final stroke in layer.history.strokes) {
-      paintStroke(canvas, stroke);
+      paintStroke(canvas, stroke, canvasBounds: bounds);
     }
 
     if (currentStroke != null) {
-      paintStroke(canvas, currentStroke);
+      paintStroke(canvas, currentStroke, canvasBounds: bounds);
     }
 
     canvas.restore();
   }
 
-  static void paintStroke(Canvas canvas, Stroke stroke) {
+  static void paintStroke(
+    Canvas canvas,
+    Stroke stroke, {
+    Rect? canvasBounds,
+  }) {
     if (stroke.isEmpty) {
       return;
     }
@@ -220,6 +224,20 @@ class CanvasPainter extends CustomPainter {
             line: line,
             style: stroke.style,
           );
+        }
+        return;
+      case StrokeShape.gradient:
+        if (stroke.points.length >= 2 && stroke.secondaryColor != null) {
+          final bounds = canvasBounds ??
+              Rect.fromPoints(stroke.points[0], stroke.points[1]);
+          final gradientPaint = Paint()
+            ..shader = ui.Gradient.linear(
+              stroke.points[0],
+              stroke.points[1],
+              [stroke.color, stroke.secondaryColor!],
+            )
+            ..blendMode = blendMode;
+          canvas.drawRect(bounds, gradientPaint);
         }
         return;
       case StrokeShape.freehand:

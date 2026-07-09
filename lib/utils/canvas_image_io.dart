@@ -79,7 +79,7 @@ Future<Uint8List?> renderStrokesRgbaBytes({
 
   canvas.saveLayer(bounds, Paint());
   for (final stroke in strokes) {
-    CanvasPainter.paintStroke(canvas, stroke);
+    CanvasPainter.paintStroke(canvas, stroke, canvasBounds: bounds);
   }
   canvas.restore();
 

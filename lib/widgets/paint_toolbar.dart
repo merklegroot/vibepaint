@@ -14,6 +14,8 @@ class PaintToolbar extends StatelessWidget {
     required this.onBrushSizeChanged,
     this.shapeStyle,
     this.onShapeStyleChanged,
+    this.gradientEndColor,
+    this.onGradientEndColorTap,
     this.textOptions,
     this.onTextOptionsChanged,
     required this.canUndo,
@@ -37,6 +39,8 @@ class PaintToolbar extends StatelessWidget {
   final ValueChanged<double> onBrushSizeChanged;
   final ShapeStyle? shapeStyle;
   final ValueChanged<ShapeStyle>? onShapeStyleChanged;
+  final Color? gradientEndColor;
+  final VoidCallback? onGradientEndColorTap;
   final TextToolOptions? textOptions;
   final ValueChanged<TextToolOptions>? onTextOptionsChanged;
   final bool canUndo;
@@ -57,7 +61,7 @@ class PaintToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showBrushSize = textOptions == null;
+    final showBrushSize = textOptions == null && gradientEndColor == null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -79,6 +83,13 @@ class PaintToolbar extends StatelessWidget {
             ShapeStyleControl(
               style: shapeStyle!,
               onChanged: onShapeStyleChanged!,
+            ),
+          ],
+          if (gradientEndColor != null && onGradientEndColorTap != null) ...[
+            const SizedBox(width: 16),
+            _GradientEndColorControl(
+              color: gradientEndColor!,
+              onTap: onGradientEndColorTap!,
             ),
           ],
           if (textOptions != null && onTextOptionsChanged != null) ...[
@@ -163,6 +174,45 @@ class PaintToolbar extends StatelessWidget {
             onPressed: onRedo,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GradientEndColorControl extends StatelessWidget {
+  const _GradientEndColorControl({
+    required this.color,
+    required this.onTap,
+  });
+
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Gradient end color',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'End',
+              style: TextStyle(color: AppColors.paletteLabel, fontSize: 12),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: color,
+                border: Border.all(color: AppColors.paletteBorder),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -133,6 +133,7 @@ Stroke? clipStrokeToRect(Stroke stroke, Rect rect) {
     case StrokeShape.line:
     case StrokeShape.rectangle:
     case StrokeShape.ellipse:
+    case StrokeShape.gradient:
       if (stroke.points.length < 2) {
         return null;
       }
@@ -188,6 +189,7 @@ Stroke? clipStrokeToSelection(Stroke stroke, CanvasSelection selection) {
     case StrokeShape.line:
     case StrokeShape.rectangle:
     case StrokeShape.ellipse:
+    case StrokeShape.gradient:
       if (stroke.points.length < 2) {
         return null;
       }

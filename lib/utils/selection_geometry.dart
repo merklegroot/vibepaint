@@ -19,6 +19,7 @@ Rect strokeBounds(Stroke stroke) {
 
   switch (stroke.shape) {
     case StrokeShape.line:
+    case StrokeShape.gradient:
       if (stroke.points.length >= 2) {
         return Rect.fromPoints(stroke.points[0], stroke.points[1])
             .inflate(stroke.brushSize / 2);

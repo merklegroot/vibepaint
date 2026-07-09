@@ -14,6 +14,7 @@ declare -A icons=(
   [line]=line
   [rectangle]=rectangle
   [ellipse]=oval
+  [gradient]=background
   [eraser]=eraser
   [fill_bucket]=bucket
   [text]=typography

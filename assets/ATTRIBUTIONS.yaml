@@ -46,6 +46,8 @@ collections:
         upstream: rectangle.svg
       - asset: ellipse.svg
         upstream: oval.svg
+      - asset: gradient.svg
+        upstream: background.svg
       - asset: eraser.svg
         upstream: eraser.svg
       - asset: fill_bucket.svg

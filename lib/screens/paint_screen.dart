@@ -68,6 +68,7 @@ class _PaintScreenState extends State<PaintScreen>
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
   late Color _primaryColor;
+  late Color _gradientEndColor;
   double _brushSize = 6;
   PaintTool _activeTool = PaintTool.brush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
@@ -121,6 +122,7 @@ class _PaintScreenState extends State<PaintScreen>
     super.initState();
     _layerStack = LayerStack(initialStrokes: widget.initialStrokes);
     _primaryColor = AppColors.presetColors[widget.initialColorIndex];
+    _gradientEndColor = AppColors.presetColors[1];
     _activeTool = widget.initialTool;
     _shapeStyle = widget.initialShapeStyle;
     if (widget.initialStrokes.isNotEmpty) {
@@ -271,6 +273,22 @@ class _PaintScreenState extends State<PaintScreen>
     _noteDocumentEdited();
   }
 
+  Future<void> _pickGradientEndColor() async {
+    final result = await showDialog<ColorPickerResult>(
+      context: context,
+      builder: (context) => ColorPickerDialog(
+        primaryColor: _gradientEndColor,
+        secondaryColor: _layerStack.backgroundColor,
+        editingTarget: ColorWellTarget.primary,
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() => _gradientEndColor = result.primary);
+  }
+
   String get _statusHint {
     if (_activeTool.isSelectionTool) {
       final hints = <String>[
@@ -306,6 +324,10 @@ class _PaintScreenState extends State<PaintScreen>
         return 'Type text · Enter: finish · Shift+Enter: new line · Esc: cancel';
       }
       return 'Click to place text · Font tools control family, size, style, and alignment';
+    }
+
+    if (_activeTool == PaintTool.gradient) {
+      return 'Drag to set gradient direction · Shift: 45°';
     }
 
     if (!_activeTool.isDragShape) {
@@ -1368,6 +1390,8 @@ class _PaintScreenState extends State<PaintScreen>
         _startBoundingShape(position, bounds, StrokeShape.rectangle);
       case PaintTool.ellipse:
         _startBoundingShape(position, bounds, StrokeShape.ellipse);
+      case PaintTool.gradient:
+        _startGradient(position, bounds);
       case PaintTool.eyedropper:
         _pickColorAt(position, bounds);
       case PaintTool.fillBucket:
@@ -1828,6 +1852,22 @@ class _PaintScreenState extends State<PaintScreen>
     });
   }
 
+  void _startGradient(Offset position, Rect bounds) {
+    if (!_isInsideCanvas(position, bounds)) {
+      return;
+    }
+
+    setState(() {
+      _currentStroke = Stroke(
+        color: _primaryColor,
+        secondaryColor: _gradientEndColor,
+        brushSize: 0,
+        points: [position, position],
+        shape: StrokeShape.gradient,
+      );
+    });
+  }
+
   void _startBoundingShape(
     Offset position,
     Rect bounds,
@@ -1960,6 +2000,9 @@ class _PaintScreenState extends State<PaintScreen>
       case PaintTool.line:
         _extendLine(position, bounds);
         return;
+      case PaintTool.gradient:
+        _extendLine(position, bounds);
+        return;
       case PaintTool.rectangle:
       case PaintTool.ellipse:
         _extendBoundingShape(position, bounds);
@@ -2078,6 +2121,9 @@ class _PaintScreenState extends State<PaintScreen>
       case PaintTool.line:
         _endLine();
         return;
+      case PaintTool.gradient:
+        _endLine();
+        return;
       case PaintTool.rectangle:
       case PaintTool.ellipse:
         _endBoundingShape();
@@ -2133,6 +2179,12 @@ class _PaintScreenState extends State<PaintScreen>
             },
             const SingleActivator(LogicalKeyboardKey.keyG): () {
               setState(() => _activeTool = PaintTool.fillBucket);
+            },
+            const SingleActivator(
+              LogicalKeyboardKey.keyG,
+              shift: true,
+            ): () {
+              setState(() => _activeTool = PaintTool.gradient);
             },
             const SingleActivator(LogicalKeyboardKey.keyT): () {
               _applySelectionTool(PaintTool.text);
@@ -2325,6 +2377,13 @@ class _PaintScreenState extends State<PaintScreen>
                                       ? (style) {
                                           setState(() => _shapeStyle = style);
                                         }
+                                      : null,
+                              gradientEndColor: _activeTool == PaintTool.gradient
+                                  ? _gradientEndColor
+                                  : null,
+                              onGradientEndColorTap:
+                                  _activeTool == PaintTool.gradient
+                                      ? _pickGradientEndColor
                                       : null,
                               textOptions:
                                   _activeTool.isTextTool ? _textOptions : null,

@@ -4,6 +4,7 @@ enum PaintTool {
   line,
   rectangle,
   ellipse,
+  gradient,
   eraser,
   fillBucket,
   text,
@@ -21,6 +22,7 @@ extension PaintToolLabel on PaintTool {
         PaintTool.line => 'Line',
         PaintTool.rectangle => 'Rectangle',
         PaintTool.ellipse => 'Ellipse',
+        PaintTool.gradient => 'Gradient',
         PaintTool.eraser => 'Eraser',
         PaintTool.fillBucket => 'Paint Bucket',
         PaintTool.text => 'Text',
@@ -39,7 +41,8 @@ extension PaintToolLabel on PaintTool {
   bool get isDragShape =>
       this == PaintTool.line ||
       this == PaintTool.rectangle ||
-      this == PaintTool.ellipse;
+      this == PaintTool.ellipse ||
+      this == PaintTool.gradient;
 
   bool get isEyedropper => this == PaintTool.eyedropper;
 

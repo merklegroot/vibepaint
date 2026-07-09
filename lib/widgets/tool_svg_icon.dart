@@ -32,6 +32,7 @@ extension PaintToolIconAsset on PaintTool {
         PaintTool.line => 'assets/icons/tools/line.svg',
         PaintTool.rectangle => 'assets/icons/tools/rectangle.svg',
         PaintTool.ellipse => 'assets/icons/tools/ellipse.svg',
+        PaintTool.gradient => 'assets/icons/tools/gradient.svg',
         PaintTool.eraser => 'assets/icons/tools/eraser.svg',
         PaintTool.fillBucket => 'assets/icons/tools/fill_bucket.svg',
         PaintTool.text => 'assets/icons/tools/text.svg',
