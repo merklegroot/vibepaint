@@ -31,6 +31,7 @@ import 'package:vibepaint/utils/canvas_viewport.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/flood_fill.dart';
 import 'package:vibepaint/utils/image_adjustments.dart';
+import 'package:vibepaint/utils/image_artistic_effects.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_adjustments.dart';
@@ -1249,6 +1250,77 @@ class _PaintScreenState extends State<PaintScreen>
       ],
       apply: (source, values) =>
           applyPosterize(source, levels: values[0].round()),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _inkSketch() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Ink Sketch',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 100,
+          divisions: 100,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => inkSketch(source, amount: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _oilPainting() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Oil Painting',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 80,
+          divisions: 100,
+        ),
+        AdjustmentSliderSpec(
+          label: 'Brush size',
+          min: 1,
+          max: 20,
+          initial: 8,
+          divisions: 19,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => oilPainting(
+        source,
+        amount: values[0],
+        brushSize: values[1],
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _pencilSketch() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Pencil Sketch',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 100,
+          divisions: 100,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => pencilSketch(source, amount: values[0]),
     );
     if (applied) {
       _noteDocumentEdited();
@@ -2804,6 +2876,9 @@ class _PaintScreenState extends State<PaintScreen>
                               onLevels: _levels,
                               onPosterize: _posterize,
                               onSepia: _sepia,
+                              onInkSketch: _inkSketch,
+                              onOilPainting: _oilPainting,
+                              onPencilSketch: _pencilSketch,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -3207,6 +3282,9 @@ class _PaintScreenState extends State<PaintScreen>
           onLevels: _levels,
           onPosterize: _posterize,
           onSepia: _sepia,
+          onInkSketch: _inkSketch,
+          onOilPainting: _oilPainting,
+          onPencilSketch: _pencilSketch,
         ),
         child: body,
       );

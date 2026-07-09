@@ -38,6 +38,9 @@ class AppMenuBar extends StatelessWidget {
     required this.onLevels,
     required this.onPosterize,
     required this.onSepia,
+    required this.onInkSketch,
+    required this.onOilPainting,
+    required this.onPencilSketch,
     this.onOpenSettings,
   });
 
@@ -72,6 +75,9 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onLevels;
   final VoidCallback onPosterize;
   final VoidCallback onSepia;
+  final VoidCallback onInkSketch;
+  final VoidCallback onOilPainting;
+  final VoidCallback onPencilSketch;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -332,6 +338,36 @@ class AppMenuBar extends StatelessWidget {
             ),
           ],
           child: const Text('Adjustments'),
+        ),
+        SubmenuButton(
+          style: menuStyle,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+          ),
+          menuChildren: [
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onInkSketch,
+                  child: const Text('Ink Sketch...'),
+                ),
+                MenuItemButton(
+                  onPressed: onOilPainting,
+                  child: const Text('Oil Painting...'),
+                ),
+                MenuItemButton(
+                  onPressed: onPencilSketch,
+                  child: const Text('Pencil Sketch...'),
+                ),
+              ],
+              child: const Text('Artistic'),
+            ),
+          ],
+          child: const Text('Effects'),
         ),
       ],
     );

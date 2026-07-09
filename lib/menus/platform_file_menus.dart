@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_adjustments_menus.dart';
+import 'package:vibepaint/menus/platform_effects_menus.dart';
 import 'package:vibepaint/menus/platform_edit_menus.dart';
 import 'package:vibepaint/menus/platform_image_menus.dart';
 
@@ -36,6 +37,9 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onLevels,
   required VoidCallback onPosterize,
   required VoidCallback onSepia,
+  required VoidCallback onInkSketch,
+  required VoidCallback onOilPainting,
+  required VoidCallback onPencilSketch,
   VoidCallback? onOpenSettings,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
@@ -166,6 +170,14 @@ List<PlatformMenu> buildMacosPlatformMenus({
         onLevels: onLevels,
         onPosterize: onPosterize,
         onSepia: onSepia,
+      ),
+    ),
+    PlatformMenu(
+      label: 'Effects',
+      menus: buildEffectsPlatformMenuGroups(
+        onInkSketch: onInkSketch,
+        onOilPainting: onOilPainting,
+        onPencilSketch: onPencilSketch,
       ),
     ),
   ];
