@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
-import 'package:vibepaint/theme/app_colors.dart';
 
 List<PlatformMenuItemGroup> buildEditPlatformMenuGroups({
   required VoidCallback onUndo,
