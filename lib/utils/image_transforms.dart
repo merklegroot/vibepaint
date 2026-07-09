@@ -49,6 +49,10 @@ Offset flipPointVertically(Offset point, double axisY) {
   return Offset(point.dx, (2 * axisY) - point.dy);
 }
 
+double angleFromCenter(Offset point, Offset center) {
+  return atan2(point.dy - center.dy, point.dx - center.dx);
+}
+
 Offset rotateAround(Offset point, Offset center, double radians) {
   final delta = point - center;
   final cosR = cos(radians);

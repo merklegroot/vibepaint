@@ -29,6 +29,17 @@ void main() {
     );
   });
 
+  test('angleFromCenter returns angle from center to point', () {
+    expect(
+      angleFromCenter(const Offset(100, 50), const Offset(50, 50)),
+      closeTo(0, 0.001),
+    );
+    expect(
+      angleFromCenter(const Offset(50, 100), const Offset(50, 50)),
+      closeTo(1.5707963267948966, 0.001),
+    );
+  });
+
   test('clipStrokeToSelection keeps interior freehand points', () {
     final selection = CanvasSelection.fromRect(
       SelectionShape.rectangle,

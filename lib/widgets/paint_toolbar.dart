@@ -33,6 +33,7 @@ class PaintToolbar extends StatelessWidget {
     this.onAiEnhance,
     this.aiEnhanceEnabled = true,
     this.onOpenSettings,
+    this.freeRotateActive = false,
   });
 
   final double brushSize;
@@ -58,21 +59,53 @@ class PaintToolbar extends StatelessWidget {
   final VoidCallback? onAiEnhance;
   final bool aiEnhanceEnabled;
   final VoidCallback? onOpenSettings;
+  final bool freeRotateActive;
 
   @override
   Widget build(BuildContext context) {
-    final showBrushSize = textOptions == null && gradientEndColor == null;
+    final showBrushSize =
+        textOptions == null && gradientEndColor == null && !freeRotateActive;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.palettePanel,
         border: Border(
-          bottom: BorderSide(color: AppColors.paletteBorder),
+          bottom: BorderSide(
+            color: freeRotateActive
+                ? AppColors.statusText.withValues(alpha: 0.45)
+                : AppColors.paletteBorder,
+          ),
         ),
       ),
       child: Row(
         children: [
+          if (freeRotateActive) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.workspace,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppColors.statusText),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.rotate_right, size: 16, color: AppColors.statusText),
+                  SizedBox(width: 6),
+                  Text(
+                    'Free Rotate',
+                    style: TextStyle(
+                      color: AppColors.statusText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
           if (showBrushSize)
             BrushSizeControl(
               brushSize: brushSize,

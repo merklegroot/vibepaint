@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,7 @@ import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/models/text_run.dart';
 import 'package:vibepaint/painters/canvas_painter.dart';
+import 'package:vibepaint/painters/rotate_overlay_painter.dart';
 import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
@@ -104,8 +107,15 @@ class _PaintScreenState extends State<PaintScreen>
   Offset? _panZoomFocal;
   TextRun? _textDraft;
   TextToolOptions _textOptions = const TextToolOptions();
+  bool _rotateActive = false;
+  double _rotatePreviewAngle = 0;
+  double? _rotateStartAngle;
+  Offset? _rotateDragPosition;
 
   bool get _isDirty => _editGeneration != _savedGeneration;
+
+  Offset get _canvasCenter =>
+      Offset(_documentSize.width / 2, _documentSize.height / 2);
 
   bool get _shiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
@@ -290,6 +300,11 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   String get _statusHint {
+    if (_rotateActive) {
+      final degrees = (_rotatePreviewAngle * 180 / math.pi).round();
+      return 'Free Rotate · Drag to set angle · $degrees° · Esc: cancel';
+    }
+
     if (_activeTool.isSelectionTool) {
       final hints = <String>[
         _activeTool == PaintTool.lassoSelect
@@ -426,6 +441,11 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _updateCanvasCursor(Offset position) {
     if (_viewportPanPointer != null) {
+      _setCanvasCursor(SystemMouseCursors.grabbing);
+      return;
+    }
+
+    if (_rotateActive) {
       _setCanvasCursor(SystemMouseCursors.grabbing);
       return;
     }
@@ -831,6 +851,82 @@ class _PaintScreenState extends State<PaintScreen>
     setState(() => _layerStack.rotate180(_documentSize));
     await _layerStack.rotateBackground180();
     _deselect();
+    _noteDocumentEdited();
+  }
+
+  void _beginFreeRotate() {
+    if (_documentSize == Size.zero) {
+      return;
+    }
+
+    if (_textDraft != null) {
+      _commitTextDraft();
+    }
+    if (_currentStroke != null) {
+      setState(_commitCurrentStroke);
+    }
+
+    setState(() {
+      _rotateActive = true;
+      _rotatePreviewAngle = 0;
+      _rotateStartAngle = null;
+      _rotateDragPosition = null;
+      _deselect();
+    });
+  }
+
+  void _cancelFreeRotate() {
+    if (!_rotateActive) {
+      return;
+    }
+
+    setState(() {
+      _rotateActive = false;
+      _rotatePreviewAngle = 0;
+      _rotateStartAngle = null;
+      _rotateDragPosition = null;
+    });
+    _resetCanvasCursor();
+  }
+
+  void _beginRotateDrag(Offset position) {
+    _rotateStartAngle = angleFromCenter(position, _canvasCenter);
+    _rotateDragPosition = position;
+  }
+
+  void _extendRotateDrag(Offset position) {
+    if (_rotateStartAngle == null) {
+      return;
+    }
+
+    final currentAngle = angleFromCenter(position, _canvasCenter);
+    setState(() {
+      _rotatePreviewAngle = currentAngle - _rotateStartAngle!;
+      _rotateDragPosition = position;
+    });
+  }
+
+  Future<void> _endRotateDrag() async {
+    if (!_rotateActive) {
+      return;
+    }
+
+    final angle = _rotatePreviewAngle;
+    _rotateStartAngle = null;
+    _rotateDragPosition = null;
+
+    if (angle.abs() < 0.001) {
+      _cancelFreeRotate();
+      return;
+    }
+
+    setState(() {
+      _layerStack.rotateContent(_documentSize, angle);
+      _rotateActive = false;
+      _rotatePreviewAngle = 0;
+    });
+    await _layerStack.rotateBackgroundByDegrees(angle * 180 / math.pi);
+    _resetCanvasCursor();
     _noteDocumentEdited();
   }
 
@@ -1364,6 +1460,10 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _beginPan(Offset position, Rect bounds) {
     _lastPanPosition = position;
+    if (_rotateActive) {
+      _beginRotateDrag(position);
+      return;
+    }
     if (_activeTool.isSelectionTool) {
       if (_selection?.canReshape == true && _selectionDraft == null) {
         final handle = hitTestSelectionHandle(position, _selection!.bounds);
@@ -1972,6 +2072,11 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _extendStroke(Offset position, Rect bounds) {
+    if (_rotateActive) {
+      _extendRotateDrag(position);
+      return;
+    }
+
     if (_activeTool == PaintTool.eyedropper) {
       _pickColorAt(position, bounds);
       return;
@@ -2090,6 +2195,11 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   void _endStroke() {
+    if (_rotateActive) {
+      _endRotateDrag();
+      return;
+    }
+
     if (_activeTool == PaintTool.eyedropper) {
       _clearEyedropperCache();
       _lastPanPosition = null;
@@ -2147,7 +2257,11 @@ class _PaintScreenState extends State<PaintScreen>
 
     // While typing text, ignore canvas tools and bare-key app shortcuts so
     // letters reach the TextField. Keep Escape to cancel editing.
-    final Map<ShortcutActivator, VoidCallback> bindings = _textDraft != null
+    final Map<ShortcutActivator, VoidCallback> bindings = _rotateActive
+        ? {
+            const SingleActivator(LogicalKeyboardKey.escape): _cancelFreeRotate,
+          }
+        : _textDraft != null
         ? {
             const SingleActivator(LogicalKeyboardKey.escape): _cancelTextDraft,
           }
@@ -2362,6 +2476,7 @@ class _PaintScreenState extends State<PaintScreen>
                               onRotate90CounterClockwise:
                                   _rotate90CounterClockwise,
                               onRotate180: _rotate180,
+                              onFreeRotate: _beginFreeRotate,
                               onFlatten: _flattenImage,
                             ),
                             PaintToolbar(
@@ -2412,6 +2527,7 @@ class _PaintScreenState extends State<PaintScreen>
                               aiEnhanceEnabled: !_aiEnhanceBusy,
                               onOpenSettings:
                                   !kIsWeb ? _openAiEnhanceSettings : null,
+                              freeRotateActive: _rotateActive,
                             ),
                             Expanded(
                               child: Row(
@@ -2525,6 +2641,20 @@ class _PaintScreenState extends State<PaintScreen>
                                                                             .isSelectionTool,
                                                               ),
                                                             ),
+                                                            if (_rotateActive)
+                                                              CustomPaint(
+                                                                painter:
+                                                                    RotateOverlayPainter(
+                                                                  center:
+                                                                      _canvasCenter,
+                                                                  dragPosition:
+                                                                      _rotateDragPosition,
+                                                                  startAngle:
+                                                                      _rotateStartAngle,
+                                                                  previewAngle:
+                                                                      _rotatePreviewAngle,
+                                                                ),
+                                                              ),
                                                           ],
                                                         );
                                                       },
@@ -2543,6 +2673,8 @@ class _PaintScreenState extends State<PaintScreen>
                                                           backgroundColor:
                                                               _layerStack
                                                                   .backgroundColor,
+                                                          previewRotation:
+                                                              _rotatePreviewAngle,
                                                         ),
                                                         child: const SizedBox
                                                             .expand(),
@@ -2734,6 +2866,7 @@ class _PaintScreenState extends State<PaintScreen>
           onRotate90Clockwise: _rotate90Clockwise,
           onRotate90CounterClockwise: _rotate90CounterClockwise,
           onRotate180: _rotate180,
+          onFreeRotate: _beginFreeRotate,
           onFlatten: _flattenImage,
         ),
         child: body,

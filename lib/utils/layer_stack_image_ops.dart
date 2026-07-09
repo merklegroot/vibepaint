@@ -54,6 +54,11 @@ extension LayerStackImageOperations on LayerStack {
     _transformAllStrokes((point) => rotateAround(point, center, pi));
   }
 
+  void rotateContent(Size canvasSize, double radians) {
+    final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
+    _transformAllStrokes((point) => rotateAround(point, center, radians));
+  }
+
   void resizeImageContent(Size currentSize, Size newSize) {
     final scaleX = newSize.width / currentSize.width;
     final scaleY = newSize.height / currentSize.height;
@@ -184,6 +189,21 @@ extension LayerStackImageOperations on LayerStack {
 
   Future<void> rotateBackground180() async {
     await transformBackgroundImage((raster) => img.copyRotate(raster, angle: 180));
+  }
+
+  Future<void> rotateBackgroundByDegrees(double degrees) async {
+    await transformBackgroundImage((raster) {
+      final rotated = img.copyRotate(raster, angle: degrees);
+      final cropX = max(0, (rotated.width - raster.width) ~/ 2);
+      final cropY = max(0, (rotated.height - raster.height) ~/ 2);
+      return img.copyCrop(
+        rotated,
+        x: cropX,
+        y: cropY,
+        width: min(raster.width, rotated.width - cropX),
+        height: min(raster.height, rotated.height - cropY),
+      );
+    });
   }
 
   Future<void> resizeBackgroundImage(Size currentSize, Size newSize) async {

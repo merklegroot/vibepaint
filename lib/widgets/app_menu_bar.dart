@@ -26,6 +26,7 @@ class AppMenuBar extends StatelessWidget {
     required this.onRotate90Clockwise,
     required this.onRotate90CounterClockwise,
     required this.onRotate180,
+    required this.onFreeRotate,
     required this.onFlatten,
     this.onOpenSettings,
   });
@@ -49,6 +50,7 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onRotate90Clockwise;
   final VoidCallback onRotate90CounterClockwise;
   final VoidCallback onRotate180;
+  final VoidCallback onFreeRotate;
   final VoidCallback onFlatten;
   final VoidCallback? onOpenSettings;
 
@@ -216,6 +218,10 @@ class AppMenuBar extends StatelessWidget {
               onPressed: onRotate180,
               shortcut: platformMenuShortcut(LogicalKeyboardKey.keyJ),
               child: const Text('Rotate 180°'),
+            ),
+            MenuItemButton(
+              onPressed: onFreeRotate,
+              child: const Text('Free Rotate'),
             ),
             const Divider(height: 1),
             MenuItemButton(

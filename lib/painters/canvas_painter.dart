@@ -14,6 +14,7 @@ class CanvasPainter extends CustomPainter {
     this.currentStroke,
     this.backgroundImage,
     this.backgroundColor = defaultCanvasBackground,
+    this.previewRotation = 0,
   });
 
   final List<PaintLayer> layers;
@@ -21,6 +22,7 @@ class CanvasPainter extends CustomPainter {
   final Stroke? currentStroke;
   final ui.Image? backgroundImage;
   final Color backgroundColor;
+  final double previewRotation;
 
   static void paintCanvas({
     required Canvas canvas,
@@ -30,8 +32,17 @@ class CanvasPainter extends CustomPainter {
     Stroke? currentStroke,
     ui.Image? backgroundImage,
     Color backgroundColor = defaultCanvasBackground,
+    double previewRotation = 0,
   }) {
     final bounds = Offset.zero & size;
+
+    canvas.save();
+    if (previewRotation != 0) {
+      final center = bounds.center;
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(previewRotation);
+      canvas.translate(-center.dx, -center.dy);
+    }
 
     _paintDocumentBackground(
       canvas: canvas,
@@ -48,6 +59,8 @@ class CanvasPainter extends CustomPainter {
         currentStroke: i == activeLayerIndex ? currentStroke : null,
       );
     }
+
+    canvas.restore();
   }
 
   static void _paintDocumentBackground({
@@ -314,11 +327,16 @@ class CanvasPainter extends CustomPainter {
       currentStroke: currentStroke,
       backgroundImage: backgroundImage,
       backgroundColor: backgroundColor,
+      previewRotation: previewRotation,
     );
   }
 
   @override
   bool shouldRepaint(covariant CanvasPainter oldDelegate) {
+    if (oldDelegate.previewRotation != previewRotation) {
+      return true;
+    }
+
     if (oldDelegate.backgroundImage != backgroundImage) {
       return true;
     }

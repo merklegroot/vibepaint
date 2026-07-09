@@ -12,6 +12,7 @@ List<PlatformMenuItemGroup> buildImagePlatformMenuGroups({
   required VoidCallback onRotate90Clockwise,
   required VoidCallback onRotate90CounterClockwise,
   required VoidCallback onRotate180,
+  required VoidCallback onFreeRotate,
   required VoidCallback onFlatten,
 }) {
   return [
@@ -76,6 +77,10 @@ List<PlatformMenuItemGroup> buildImagePlatformMenuGroups({
           label: 'Rotate 180°',
           shortcut: platformMenuShortcut(LogicalKeyboardKey.keyJ),
           onSelected: onRotate180,
+        ),
+        PlatformMenuItem(
+          label: 'Free Rotate',
+          onSelected: onFreeRotate,
         ),
       ],
     ),
