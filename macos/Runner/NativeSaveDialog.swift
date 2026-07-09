@@ -24,7 +24,7 @@ private final class FormatAccessoryHandler: NSObject {
     let chosenExt = formats[idx].ext
 
     var name = p.nameFieldStringValue
-    let known: Set<String> = ["png", "jpg", "jpeg", "bmp", "gif", "webp"]
+    let known: Set<String> = ["png", "jpg", "jpeg", "bmp", "gif", "webp", "ora"]
     if let dot = name.lastIndex(of: ".") {
       let after = name[name.index(after: dot)...].lowercased()
       if known.contains(after) {
@@ -82,6 +82,7 @@ class NativeSaveDialogPlugin: NSObject, FlutterPlugin {
       ImageFormatOption(label: "BMP (*.bmp)", ext: "bmp"),
       ImageFormatOption(label: "GIF (*.gif)", ext: "gif"),
       ImageFormatOption(label: "WebP (*.webp)", ext: "webp"),
+      ImageFormatOption(label: "OpenRaster (*.ora)", ext: "ora"),
     ]
 
     let selectedIndex = initialFormatIndex(for: suggestedName, formats: formats)
@@ -141,7 +142,7 @@ class NativeSaveDialogPlugin: NSObject, FlutterPlugin {
 
       let directory = url.deletingLastPathComponent().path
       var baseName = url.lastPathComponent
-      let knownExts = ["png", "jpg", "jpeg", "bmp", "gif", "webp"]
+      let knownExts = ["png", "jpg", "jpeg", "bmp", "gif", "webp", "ora"]
       for e in knownExts {
         let suffix = "." + e
         if baseName.lowercased().hasSuffix(suffix) {

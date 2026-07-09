@@ -8,6 +8,8 @@ import 'package:image/image.dart' as img;
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_file_menus.dart';
 import 'package:vibepaint/models/canvas_selection.dart';
+import 'package:vibepaint/formats/openraster/openraster_io.dart';
+import 'package:vibepaint/models/image_file_format.dart';
 import 'package:vibepaint/models/layer_stack.dart';
 import 'package:vibepaint/models/paint_tool.dart';
 import 'package:vibepaint/models/shape_style.dart';
@@ -2774,6 +2776,13 @@ class _PaintScreenState extends State<PaintScreen>
       return null;
     }
 
+    if (format == ImageFileFormat.ora) {
+      return writeOpenRasterBytes(
+        size: _documentSize,
+        layerStack: _layerStack,
+      );
+    }
+
     return renderCanvasToBytes(
       size: _documentSize,
       layers: _layerStack.layers,
@@ -3076,28 +3085,26 @@ class _PaintScreenState extends State<PaintScreen>
 
   Future<void> _openCanvas() async {
     try {
-      final picked = await pickImageFile();
+      final picked = await pickDocumentFile();
       if (!mounted || picked == null) {
         return;
       }
 
       setState(() {
-        _layerStack.clear();
-        _layerStack.setBackgroundImage(picked.image);
-        _documentSize = Size(
-          picked.image.width.toDouble(),
-          picked.image.height.toDouble(),
-        );
         _currentStroke = null;
         _lastPanPosition = null;
         _textDraft = null;
+        if (picked.isLayered) {
+          _layerStack.loadLayers(picked.layers!);
+        } else {
+          _layerStack.clear();
+          _layerStack.setBackgroundImage(picked.flatImage);
+        }
+        _documentSize = picked.size;
         _resetViewport();
       });
       _resetDocumentTracking(path: picked.path);
-      final openedSize = Size(
-        picked.image.width.toDouble(),
-        picked.image.height.toDouble(),
-      );
+      final openedSize = picked.size;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _viewportSize == Size.zero) {
           return;

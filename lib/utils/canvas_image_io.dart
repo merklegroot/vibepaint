@@ -62,6 +62,8 @@ Uint8List encodeRasterImage(
     ImageFileFormat.bmp => Uint8List.fromList(img.encodeBmp(image)),
     ImageFileFormat.gif => Uint8List.fromList(img.encodeGif(image)),
     ImageFileFormat.webp => Uint8List.fromList(img.encodeWebP(image)),
+    ImageFileFormat.ora =>
+      throw UnsupportedError('Use writeOpenRasterBytes for OpenRaster files'),
   };
 }
 

@@ -10,6 +10,35 @@ extension LayerStackAdjustments on LayerStack {
   bool get activeLayerHasAdjustableContent =>
       activeLayer.visible && activeHistory.strokes.isNotEmpty;
 
+  Future<img.Image?> captureLayerRaster(Size size, int index) async {
+    if (index < 0 || index >= layers.length) {
+      return null;
+    }
+
+    final layer = layers[index];
+    if (layer.history.strokes.isEmpty) {
+      return null;
+    }
+
+    final rgba = await renderStrokesRgbaBytes(
+      size: size,
+      strokes: layer.history.strokes,
+    );
+    if (rgba == null) {
+      return null;
+    }
+
+    final width = size.width.ceil();
+    final height = size.height.ceil();
+    return img.Image.fromBytes(
+      width: width,
+      height: height,
+      bytes: rgba.buffer,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+  }
+
   Future<img.Image?> captureActiveLayerRaster(Size size) async {
     if (!activeLayerHasAdjustableContent) {
       return null;

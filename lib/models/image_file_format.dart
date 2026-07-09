@@ -6,6 +6,7 @@ enum ImageFileFormat {
   bmp,
   gif,
   webp,
+  ora,
 }
 
 extension ImageFileFormatDetails on ImageFileFormat {
@@ -15,6 +16,7 @@ extension ImageFileFormatDetails on ImageFileFormat {
         ImageFileFormat.bmp => 'bmp',
         ImageFileFormat.gif => 'gif',
         ImageFileFormat.webp => 'webp',
+        ImageFileFormat.ora => 'ora',
       };
 
   List<String> get extensions => switch (this) {
@@ -23,6 +25,7 @@ extension ImageFileFormatDetails on ImageFileFormat {
         ImageFileFormat.bmp => ['bmp'],
         ImageFileFormat.gif => ['gif'],
         ImageFileFormat.webp => ['webp'],
+        ImageFileFormat.ora => ['ora'],
       };
 
   String get menuLabel => switch (this) {
@@ -31,6 +34,7 @@ extension ImageFileFormatDetails on ImageFileFormat {
         ImageFileFormat.bmp => 'BMP (*.bmp)',
         ImageFileFormat.gif => 'GIF (*.gif)',
         ImageFileFormat.webp => 'WebP (*.webp)',
+        ImageFileFormat.ora => 'OpenRaster (*.ora)',
       };
 
   String get description => switch (this) {
@@ -39,7 +43,10 @@ extension ImageFileFormatDetails on ImageFileFormat {
         ImageFileFormat.bmp => 'Uncompressed bitmap',
         ImageFileFormat.gif => 'Indexed color image',
         ImageFileFormat.webp => 'Modern compressed image',
+        ImageFileFormat.ora => 'Layered image, preserves layers',
       };
+
+  bool get isLayered => this == ImageFileFormat.ora;
 }
 
 const defaultImageFileName = 'Untitled.png';
@@ -51,6 +58,7 @@ const saveImageExtensions = [
   'bmp',
   'gif',
   'webp',
+  'ora',
 ];
 
 const openImageExtensions = saveImageExtensions;
@@ -68,6 +76,8 @@ ImageFileFormat? imageFormatFromExtension(String extension) {
       return ImageFileFormat.gif;
     case 'webp':
       return ImageFileFormat.webp;
+    case 'ora':
+      return ImageFileFormat.ora;
     default:
       return null;
   }

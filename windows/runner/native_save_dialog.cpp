@@ -99,7 +99,8 @@ std::optional<std::string> ShowNativeSaveDialog(
       L"BMP Image (*.bmp)\0*.bmp\0"
       L"GIF Image (*.gif)\0*.gif\0"
       L"WebP Image (*.webp)\0*.webp\0"
-      L"All Supported Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp\0";
+      L"OpenRaster (*.ora)\0*.ora\0"
+      L"All Supported Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.ora\0";
 
   OPENFILENAMEW dialog = {};
   dialog.lStructSize = sizeof(dialog);
@@ -128,7 +129,8 @@ std::optional<std::string> ShowNativeSaveDialog(
     case 3: chosenExt = "bmp"; break;
     case 4: chosenExt = "gif"; break;
     case 5: chosenExt = "webp"; break;
-    case 6: {
+    case 6: chosenExt = "ora"; break;
+    case 7: {
       // "All Supported" — keep whatever extension the user typed, or default to png.
       size_t dot = resultPath.find_last_of('.');
       size_t sep = resultPath.find_last_of("/\\");

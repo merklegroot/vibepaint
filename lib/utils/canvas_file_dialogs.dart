@@ -3,13 +3,55 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:vibepaint/formats/openraster/openraster_io.dart';
 import 'package:vibepaint/models/image_file_format.dart';
+import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
 import 'package:vibepaint/utils/native_save_dialog.dart';
 
 export 'package:vibepaint/models/image_file_format.dart';
 
-Future<({ui.Image image, String path})?> pickImageFile() async {
+class OpenedDocument {
+  const OpenedDocument._({
+    required this.path,
+    required this.size,
+    this.flatImage,
+    this.layers,
+  });
+
+  factory OpenedDocument.flat({
+    required ui.Image image,
+    required String path,
+  }) {
+    return OpenedDocument._(
+      path: path,
+      size: Size(image.width.toDouble(), image.height.toDouble()),
+      flatImage: image,
+    );
+  }
+
+  factory OpenedDocument.layered({
+    required String path,
+    required Size size,
+    required List<PaintLayer> layers,
+  }) {
+    return OpenedDocument._(
+      path: path,
+      size: size,
+      layers: layers,
+    );
+  }
+
+  final String path;
+  final Size size;
+  final ui.Image? flatImage;
+  final List<PaintLayer>? layers;
+
+  bool get isLayered => layers != null;
+}
+
+Future<OpenedDocument?> pickDocumentFile() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
     allowedExtensions: openImageExtensions,
@@ -27,8 +69,26 @@ Future<({ui.Image image, String path})?> pickImageFile() async {
   }
 
   final bytes = file.bytes ?? await File(path).readAsBytes();
+  if (imageFormatFromPath(path) == ImageFileFormat.ora) {
+    final document = await readOpenRasterBytes(bytes);
+    return OpenedDocument.layered(
+      path: path,
+      size: document.size,
+      layers: document.layers,
+    );
+  }
+
   final image = await decodeImageBytes(bytes);
-  return (image: image, path: path);
+  return OpenedDocument.flat(image: image, path: path);
+}
+
+@Deprecated('Use pickDocumentFile')
+Future<({ui.Image image, String path})?> pickImageFile() async {
+  final picked = await pickDocumentFile();
+  if (picked == null || picked.flatImage == null) {
+    return null;
+  }
+  return (image: picked.flatImage!, path: picked.path);
 }
 
 Future<String?> promptSaveImagePath({

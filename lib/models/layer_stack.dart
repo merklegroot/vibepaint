@@ -198,6 +198,19 @@ class LayerStack {
     _activeIndex = 0;
   }
 
+  void loadLayers(List<PaintLayer> layers) {
+    for (final layer in _layers) {
+      layer.history.clear();
+    }
+    _layers
+      ..clear()
+      ..addAll(layers);
+    _activeIndex = _layers.isEmpty ? 0 : _layers.length - 1;
+    _backgroundImage?.dispose();
+    _backgroundImage = null;
+    _backgroundColor = defaultCanvasBackground;
+  }
+
   void dispose() {
     _backgroundImage?.dispose();
     _backgroundImage = null;
