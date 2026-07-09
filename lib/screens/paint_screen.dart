@@ -49,6 +49,7 @@ import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
+import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
@@ -68,6 +69,7 @@ import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
 import 'package:vibepaint/widgets/rotate_angle_dialog.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/text_tool_options_control.dart';
+import 'package:vibepaint/widgets/studio_brush_library.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
 
 class PaintScreen extends StatefulWidget {
@@ -101,6 +103,9 @@ class _PaintScreenState extends State<PaintScreen>
   late Color _gradientEndColor;
   double _brushSize = 6;
   double _brushOpacity = 1;
+  StudioBrushPresetId _activeStudioBrushPreset =
+      StudioBrushPresetId.smoothMarker;
+  bool _showStudioBrushLibrary = false;
   PaintTool _activeTool = PaintTool.studioBrush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
   Size _documentSize = Size.zero;
@@ -282,8 +287,11 @@ class _PaintScreenState extends State<PaintScreen>
 
   bool get _isStudioBrush => _activeTool == PaintTool.studioBrush;
 
+  StudioBrushSettings get _studioBrushSettings =>
+      studioBrushPresetById(_activeStudioBrushPreset).settings;
+
   double get _freehandStrokeStep => _isStudioBrush
-      ? _brushSize * studioBrushSpacingFactor
+      ? _brushSize * _studioBrushSettings.spacingFactor
       : _brushSize / 2;
 
   void _resetStudioPressureSampling() {
@@ -302,6 +310,7 @@ class _PaintScreenState extends State<PaintScreen>
       pressure: pressure,
       travelFromStart: (position - start).distance,
       brushSize: _brushSize,
+      settings: _studioBrushSettings,
     );
   }
 
@@ -325,7 +334,11 @@ class _PaintScreenState extends State<PaintScreen>
         _lastStudioPressureTime = timestamp;
         _lastStudioPressurePosition = position;
         return _applyStudioStartRamp(
-          studioBrushPressureFromVelocity(velocity, _brushSize),
+          studioBrushPressureFromVelocity(
+            velocity,
+            _brushSize,
+            settings: _studioBrushSettings,
+          ),
           position,
         );
       }
@@ -333,7 +346,10 @@ class _PaintScreenState extends State<PaintScreen>
 
     _lastStudioPressureTime = timestamp;
     _lastStudioPressurePosition = position;
-    return _applyStudioStartRamp(studioBrushInitialTouchPressure, position);
+    return _applyStudioStartRamp(
+      _studioBrushSettings.initialTouchPressure,
+      position,
+    );
   }
 
   Offset _prepareStudioPoint(Offset raw, {required bool isStart}) {
@@ -347,7 +363,7 @@ class _PaintScreenState extends State<PaintScreen>
     final stabilized = stabilizeStudioPoint(
       raw,
       _studioSmoothPoint!,
-      studioBrushResponsiveness,
+      _studioBrushSettings.responsiveness,
     );
     _studioSmoothPoint = stabilized;
     return stabilized;
@@ -365,6 +381,7 @@ class _PaintScreenState extends State<PaintScreen>
             points: newPoints,
             endPressure: pressure,
             brushSize: _brushSize,
+            settings: _studioBrushSettings,
           )
         : List<double>.filled(newPoints.length, pressure);
     _currentStroke = stroke.copyWith(
@@ -388,6 +405,7 @@ class _PaintScreenState extends State<PaintScreen>
       isEraser: _isErasing,
       isPencil: _isPencil,
       isStudioBrush: _isStudioBrush,
+      studioBrushPreset: _isStudioBrush ? _activeStudioBrushPreset : null,
       brushOpacity: _brushOpacity,
     );
   }
@@ -523,7 +541,8 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (_activeTool.showsBrushQuickSliders) {
-      return 'Slow drifts build up · Stopping eases off · Fast strokes taper · Stylus uses pressure when available';
+      final preset = studioBrushPresetById(_activeStudioBrushPreset);
+      return '${preset.label} · Slow drifts build up · Stopping eases off · Fast strokes taper';
     }
 
     if (!_activeTool.isDragShape) {
@@ -767,6 +786,9 @@ class _PaintScreenState extends State<PaintScreen>
         }
       }
       _activeTool = tool;
+      if (!tool.showsBrushQuickSliders) {
+        _showStudioBrushLibrary = false;
+      }
     });
   }
 
@@ -4217,39 +4239,86 @@ class _PaintScreenState extends State<PaintScreen>
                                                   child: Align(
                                                     alignment:
                                                         Alignment.centerLeft,
-                                                    child: BrushQuickSliders(
-                                                      brushSize: _brushSize,
-                                                      brushOpacity:
-                                                          _brushOpacity,
-                                                      primaryColor:
-                                                          _primaryColor,
-                                                      canUndo:
-                                                          _layerStack.canUndo,
-                                                      canRedo:
-                                                          _layerStack.canRedo,
-                                                      onBrushSizeChanged:
-                                                          (size) {
-                                                        setState(
-                                                          () => _brushSize =
-                                                              size,
-                                                        );
-                                                      },
-                                                      onBrushOpacityChanged:
-                                                          (opacity) {
-                                                        setState(
-                                                          () => _brushOpacity =
-                                                              opacity.clamp(
-                                                            0.05,
-                                                            1,
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        BrushQuickSliders(
+                                                          brushSize: _brushSize,
+                                                          brushOpacity:
+                                                              _brushOpacity,
+                                                          primaryColor:
+                                                              _primaryColor,
+                                                          activePreset:
+                                                              _activeStudioBrushPreset,
+                                                          libraryOpen:
+                                                              _showStudioBrushLibrary,
+                                                          canUndo: _layerStack
+                                                              .canUndo,
+                                                          canRedo: _layerStack
+                                                              .canRedo,
+                                                          onBrushSizeChanged:
+                                                              (size) {
+                                                            setState(
+                                                              () => _brushSize =
+                                                                  size,
+                                                            );
+                                                          },
+                                                          onBrushOpacityChanged:
+                                                              (opacity) {
+                                                            setState(
+                                                              () =>
+                                                                  _brushOpacity =
+                                                                      opacity
+                                                                          .clamp(
+                                                                0.05,
+                                                                1,
+                                                              ),
+                                                            );
+                                                          },
+                                                          onPrimaryColorTap: () =>
+                                                              _openColorPicker(
+                                                            ColorWellTarget
+                                                                .primary,
                                                           ),
-                                                        );
-                                                      },
-                                                      onPrimaryColorTap: () =>
-                                                          _openColorPicker(
-                                                        ColorWellTarget.primary,
-                                                      ),
-                                                      onUndo: _undo,
-                                                      onRedo: _redo,
+                                                          onBrushLibraryTap: () {
+                                                            setState(
+                                                              () =>
+                                                                  _showStudioBrushLibrary =
+                                                                      !_showStudioBrushLibrary,
+                                                            );
+                                                          },
+                                                          onUndo: _undo,
+                                                          onRedo: _redo,
+                                                        ),
+                                                        if (_showStudioBrushLibrary) ...[
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          StudioBrushLibrary(
+                                                            selectedPreset:
+                                                                _activeStudioBrushPreset,
+                                                            onPresetSelected:
+                                                                (preset) {
+                                                              setState(
+                                                                () =>
+                                                                    _activeStudioBrushPreset =
+                                                                        preset,
+                                                              );
+                                                            },
+                                                            onClose: () {
+                                                              setState(
+                                                                () =>
+                                                                    _showStudioBrushLibrary =
+                                                                        false,
+                                                              );
+                                                            },
+                                                          ),
+                                                        ],
+                                                      ],
                                                     ),
                                                   ),
                                                 ),

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'package:vibepaint/models/shape_style.dart';
+import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/models/text_run.dart';
 
 enum StrokeShape {
@@ -26,6 +27,7 @@ class Stroke {
     this.isEraser = false,
     this.isPencil = false,
     this.isStudioBrush = false,
+    this.studioBrushPreset,
     this.brushOpacity = 1,
     List<double>? pressures,
     this.rasterImage,
@@ -44,6 +46,7 @@ class Stroke {
   final bool isEraser;
   final bool isPencil;
   final bool isStudioBrush;
+  final StudioBrushPresetId? studioBrushPreset;
   final double brushOpacity;
   final ui.Image? rasterImage;
   final Rect? rasterBounds;
@@ -69,6 +72,7 @@ class Stroke {
     bool? isEraser,
     bool? isPencil,
     bool? isStudioBrush,
+    StudioBrushPresetId? studioBrushPreset,
     double? brushOpacity,
     List<double>? pressures,
     ui.Image? rasterImage,
@@ -85,6 +89,7 @@ class Stroke {
       isEraser: isEraser ?? this.isEraser,
       isPencil: isPencil ?? this.isPencil,
       isStudioBrush: isStudioBrush ?? this.isStudioBrush,
+      studioBrushPreset: studioBrushPreset ?? this.studioBrushPreset,
       brushOpacity: brushOpacity ?? this.brushOpacity,
       pressures: pressures ?? List<double>.from(this.pressures),
       rasterImage: rasterImage ?? this.rasterImage,

@@ -6,7 +6,9 @@ import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 import 'package:vibepaint/theme/color_wells.dart';
+import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
+import 'package:vibepaint/utils/studio_brush_renderer.dart';
 
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
@@ -291,34 +293,23 @@ class CanvasPainter extends CustomPainter {
       return;
     }
 
+    final settings = studioBrushSettingsForId(stroke.studioBrushPreset);
     final baseAlpha =
         (stroke.color.a * stroke.brushOpacity).clamp(0.0, 1.0).toDouble();
     final blendMode =
         stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
 
     void stampAt(Offset point, double pressure) {
-      final radius = studioBrushRadius(stroke.brushSize, pressure);
-      if (radius <= 0) {
-        return;
-      }
-
-      final alpha = studioBrushOpacity(baseAlpha, pressure).toDouble();
-      final color = stroke.isEraser
-          ? Colors.transparent
-          : stroke.color.withValues(alpha: alpha);
-
-      final soft = Paint()
-        ..color = color
-        ..blendMode = blendMode
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.45);
-      canvas.drawCircle(point, radius, soft);
-
-      final core = Paint()
-        ..color = color.withValues(
-          alpha: (alpha * 0.65).clamp(0.04, 1.0).toDouble(),
-        )
-        ..blendMode = blendMode;
-      canvas.drawCircle(point, radius * 0.55, core);
+      paintStudioBrushStamp(
+        canvas,
+        point: point,
+        pressure: pressure,
+        brushSize: stroke.brushSize,
+        color: stroke.color,
+        baseAlpha: baseAlpha,
+        settings: settings,
+        blendMode: blendMode,
+      );
     }
 
     if (stroke.points.length == 1) {
@@ -328,7 +319,7 @@ class CanvasPainter extends CustomPainter {
       return;
     }
 
-    final maxStep = stroke.brushSize * studioBrushSpacingFactor;
+    final maxStep = stroke.brushSize * settings.spacingFactor;
     for (var i = 0; i < stroke.points.length; i++) {
       final pressure =
           i < stroke.pressures.length ? stroke.pressures[i] : 1.0;

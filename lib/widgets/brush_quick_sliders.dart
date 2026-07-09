@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 
@@ -9,11 +10,14 @@ class BrushQuickSliders extends StatelessWidget {
     required this.brushSize,
     required this.brushOpacity,
     required this.primaryColor,
+    required this.activePreset,
+    required this.libraryOpen,
     required this.canUndo,
     required this.canRedo,
     required this.onBrushSizeChanged,
     required this.onBrushOpacityChanged,
     required this.onPrimaryColorTap,
+    required this.onBrushLibraryTap,
     required this.onUndo,
     required this.onRedo,
   });
@@ -21,11 +25,14 @@ class BrushQuickSliders extends StatelessWidget {
   final double brushSize;
   final double brushOpacity;
   final Color primaryColor;
+  final StudioBrushPresetId activePreset;
+  final bool libraryOpen;
   final bool canUndo;
   final bool canRedo;
   final ValueChanged<double> onBrushSizeChanged;
   final ValueChanged<double> onBrushOpacityChanged;
   final VoidCallback onPrimaryColorTap;
+  final VoidCallback onBrushLibraryTap;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
 
@@ -59,6 +66,12 @@ class BrushQuickSliders extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _BrushLibraryButton(
+              preset: studioBrushPresetById(activePreset),
+              selected: libraryOpen,
+              onTap: onBrushLibraryTap,
+            ),
+            const SizedBox(height: 10),
             _VerticalBrushSlider(
               value: sizeFraction,
               tooltip: 'Brush size',
@@ -110,6 +123,42 @@ class BrushQuickSliders extends StatelessWidget {
 
   static double _denormalize(double fraction, double min, double max) {
     return min + (max - min) * fraction.clamp(0, 1);
+  }
+}
+
+class _BrushLibraryButton extends StatelessWidget {
+  const _BrushLibraryButton({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final StudioBrushPreset preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Brush library',
+      child: Material(
+        color: selected ? const Color(0xFF007ACC) : AppColors.workspace,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(
+              preset.previewIcon,
+              size: 20,
+              color: selected ? Colors.white : AppColors.statusText,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
