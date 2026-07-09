@@ -29,6 +29,15 @@ class AppMenuBar extends StatelessWidget {
     required this.onFreeRotate,
     required this.onRotate,
     required this.onFlatten,
+    required this.onAutoLevel,
+    required this.onBlackAndWhite,
+    required this.onBrightnessContrast,
+    required this.onCurves,
+    required this.onHueSaturation,
+    required this.onInvertColors,
+    required this.onLevels,
+    required this.onPosterize,
+    required this.onSepia,
     this.onOpenSettings,
   });
 
@@ -54,6 +63,15 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onFreeRotate;
   final VoidCallback onRotate;
   final VoidCallback onFlatten;
+  final VoidCallback onAutoLevel;
+  final VoidCallback onBlackAndWhite;
+  final VoidCallback onBrightnessContrast;
+  final VoidCallback onCurves;
+  final VoidCallback onHueSaturation;
+  final VoidCallback onInvertColors;
+  final VoidCallback onLevels;
+  final VoidCallback onPosterize;
+  final VoidCallback onSepia;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -240,6 +258,80 @@ class AppMenuBar extends StatelessWidget {
             ),
           ],
           child: const Text('Image'),
+        ),
+        SubmenuButton(
+          style: menuStyle,
+          menuStyle: const MenuStyle(
+            backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+          ),
+          menuChildren: [
+            MenuItemButton(
+              onPressed: onAutoLevel,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyL,
+                shift: true,
+              ),
+              child: const Text('Auto Level'),
+            ),
+            MenuItemButton(
+              onPressed: onBlackAndWhite,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyG,
+                shift: true,
+              ),
+              child: const Text('Black and White'),
+            ),
+            MenuItemButton(
+              onPressed: onBrightnessContrast,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyB,
+                shift: true,
+              ),
+              child: const Text('Brightness / Contrast...'),
+            ),
+            MenuItemButton(
+              onPressed: onCurves,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyM,
+                shift: true,
+              ),
+              child: const Text('Curves...'),
+            ),
+            MenuItemButton(
+              onPressed: onHueSaturation,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyU,
+                shift: true,
+              ),
+              child: const Text('Hue / Saturation...'),
+            ),
+            MenuItemButton(
+              onPressed: onInvertColors,
+              child: const Text('Invert Colors'),
+            ),
+            MenuItemButton(
+              onPressed: onLevels,
+              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyL),
+              child: const Text('Levels...'),
+            ),
+            MenuItemButton(
+              onPressed: onPosterize,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyP,
+                shift: true,
+              ),
+              child: const Text('Posterize...'),
+            ),
+            MenuItemButton(
+              onPressed: onSepia,
+              shortcut: platformMenuShortcut(
+                LogicalKeyboardKey.keyE,
+                shift: true,
+              ),
+              child: const Text('Sepia'),
+            ),
+          ],
+          child: const Text('Adjustments'),
         ),
       ],
     );

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/menus/platform_file_menus.dart';
 import 'package:vibepaint/models/canvas_selection.dart';
@@ -18,6 +19,7 @@ import 'package:vibepaint/painters/selection_overlay_painter.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 import 'package:vibepaint/theme/color_wells.dart';
 import 'package:vibepaint/utils/ai_enhance.dart';
+import 'package:vibepaint/widgets/adjustment_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_progress_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_settings_dialog.dart';
@@ -28,8 +30,10 @@ import 'package:vibepaint/utils/canvas_pointer_input.dart';
 import 'package:vibepaint/utils/canvas_viewport.dart';
 import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/flood_fill.dart';
+import 'package:vibepaint/utils/image_adjustments.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
+import 'package:vibepaint/utils/layer_stack_adjustments.dart';
 import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
@@ -1026,6 +1030,229 @@ class _PaintScreenState extends State<PaintScreen>
 
     setState(_layerStack.flattenLayers);
     _noteDocumentEdited();
+  }
+
+  bool _ensureActiveLayerAdjustable() {
+    if (_documentSize == Size.zero) {
+      return false;
+    }
+    if (!_layerStack.activeLayerHasAdjustableContent) {
+      _showMessage('Nothing to adjust on the active layer');
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _applyInstantAdjustment(
+    img.Image Function(img.Image source) transform,
+  ) async {
+    if (!_ensureActiveLayerAdjustable()) {
+      return;
+    }
+
+    setState(() {});
+    await _layerStack.applyActiveLayerAdjustment(_documentSize, transform);
+    _noteDocumentEdited();
+  }
+
+  Future<bool> _runAdjustmentDialog({
+    required String title,
+    required List<AdjustmentSliderSpec> sliders,
+    required img.Image Function(img.Image source, List<double> values) apply,
+    String? footer,
+  }) async {
+    if (!_ensureActiveLayerAdjustable()) {
+      return false;
+    }
+
+    final source = await _layerStack.captureActiveLayerRaster(_documentSize);
+    if (source == null || !mounted) {
+      return false;
+    }
+
+    final backup = _layerStack.backupActiveLayerStrokes();
+
+    Future<void> preview(List<double> values) async {
+      final result = apply(source, values);
+      await _layerStack.replaceActiveLayerWithRaster(
+        size: _documentSize,
+        raster: result,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    }
+
+    final result = await showDialog<List<double>>(
+      context: context,
+      builder: (context) => AdjustmentDialog(
+        title: title,
+        sliders: sliders,
+        footer: footer,
+        onValuesChanged: preview,
+      ),
+    );
+
+    if (!mounted) {
+      return false;
+    }
+
+    if (result == null) {
+      _layerStack.restoreActiveLayerStrokes(backup);
+      setState(() {});
+      return false;
+    }
+
+    await preview(result);
+    return true;
+  }
+
+  Future<void> _autoLevel() => _applyInstantAdjustment(autoLevel);
+
+  Future<void> _blackAndWhite() => _applyInstantAdjustment(blackAndWhite);
+
+  Future<void> _invertColors() => _applyInstantAdjustment(invertColors);
+
+  Future<void> _sepia() => _applyInstantAdjustment(applySepia);
+
+  Future<void> _brightnessContrast() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Brightness / Contrast',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Brightness',
+          min: 0,
+          max: 200,
+          initial: 100,
+          divisions: 200,
+        ),
+        AdjustmentSliderSpec(
+          label: 'Contrast',
+          min: 0,
+          max: 200,
+          initial: 100,
+          divisions: 200,
+        ),
+      ],
+      footer: '100 is neutral. Preview updates on the canvas.',
+      apply: (source, values) => applyBrightnessContrast(
+        source,
+        brightness: uiBrightnessToFilter(values[0].round()),
+        contrast: uiContrastToFilter(values[1].round()),
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _curves() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Curves',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Gamma',
+          min: 0.1,
+          max: 3,
+          initial: 1,
+          divisions: 29,
+        ),
+      ],
+      footer: 'Lower values lighten midtones; higher values darken them.',
+      apply: (source, values) => applyCurves(source, gamma: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _hueSaturation() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Hue / Saturation',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Hue',
+          min: -180,
+          max: 180,
+          initial: 0,
+          divisions: 360,
+          suffix: '°',
+        ),
+        AdjustmentSliderSpec(
+          label: 'Saturation',
+          min: 0,
+          max: 200,
+          initial: 100,
+          divisions: 200,
+        ),
+      ],
+      apply: (source, values) => applyHueSaturation(
+        source,
+        hue: values[0],
+        saturation: uiSaturationToFilter(values[1].round()),
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _levels() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Levels',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Input black',
+          min: 0,
+          max: 255,
+          initial: 0,
+          divisions: 255,
+        ),
+        AdjustmentSliderSpec(
+          label: 'Input white',
+          min: 0,
+          max: 255,
+          initial: 255,
+          divisions: 255,
+        ),
+        AdjustmentSliderSpec(
+          label: 'Gamma',
+          min: 0.1,
+          max: 3,
+          initial: 1,
+          divisions: 29,
+        ),
+      ],
+      apply: (source, values) => applyLevels(
+        source,
+        inputBlack: values[0].round(),
+        inputWhite: values[1].round(),
+        gamma: values[2],
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _posterize() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Posterize',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Color levels',
+          min: 2,
+          max: 256,
+          initial: 8,
+          divisions: 254,
+        ),
+      ],
+      apply: (source, values) =>
+          applyPosterize(source, levels: values[0].round()),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
   }
 
   void _beginResizeSelection(SelectionResizeHandle handle) {
@@ -2568,6 +2795,15 @@ class _PaintScreenState extends State<PaintScreen>
                               onFreeRotate: _beginFreeRotate,
                               onRotate: _showRotateAngleDialog,
                               onFlatten: _flattenImage,
+                              onAutoLevel: _autoLevel,
+                              onBlackAndWhite: _blackAndWhite,
+                              onBrightnessContrast: _brightnessContrast,
+                              onCurves: _curves,
+                              onHueSaturation: _hueSaturation,
+                              onInvertColors: _invertColors,
+                              onLevels: _levels,
+                              onPosterize: _posterize,
+                              onSepia: _sepia,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -2962,6 +3198,15 @@ class _PaintScreenState extends State<PaintScreen>
           onFreeRotate: _beginFreeRotate,
           onRotate: _showRotateAngleDialog,
           onFlatten: _flattenImage,
+          onAutoLevel: _autoLevel,
+          onBlackAndWhite: _blackAndWhite,
+          onBrightnessContrast: _brightnessContrast,
+          onCurves: _curves,
+          onHueSaturation: _hueSaturation,
+          onInvertColors: _invertColors,
+          onLevels: _levels,
+          onPosterize: _posterize,
+          onSepia: _sepia,
         ),
         child: body,
       );

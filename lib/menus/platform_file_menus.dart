@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
+import 'package:vibepaint/menus/platform_adjustments_menus.dart';
 import 'package:vibepaint/menus/platform_edit_menus.dart';
 import 'package:vibepaint/menus/platform_image_menus.dart';
 
@@ -26,6 +27,15 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onFreeRotate,
   required VoidCallback onRotate,
   required VoidCallback onFlatten,
+  required VoidCallback onAutoLevel,
+  required VoidCallback onBlackAndWhite,
+  required VoidCallback onBrightnessContrast,
+  required VoidCallback onCurves,
+  required VoidCallback onHueSaturation,
+  required VoidCallback onInvertColors,
+  required VoidCallback onLevels,
+  required VoidCallback onPosterize,
+  required VoidCallback onSepia,
   VoidCallback? onOpenSettings,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
@@ -142,6 +152,20 @@ List<PlatformMenu> buildMacosPlatformMenus({
         onFreeRotate: onFreeRotate,
         onRotate: onRotate,
         onFlatten: onFlatten,
+      ),
+    ),
+    PlatformMenu(
+      label: 'Adjustments',
+      menus: buildAdjustmentsPlatformMenuGroups(
+        onAutoLevel: onAutoLevel,
+        onBlackAndWhite: onBlackAndWhite,
+        onBrightnessContrast: onBrightnessContrast,
+        onCurves: onCurves,
+        onHueSaturation: onHueSaturation,
+        onInvertColors: onInvertColors,
+        onLevels: onLevels,
+        onPosterize: onPosterize,
+        onSepia: onSepia,
       ),
     ),
   ];
