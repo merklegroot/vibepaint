@@ -28,6 +28,7 @@ class ToolSvgIcon extends StatelessWidget {
 extension PaintToolIconAsset on PaintTool {
   String get iconAsset => switch (this) {
         PaintTool.brush => 'assets/icons/tools/brush.svg',
+        PaintTool.studioBrush => 'assets/icons/tools/studio_brush.svg',
         PaintTool.pencil => 'assets/icons/tools/pencil.svg',
         PaintTool.line => 'assets/icons/tools/line.svg',
         PaintTool.rectangle => 'assets/icons/tools/rectangle.svg',

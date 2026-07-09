@@ -25,19 +25,24 @@ class Stroke {
     this.secondaryColor,
     this.isEraser = false,
     this.isPencil = false,
+    this.isStudioBrush = false,
+    List<double>? pressures,
     this.rasterImage,
     this.rasterBounds,
     this.textRun,
-  }) : points = points ?? [];
+  })  : points = points ?? [],
+        pressures = pressures ?? [];
 
   final Color color;
   final double brushSize;
   final List<Offset> points;
+  final List<double> pressures;
   final StrokeShape shape;
   final ShapeStyle style;
   final Color? secondaryColor;
   final bool isEraser;
   final bool isPencil;
+  final bool isStudioBrush;
   final ui.Image? rasterImage;
   final Rect? rasterBounds;
   final TextRun? textRun;
@@ -61,6 +66,8 @@ class Stroke {
     Color? secondaryColor,
     bool? isEraser,
     bool? isPencil,
+    bool? isStudioBrush,
+    List<double>? pressures,
     ui.Image? rasterImage,
     Rect? rasterBounds,
     TextRun? textRun,
@@ -74,6 +81,8 @@ class Stroke {
       secondaryColor: secondaryColor ?? this.secondaryColor,
       isEraser: isEraser ?? this.isEraser,
       isPencil: isPencil ?? this.isPencil,
+      isStudioBrush: isStudioBrush ?? this.isStudioBrush,
+      pressures: pressures ?? List<double>.from(this.pressures),
       rasterImage: rasterImage ?? this.rasterImage,
       rasterBounds: rasterBounds ?? this.rasterBounds,
       textRun: textRun ?? this.textRun,

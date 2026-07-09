@@ -7,8 +7,11 @@ String historyLabelForStroke(Stroke stroke) {
   }
 
   return switch (stroke.shape) {
-    StrokeShape.freehand =>
-      stroke.isPencil ? 'Pencil stroke' : 'Brush stroke',
+    StrokeShape.freehand => switch (stroke) {
+        _ when stroke.isStudioBrush => 'Studio brush stroke',
+        _ when stroke.isPencil => 'Pencil stroke',
+        _ => 'Brush stroke',
+      },
     StrokeShape.line => 'Line',
     StrokeShape.rectangle =>
       stroke.style.drawsFill ? 'Filled rectangle' : 'Rectangle',

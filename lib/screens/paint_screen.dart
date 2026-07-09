@@ -49,6 +49,7 @@ import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
 import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
+import 'package:vibepaint/utils/studio_brush.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
@@ -91,6 +92,7 @@ class _PaintScreenState extends State<PaintScreen>
   late final LayerStack _layerStack;
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
+  Offset? _studioSmoothPoint;
   late Color _primaryColor;
   late Color _gradientEndColor;
   double _brushSize = 6;
@@ -273,6 +275,62 @@ class _PaintScreenState extends State<PaintScreen>
 
   bool get _isPencil => _activeTool == PaintTool.pencil;
 
+  bool get _isStudioBrush => _activeTool == PaintTool.studioBrush;
+
+  double get _freehandStrokeStep => _isStudioBrush
+      ? _brushSize * studioBrushSpacingFactor
+      : _brushSize / 2;
+
+  double _pointerPressure(PointerEvent event) =>
+      normalizePointerPressure(event.pressure);
+
+  Offset _prepareStudioPoint(Offset raw, {required bool isStart}) {
+    if (!_isStudioBrush) {
+      return raw;
+    }
+    if (isStart || _studioSmoothPoint == null) {
+      _studioSmoothPoint = raw;
+      return raw;
+    }
+    final stabilized = stabilizeStudioPoint(
+      raw,
+      _studioSmoothPoint!,
+      studioBrushResponsiveness,
+    );
+    _studioSmoothPoint = stabilized;
+    return stabilized;
+  }
+
+  void _appendFreehandPoints(List<Offset> newPoints, double pressure) {
+    if (newPoints.isEmpty || _currentStroke == null) {
+      return;
+    }
+
+    final stroke = _currentStroke!;
+    _currentStroke = stroke.copyWith(
+      points: [...stroke.points, ...newPoints],
+      pressures: [
+        ...stroke.pressures,
+        ...List<double>.filled(newPoints.length, pressure),
+      ],
+    );
+  }
+
+  Stroke _newFreehandStroke({
+    required List<Offset> points,
+    required double pressure,
+  }) {
+    return Stroke(
+      color: _primaryColor,
+      brushSize: _brushSize,
+      points: points,
+      pressures: List<double>.filled(points.length, pressure),
+      isEraser: _isErasing,
+      isPencil: _isPencil,
+      isStudioBrush: _isStudioBrush,
+    );
+  }
+
   String get _colorStatusLabel {
     if (_isErasing) {
       return 'Eraser';
@@ -401,6 +459,10 @@ class _PaintScreenState extends State<PaintScreen>
 
     if (_activeTool == PaintTool.gradient) {
       return 'Drag to set gradient direction · Shift: 45°';
+    }
+
+    if (_activeTool == PaintTool.studioBrush) {
+      return 'Smooth expressive strokes · Pressure controls size and opacity';
     }
 
     if (!_activeTool.isDragShape) {
@@ -2463,6 +2525,7 @@ class _PaintScreenState extends State<PaintScreen>
       }
       _currentStroke = null;
       _lastPanPosition = null;
+      _studioSmoothPoint = null;
       _selectionDraft = null;
       _lassoPoints = null;
       _movingSelection = false;
@@ -2626,7 +2689,11 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     _drawingPointer = event.pointer;
-    _beginPan(position, bounds);
+    _beginPan(
+      position,
+      bounds,
+      pressure: _pointerPressure(event),
+    );
   }
 
   void _onCanvasPointerMove(
@@ -2644,7 +2711,11 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
-    _extendStroke(position, bounds);
+    _extendStroke(
+      position,
+      bounds,
+      pressure: _pointerPressure(event),
+    );
   }
 
   void _onCanvasPointerUp(PointerUpEvent event) {
@@ -2667,7 +2738,7 @@ class _PaintScreenState extends State<PaintScreen>
     _cancelCanvasInteraction();
   }
 
-  void _beginPan(Offset position, Rect bounds) {
+  void _beginPan(Offset position, Rect bounds, {double pressure = 1.0}) {
     _lastPanPosition = position;
     if (_freeRotateActive) {
       _beginRotateDrag(position);
@@ -2716,22 +2787,23 @@ class _PaintScreenState extends State<PaintScreen>
       case PaintTool.text:
         _beginTextEditing(position, bounds);
       default:
-        _startStroke(position, bounds);
+        _startStroke(
+          _prepareStudioPoint(position, isStart: true),
+          bounds,
+          pressure: pressure,
+        );
     }
   }
 
-  void _startStroke(Offset position, Rect bounds) {
+  void _startStroke(Offset position, Rect bounds, {double pressure = 1.0}) {
     if (!_isInsideCanvas(position, bounds)) {
       return;
     }
 
     setState(() {
-      _currentStroke = Stroke(
-        color: _primaryColor,
-        brushSize: _brushSize,
+      _currentStroke = _newFreehandStroke(
         points: [position],
-        isEraser: _isErasing,
-        isPencil: _isPencil,
+        pressure: pressure,
       );
     });
   }
@@ -2744,6 +2816,7 @@ class _PaintScreenState extends State<PaintScreen>
 
     _layerStack.activeHistory.add(_currentStroke!);
     _currentStroke = null;
+    _studioSmoothPoint = null;
     _noteDocumentEdited();
   }
 
@@ -2791,6 +2864,7 @@ class _PaintScreenState extends State<PaintScreen>
       _layerStack.setBackgroundColor(backgroundColor);
       _currentStroke = null;
       _lastPanPosition = null;
+      _studioSmoothPoint = null;
       _selection = null;
       _selectionDraft = null;
       _lassoPoints = null;
@@ -3296,7 +3370,7 @@ class _PaintScreenState extends State<PaintScreen>
     setState(_commitCurrentStroke);
   }
 
-  void _extendStroke(Offset position, Rect bounds) {
+  void _extendStroke(Offset position, Rect bounds, {double pressure = 1.0}) {
     if (_freeRotateActive) {
       _extendRotateDrag(position);
       return;
@@ -3348,6 +3422,8 @@ class _PaintScreenState extends State<PaintScreen>
         break;
     }
 
+    position = _prepareStudioPoint(position, isStart: false);
+
     final inside = _isInsideCanvas(position, bounds);
 
     if (!inside) {
@@ -3366,14 +3442,12 @@ class _PaintScreenState extends State<PaintScreen>
         from: last,
         to: position,
         bounds: bounds,
-        maxStep: _brushSize / 2,
+        maxStep: _freehandStrokeStep,
       );
 
       setState(() {
         if (exitPoints.isNotEmpty) {
-          _currentStroke = _currentStroke!.copyWith(
-            points: [..._currentStroke!.points, ...exitPoints],
-          );
+          _appendFreehandPoints(exitPoints, pressure);
         }
         _commitCurrentStroke();
       });
@@ -3388,17 +3462,14 @@ class _PaintScreenState extends State<PaintScreen>
               from: from,
               to: position,
               bounds: bounds,
-              maxStep: _brushSize / 2,
+              maxStep: _freehandStrokeStep,
             )
           : [position];
 
       setState(() {
-        _currentStroke = Stroke(
-          color: _primaryColor,
-          brushSize: _brushSize,
+        _currentStroke = _newFreehandStroke(
           points: points,
-          isEraser: _isErasing,
-        isPencil: _isPencil,
+          pressure: pressure,
         );
       });
       _lastPanPosition = position;
@@ -3410,7 +3481,7 @@ class _PaintScreenState extends State<PaintScreen>
       from: last,
       to: position,
       bounds: bounds,
-      maxStep: _brushSize / 2,
+      maxStep: _freehandStrokeStep,
     );
 
     if (newPoints.isEmpty) {
@@ -3419,9 +3490,7 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     setState(() {
-      _currentStroke = _currentStroke!.copyWith(
-        points: [..._currentStroke!.points, ...newPoints],
-      );
+      _appendFreehandPoints(newPoints, pressure);
     });
     _lastPanPosition = position;
   }
@@ -3512,6 +3581,12 @@ class _PaintScreenState extends State<PaintScreen>
                 _changeBrushSize(2),
             const SingleActivator(LogicalKeyboardKey.keyB): () {
               setState(() => _activeTool = PaintTool.brush);
+            },
+            const SingleActivator(
+              LogicalKeyboardKey.keyB,
+              shift: true,
+            ): () {
+              setState(() => _activeTool = PaintTool.studioBrush);
             },
             const SingleActivator(LogicalKeyboardKey.keyP): () {
               setState(() => _activeTool = PaintTool.pencil);

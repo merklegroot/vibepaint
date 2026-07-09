@@ -1,5 +1,6 @@
 enum PaintTool {
   brush,
+  studioBrush,
   pencil,
   line,
   rectangle,
@@ -19,6 +20,7 @@ enum PaintTool {
 extension PaintToolLabel on PaintTool {
   String get label => switch (this) {
         PaintTool.brush => 'Brush',
+        PaintTool.studioBrush => 'Studio Brush',
         PaintTool.pencil => 'Pencil',
         PaintTool.line => 'Line',
         PaintTool.rectangle => 'Rectangle',
@@ -37,6 +39,7 @@ extension PaintToolLabel on PaintTool {
 
   bool get isFreehand =>
       this == PaintTool.brush ||
+      this == PaintTool.studioBrush ||
       this == PaintTool.pencil ||
       this == PaintTool.eraser;
 

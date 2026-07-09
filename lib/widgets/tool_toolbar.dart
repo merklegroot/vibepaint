@@ -26,21 +26,33 @@ class ToolToolbar extends StatelessWidget {
         ),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.max,
         children: [
           const SizedBox(height: 8),
-          for (final tool in PaintTool.values) ...[
-            if (tool == PaintTool.moveSelection)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Divider(height: 1, color: AppColors.paletteBorder),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                children: [
+                  for (final tool in PaintTool.values) ...[
+                    if (tool == PaintTool.moveSelection)
+                      const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        child: Divider(
+                          height: 1,
+                          color: AppColors.paletteBorder,
+                        ),
+                      ),
+                    _ToolButton(
+                      tool: tool,
+                      selected: selected == tool,
+                      onPressed: () => onSelected(tool),
+                    ),
+                  ],
+                ],
               ),
-            _ToolButton(
-              tool: tool,
-              selected: selected == tool,
-              onPressed: () => onSelected(tool),
             ),
-          ],
+          ),
         ],
       ),
     );

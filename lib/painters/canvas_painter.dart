@@ -6,6 +6,7 @@ import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 import 'package:vibepaint/theme/color_wells.dart';
+import 'package:vibepaint/utils/studio_brush.dart';
 
 class CanvasPainter extends CustomPainter {
   CanvasPainter({
@@ -254,6 +255,10 @@ class CanvasPainter extends CustomPainter {
         }
         return;
       case StrokeShape.freehand:
+        if (stroke.isStudioBrush) {
+          _paintStudioBrushStroke(canvas, stroke);
+          return;
+        }
         if (stroke.isPencil) {
           _paintPencilStroke(canvas, stroke, fill, line);
           return;
@@ -274,6 +279,76 @@ class CanvasPainter extends CustomPainter {
     }
 
     canvas.drawCircle(stroke.points.last, stroke.brushSize / 2, fill);
+  }
+
+  static void _paintStudioBrushStroke(Canvas canvas, Stroke stroke) {
+    if (stroke.points.isEmpty) {
+      return;
+    }
+
+    final baseAlpha = stroke.color.a;
+    final blendMode =
+        stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
+
+    void stampAt(Offset point, double pressure) {
+      final radius = studioBrushRadius(stroke.brushSize, pressure);
+      if (radius <= 0) {
+        return;
+      }
+
+      final alpha = studioBrushOpacity(baseAlpha, pressure);
+      final color = stroke.isEraser
+          ? Colors.transparent
+          : stroke.color.withValues(alpha: alpha);
+
+      final soft = Paint()
+        ..color = color
+        ..blendMode = blendMode
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.45);
+      canvas.drawCircle(point, radius, soft);
+
+      final core = Paint()
+        ..color = color.withValues(
+          alpha: (alpha * 0.65).clamp(0.04, 1.0).toDouble(),
+        )
+        ..blendMode = blendMode;
+      canvas.drawCircle(point, radius * 0.55, core);
+    }
+
+    if (stroke.points.length == 1) {
+      final pressure =
+          stroke.pressures.isNotEmpty ? stroke.pressures.first : 1.0;
+      stampAt(stroke.points.first, pressure);
+      return;
+    }
+
+    final maxStep = stroke.brushSize * studioBrushSpacingFactor;
+    for (var i = 0; i < stroke.points.length; i++) {
+      final pressure =
+          i < stroke.pressures.length ? stroke.pressures[i] : 1.0;
+      stampAt(stroke.points[i], pressure);
+
+      if (i == stroke.points.length - 1) {
+        continue;
+      }
+
+      final from = stroke.points[i];
+      final to = stroke.points[i + 1];
+      final nextPressure =
+          i + 1 < stroke.pressures.length ? stroke.pressures[i + 1] : pressure;
+      final steps = studioBrushSegmentPoints(
+        from: from,
+        to: to,
+        maxStep: maxStep,
+      );
+
+      for (var j = 0; j < steps.length; j++) {
+        final t = steps.length == 1 ? 1 : (j + 1) / steps.length;
+        final interpolatedPressure =
+            pressure + (nextPressure - pressure) * t;
+        stampAt(steps[j], interpolatedPressure);
+      }
+    }
   }
 
   static void _paintPencilStroke(
