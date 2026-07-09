@@ -28,7 +28,7 @@ void main() {
     final result = oilPainting(source, amount: 100, brushSize: 10);
     final unique = <int>{};
     for (final pixel in result) {
-      unique.add(pixel.r);
+      unique.add(pixel.r.toInt());
     }
 
     expect(unique.length, lessThan(64));

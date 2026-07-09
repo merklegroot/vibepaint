@@ -952,6 +952,10 @@ class _PaintScreenState extends State<PaintScreen>
 
     await _prepareForRotate();
 
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _freeRotateActive = false;
       _angleRotateActive = true;
