@@ -52,6 +52,7 @@ import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
+import 'package:vibepaint/widgets/brush_quick_sliders.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
@@ -74,7 +75,7 @@ class PaintScreen extends StatefulWidget {
     super.key,
     this.initialStrokes = const [],
     this.initialColorIndex = defaultPrimaryColorIndex,
-    this.initialTool = PaintTool.brush,
+    this.initialTool = PaintTool.studioBrush,
     this.initialShapeStyle = ShapeStyle.outline,
   });
 
@@ -93,10 +94,14 @@ class _PaintScreenState extends State<PaintScreen>
   Stroke? _currentStroke;
   Offset? _lastPanPosition;
   Offset? _studioSmoothPoint;
+  Duration? _lastStudioPressureTime;
+  Offset? _lastStudioPressurePosition;
+  Offset? _studioStrokeStartPosition;
   late Color _primaryColor;
   late Color _gradientEndColor;
   double _brushSize = 6;
-  PaintTool _activeTool = PaintTool.brush;
+  double _brushOpacity = 1;
+  PaintTool _activeTool = PaintTool.studioBrush;
   ShapeStyle _shapeStyle = ShapeStyle.outline;
   Size _documentSize = Size.zero;
   String? _documentPath;
@@ -281,8 +286,55 @@ class _PaintScreenState extends State<PaintScreen>
       ? _brushSize * studioBrushSpacingFactor
       : _brushSize / 2;
 
-  double _pointerPressure(PointerEvent event) =>
-      normalizePointerPressure(event.pressure);
+  void _resetStudioPressureSampling() {
+    _lastStudioPressureTime = null;
+    _lastStudioPressurePosition = null;
+    _studioStrokeStartPosition = null;
+  }
+
+  double _applyStudioStartRamp(double pressure, Offset position) {
+    final start = _studioStrokeStartPosition;
+    if (start == null) {
+      return pressure;
+    }
+
+    return studioBrushPressureRamped(
+      pressure: pressure,
+      travelFromStart: (position - start).distance,
+      brushSize: _brushSize,
+    );
+  }
+
+  double _strokePressure(PointerEvent event, Offset position) {
+    if (!_isStudioBrush) {
+      return 1;
+    }
+
+    if (pointerHasStylusPressure(event.kind)) {
+      return normalizePointerPressure(event.pressure);
+    }
+
+    final timestamp = event.timeStamp;
+    if (_lastStudioPressureTime != null &&
+        _lastStudioPressurePosition != null) {
+      final dtSeconds =
+          (timestamp - _lastStudioPressureTime!).inMicroseconds / 1000000.0;
+      if (dtSeconds > 0) {
+        final distance = (position - _lastStudioPressurePosition!).distance;
+        final velocity = distance / dtSeconds;
+        _lastStudioPressureTime = timestamp;
+        _lastStudioPressurePosition = position;
+        return _applyStudioStartRamp(
+          studioBrushPressureFromVelocity(velocity, _brushSize),
+          position,
+        );
+      }
+    }
+
+    _lastStudioPressureTime = timestamp;
+    _lastStudioPressurePosition = position;
+    return _applyStudioStartRamp(studioBrushInitialTouchPressure, position);
+  }
 
   Offset _prepareStudioPoint(Offset raw, {required bool isStart}) {
     if (!_isStudioBrush) {
@@ -307,11 +359,19 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     final stroke = _currentStroke!;
+    final pressures = _isStudioBrush
+        ? studioBrushPressuresForPoints(
+            previousPoint: stroke.points.isNotEmpty ? stroke.points.last : null,
+            points: newPoints,
+            endPressure: pressure,
+            brushSize: _brushSize,
+          )
+        : List<double>.filled(newPoints.length, pressure);
     _currentStroke = stroke.copyWith(
       points: [...stroke.points, ...newPoints],
       pressures: [
         ...stroke.pressures,
-        ...List<double>.filled(newPoints.length, pressure),
+        ...pressures,
       ],
     );
   }
@@ -328,6 +388,7 @@ class _PaintScreenState extends State<PaintScreen>
       isEraser: _isErasing,
       isPencil: _isPencil,
       isStudioBrush: _isStudioBrush,
+      brushOpacity: _brushOpacity,
     );
   }
 
@@ -461,8 +522,8 @@ class _PaintScreenState extends State<PaintScreen>
       return 'Drag to set gradient direction · Shift: 45°';
     }
 
-    if (_activeTool == PaintTool.studioBrush) {
-      return 'Smooth expressive strokes · Pressure controls size and opacity';
+    if (_activeTool.showsBrushQuickSliders) {
+      return 'Slow drifts build up · Stopping eases off · Fast strokes taper · Stylus uses pressure when available';
     }
 
     if (!_activeTool.isDragShape) {
@@ -2526,6 +2587,7 @@ class _PaintScreenState extends State<PaintScreen>
       _currentStroke = null;
       _lastPanPosition = null;
       _studioSmoothPoint = null;
+      _resetStudioPressureSampling();
       _selectionDraft = null;
       _lassoPoints = null;
       _movingSelection = false;
@@ -2692,7 +2754,7 @@ class _PaintScreenState extends State<PaintScreen>
     _beginPan(
       position,
       bounds,
-      pressure: _pointerPressure(event),
+      pressure: _strokePressure(event, position),
     );
   }
 
@@ -2714,7 +2776,7 @@ class _PaintScreenState extends State<PaintScreen>
     _extendStroke(
       position,
       bounds,
-      pressure: _pointerPressure(event),
+      pressure: _strokePressure(event, position),
     );
   }
 
@@ -2800,6 +2862,13 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    if (_isStudioBrush) {
+      _lastStudioPressurePosition = position;
+      _studioStrokeStartPosition = position;
+    } else {
+      _resetStudioPressureSampling();
+    }
+
     setState(() {
       _currentStroke = _newFreehandStroke(
         points: [position],
@@ -2817,6 +2886,7 @@ class _PaintScreenState extends State<PaintScreen>
     _layerStack.activeHistory.add(_currentStroke!);
     _currentStroke = null;
     _studioSmoothPoint = null;
+    _resetStudioPressureSampling();
     _noteDocumentEdited();
   }
 
@@ -3919,6 +3989,8 @@ class _PaintScreenState extends State<PaintScreen>
                               onBrushSizeChanged: (size) {
                                 setState(() => _brushSize = size);
                               },
+                              hideBrushSizeControl:
+                                  _activeTool.showsBrushQuickSliders,
                               shapeStyle: _activeTool.supportsFillStyle
                                   ? _shapeStyle
                                   : null,
@@ -4135,6 +4207,51 @@ class _PaintScreenState extends State<PaintScreen>
                                                   onChanged: _updateTextDraft,
                                                   onCommit: _commitTextDraft,
                                                   onCancel: _cancelTextDraft,
+                                                ),
+                                              if (_activeTool
+                                                  .showsBrushQuickSliders)
+                                                Positioned(
+                                                  left: 12,
+                                                  top: 0,
+                                                  bottom: 0,
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: BrushQuickSliders(
+                                                      brushSize: _brushSize,
+                                                      brushOpacity:
+                                                          _brushOpacity,
+                                                      primaryColor:
+                                                          _primaryColor,
+                                                      canUndo:
+                                                          _layerStack.canUndo,
+                                                      canRedo:
+                                                          _layerStack.canRedo,
+                                                      onBrushSizeChanged:
+                                                          (size) {
+                                                        setState(
+                                                          () => _brushSize =
+                                                              size,
+                                                        );
+                                                      },
+                                                      onBrushOpacityChanged:
+                                                          (opacity) {
+                                                        setState(
+                                                          () => _brushOpacity =
+                                                              opacity.clamp(
+                                                            0.05,
+                                                            1,
+                                                          ),
+                                                        );
+                                                      },
+                                                      onPrimaryColorTap: () =>
+                                                          _openColorPicker(
+                                                        ColorWellTarget.primary,
+                                                      ),
+                                                      onUndo: _undo,
+                                                      onRedo: _redo,
+                                                    ),
+                                                  ),
                                                 ),
                                             ],
                                           ),

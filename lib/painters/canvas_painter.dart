@@ -198,12 +198,17 @@ class CanvasPainter extends CustomPainter {
 
     final blendMode =
         stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
+    final strokeColor = stroke.isEraser
+        ? Colors.transparent
+        : stroke.color.withValues(
+            alpha: (stroke.color.a * stroke.brushOpacity).clamp(0, 1),
+          );
     final fill = Paint()
-      ..color = stroke.isEraser ? Colors.transparent : stroke.color
+      ..color = strokeColor
       ..style = PaintingStyle.fill
       ..blendMode = blendMode;
     final line = Paint()
-      ..color = stroke.isEraser ? Colors.transparent : stroke.color
+      ..color = strokeColor
       ..strokeWidth = stroke.brushSize
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -286,7 +291,8 @@ class CanvasPainter extends CustomPainter {
       return;
     }
 
-    final baseAlpha = stroke.color.a;
+    final baseAlpha =
+        (stroke.color.a * stroke.brushOpacity).clamp(0.0, 1.0).toDouble();
     final blendMode =
         stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
 
@@ -296,7 +302,7 @@ class CanvasPainter extends CustomPainter {
         return;
       }
 
-      final alpha = studioBrushOpacity(baseAlpha, pressure);
+      final alpha = studioBrushOpacity(baseAlpha, pressure).toDouble();
       final color = stroke.isEraser
           ? Colors.transparent
           : stroke.color.withValues(alpha: alpha);

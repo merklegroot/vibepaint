@@ -35,6 +35,7 @@ class PaintToolbar extends StatelessWidget {
     this.onOpenSettings,
     this.freeRotateActive = false,
     this.rotateToolbarLabel,
+    this.hideBrushSizeControl = false,
   });
 
   final double brushSize;
@@ -62,6 +63,7 @@ class PaintToolbar extends StatelessWidget {
   final VoidCallback? onOpenSettings;
   final bool freeRotateActive;
   final String? rotateToolbarLabel;
+  final bool hideBrushSizeControl;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +71,8 @@ class PaintToolbar extends StatelessWidget {
     final showBrushSize = textOptions == null &&
         gradientEndColor == null &&
         !freeRotateActive &&
-        !rotateActive;
+        !rotateActive &&
+        !hideBrushSizeControl;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),

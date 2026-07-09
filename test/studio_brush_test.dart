@@ -22,14 +22,48 @@ void main() {
     expect(eased.dx, lessThan(100));
   });
 
-  test('studioBrushSegmentPoints subdivides long moves', () {
-    final points = studioBrushSegmentPoints(
-      from: Offset.zero,
-      to: const Offset(10, 0),
-      maxStep: 4,
+  test('studioBrushPressureFromVelocity tapers fast strokes', () {
+    final slow = studioBrushPressureFromVelocity(40, 12);
+    final fast = studioBrushPressureFromVelocity(800, 12);
+
+    expect(slow, greaterThan(fast));
+    expect(fast, lessThan(0.75));
+  });
+
+  test('studioBrushPressureRamped stays soft until the pointer moves', () {
+    final resting = studioBrushPressureRamped(
+      pressure: 0.8,
+      travelFromStart: 0,
+      brushSize: 12,
+    );
+    final moving = studioBrushPressureRamped(
+      pressure: 0.8,
+      travelFromStart: 12 * studioBrushStartRampFactor,
+      brushSize: 12,
     );
 
-    expect(points.length, 3);
-    expect(points.last, const Offset(10, 0));
+    expect(resting, studioBrushInitialTouchPressure);
+    expect(moving, 0.8);
+  });
+
+  test('studioBrushPressureFromVelocity eases off at a full stop', () {
+    final stopped = studioBrushPressureFromVelocity(0, 12);
+    final slowDrift = studioBrushPressureFromVelocity(30, 12);
+
+    expect(stopped, lessThan(slowDrift));
+    expect(stopped, lessThan(0.65));
+  });
+
+  test('studioBrushPressuresForPoints tapers long interpolated steps', () {
+    final pressures = studioBrushPressuresForPoints(
+      previousPoint: Offset.zero,
+      points: const [Offset(20, 0), Offset(40, 0)],
+      endPressure: 0.9,
+      brushSize: 12,
+    );
+
+    expect(pressures.length, 2);
+    expect(pressures.first, lessThan(0.9));
+    expect(pressures.last, lessThanOrEqualTo(pressures.first));
   });
 }

@@ -1,6 +1,6 @@
 enum PaintTool {
-  brush,
   studioBrush,
+  brush,
   pencil,
   line,
   rectangle,
@@ -71,4 +71,6 @@ extension PaintToolLabel on PaintTool {
       this == PaintTool.rectangle || this == PaintTool.ellipse;
 
   bool get isTextTool => this == PaintTool.text;
+
+  bool get showsBrushQuickSliders => this == PaintTool.studioBrush;
 }

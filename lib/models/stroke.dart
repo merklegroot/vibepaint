@@ -26,6 +26,7 @@ class Stroke {
     this.isEraser = false,
     this.isPencil = false,
     this.isStudioBrush = false,
+    this.brushOpacity = 1,
     List<double>? pressures,
     this.rasterImage,
     this.rasterBounds,
@@ -43,6 +44,7 @@ class Stroke {
   final bool isEraser;
   final bool isPencil;
   final bool isStudioBrush;
+  final double brushOpacity;
   final ui.Image? rasterImage;
   final Rect? rasterBounds;
   final TextRun? textRun;
@@ -67,6 +69,7 @@ class Stroke {
     bool? isEraser,
     bool? isPencil,
     bool? isStudioBrush,
+    double? brushOpacity,
     List<double>? pressures,
     ui.Image? rasterImage,
     Rect? rasterBounds,
@@ -82,6 +85,7 @@ class Stroke {
       isEraser: isEraser ?? this.isEraser,
       isPencil: isPencil ?? this.isPencil,
       isStudioBrush: isStudioBrush ?? this.isStudioBrush,
+      brushOpacity: brushOpacity ?? this.brushOpacity,
       pressures: pressures ?? List<double>.from(this.pressures),
       rasterImage: rasterImage ?? this.rasterImage,
       rasterBounds: rasterBounds ?? this.rasterBounds,
