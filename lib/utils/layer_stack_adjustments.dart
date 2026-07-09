@@ -37,10 +37,12 @@ extension LayerStackAdjustments on LayerStack {
   Future<void> replaceActiveLayerWithRaster({
     required Size size,
     required img.Image raster,
+    String? historyLabel,
+    bool recordHistory = false,
   }) async {
     final uiImage = await rasterImageToUiImage(raster);
     final bounds = Rect.fromLTWH(0, 0, size.width, size.height);
-    activeHistory.replaceStrokes([
+    final strokes = [
       Stroke(
         color: const Color(0x00000000),
         brushSize: 0,
@@ -49,13 +51,19 @@ extension LayerStackAdjustments on LayerStack {
         rasterImage: uiImage,
         rasterBounds: bounds,
       ),
-    ]);
+    ];
+    if (recordHistory) {
+      activeHistory.commitStrokes(historyLabel ?? 'Edit image', strokes);
+    } else {
+      activeHistory.replaceStrokes(strokes);
+    }
   }
 
   Future<void> applyActiveLayerAdjustment(
     Size size,
-    img.Image Function(img.Image source) transform,
-  ) async {
+    img.Image Function(img.Image source) transform, {
+    String? historyLabel,
+  }) async {
     final source = await captureActiveLayerRaster(size);
     if (source == null) {
       return;
@@ -64,11 +72,13 @@ extension LayerStackAdjustments on LayerStack {
     await replaceActiveLayerWithRaster(
       size: size,
       raster: transform(source),
+      historyLabel: historyLabel,
+      recordHistory: true,
     );
   }
 
   void restoreActiveLayerStrokes(List<Stroke> strokes) {
-    activeHistory.replaceStrokes(strokes);
+    activeHistory.clearPreview();
   }
 
   List<Stroke> backupActiveLayerStrokes() {

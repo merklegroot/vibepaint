@@ -116,7 +116,10 @@ class LayerStack {
     final source = _layers[index];
     final copy = PaintLayer(
       name: '${source.name} copy',
-      history: StrokeHistory(List<Stroke>.from(source.history.strokes)),
+      history: StrokeHistory.fromState(
+        List<Stroke>.from(source.history.strokes),
+        label: 'Duplicate layer',
+      ),
       visible: source.visible,
       opacity: source.opacity,
       blendMode: source.blendMode,

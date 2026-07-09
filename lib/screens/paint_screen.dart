@@ -50,6 +50,7 @@ import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_size_control.dart';
 import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
+import 'package:vibepaint/widgets/history_panel.dart';
 import 'package:vibepaint/widgets/color_picker_dialog.dart';
 import 'package:vibepaint/widgets/dithering_dialog.dart';
 import 'package:vibepaint/widgets/render_effects_dialog.dart';
@@ -716,6 +717,7 @@ class _PaintScreenState extends State<PaintScreen>
     setState(() {
       _layerStack.activeHistory.removeWhere(
         (stroke) => strokeIntersectsSelection(_selection!, stroke),
+        label: 'Delete selection',
       );
     });
     _noteDocumentEdited();
@@ -1054,6 +1056,7 @@ class _PaintScreenState extends State<PaintScreen>
   }
 
   Future<void> _applyInstantAdjustment(
+    String label,
     img.Image Function(img.Image source) transform,
   ) async {
     if (!_ensureActiveLayerAdjustable()) {
@@ -1061,7 +1064,11 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     setState(() {});
-    await _layerStack.applyActiveLayerAdjustment(_documentSize, transform);
+    await _layerStack.applyActiveLayerAdjustment(
+      _documentSize,
+      transform,
+      historyLabel: label,
+    );
     _noteDocumentEdited();
   }
 
@@ -1079,8 +1086,6 @@ class _PaintScreenState extends State<PaintScreen>
     if (source == null || !mounted) {
       return false;
     }
-
-    final backup = _layerStack.backupActiveLayerStrokes();
 
     Future<void> preview(List<double> values) async {
       final result = apply(source, values);
@@ -1108,22 +1113,28 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (result == null) {
-      _layerStack.restoreActiveLayerStrokes(backup);
+      _layerStack.activeHistory.clearPreview();
       setState(() {});
       return false;
     }
 
     await preview(result);
+    _layerStack.activeHistory.commitStrokes(
+      title,
+      _layerStack.activeHistory.strokes,
+    );
     return true;
   }
 
-  Future<void> _autoLevel() => _applyInstantAdjustment(autoLevel);
+  Future<void> _autoLevel() => _applyInstantAdjustment('Auto level', autoLevel);
 
-  Future<void> _blackAndWhite() => _applyInstantAdjustment(blackAndWhite);
+  Future<void> _blackAndWhite() =>
+      _applyInstantAdjustment('Black and white', blackAndWhite);
 
-  Future<void> _invertColors() => _applyInstantAdjustment(invertColors);
+  Future<void> _invertColors() =>
+      _applyInstantAdjustment('Invert colors', invertColors);
 
-  Future<void> _sepia() => _applyInstantAdjustment(applySepia);
+  Future<void> _sepia() => _applyInstantAdjustment('Sepia', applySepia);
 
   Future<void> _brightnessContrast() async {
     final applied = await _runAdjustmentDialog(
@@ -1491,8 +1502,6 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
-    final backup = _layerStack.backupActiveLayerStrokes();
-
     Future<void> preview(DitheringSettings settings) async {
       final result = ditheringEffect(
         source,
@@ -1521,12 +1530,16 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (result == null) {
-      _layerStack.restoreActiveLayerStrokes(backup);
+      _layerStack.activeHistory.clearPreview();
       setState(() {});
       return;
     }
 
     await preview(result);
+    _layerStack.activeHistory.commitStrokes(
+      'Dithering',
+      _layerStack.activeHistory.strokes,
+    );
     _noteDocumentEdited();
   }
 
@@ -1859,8 +1872,6 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
-    final backup = _layerStack.backupActiveLayerStrokes();
-
     Future<void> preview(CloudsSettings settings) async {
       final result = cloudsEffect(
         source,
@@ -1889,12 +1900,16 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (result == null) {
-      _layerStack.restoreActiveLayerStrokes(backup);
+      _layerStack.activeHistory.clearPreview();
       setState(() {});
       return;
     }
 
     await preview(result);
+    _layerStack.activeHistory.commitStrokes(
+      'Clouds',
+      _layerStack.activeHistory.strokes,
+    );
     _noteDocumentEdited();
   }
 
@@ -1907,8 +1922,6 @@ class _PaintScreenState extends State<PaintScreen>
     if (source == null || !mounted) {
       return;
     }
-
-    final backup = _layerStack.backupActiveLayerStrokes();
 
     Future<void> preview(MandelbrotSettings settings) async {
       final result = mandelbrotFractalEffect(
@@ -1939,12 +1952,16 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (result == null) {
-      _layerStack.restoreActiveLayerStrokes(backup);
+      _layerStack.activeHistory.clearPreview();
       setState(() {});
       return;
     }
 
     await preview(result);
+    _layerStack.activeHistory.commitStrokes(
+      'Mandelbrot Fractal',
+      _layerStack.activeHistory.strokes,
+    );
     _noteDocumentEdited();
   }
 
@@ -2136,11 +2153,20 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
+    final moved = _strokesBeforeMove != null;
     _movingSelection = false;
     _moveStart = null;
     _strokesBeforeMove = null;
     _resetCanvasCursor();
-    _noteDocumentEdited();
+    if (moved) {
+      setState(() {
+        _layerStack.activeHistory.commitStrokes(
+          'Move selection',
+          _layerStack.activeHistory.strokes,
+        );
+      });
+      _noteDocumentEdited();
+    }
   }
 
   void _changeBrushSize(double delta) {
@@ -2235,7 +2261,7 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     setState(() {
-      _layerStack.activeHistory.add(stroke);
+      _layerStack.activeHistory.add(stroke, label: 'Fill');
     });
     _noteDocumentEdited();
   }
@@ -2556,6 +2582,11 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     setState(_layerStack.activeHistory.redo);
+    _noteDocumentEdited();
+  }
+
+  void _goToHistoryIndex(int index) {
+    setState(() => _layerStack.activeHistory.goToIndex(index));
     _noteDocumentEdited();
   }
 
@@ -2882,7 +2913,7 @@ class _PaintScreenState extends State<PaintScreen>
       }
 
       setState(() {
-        _layerStack.activeHistory.add(stroke);
+        _layerStack.activeHistory.add(stroke, label: 'AI Enhance');
         _noteDocumentEdited();
       });
       _showMessage('AI Enhance applied (⌘Z to undo).');
@@ -3752,73 +3783,103 @@ class _PaintScreenState extends State<PaintScreen>
                                       },
                                     ),
                                   ),
-                                  LayersPanel(
-                                    layers: _layerStack.layers,
-                                    activeIndex: _layerStack.activeIndex,
-                                    canDeleteLayer: _layerStack.canDeleteLayer,
-                                    canMoveLayerUp: _layerStack.canMoveLayerUp,
-                                    canMoveLayerDown:
-                                        _layerStack.canMoveLayerDown,
-                                    canMergeDown: _layerStack.canMergeDown,
-                                    onLayerSelected: (index) {
-                                      setState(
-                                        () => _layerStack.setActiveLayer(index),
-                                      );
-                                    },
-                                    onToggleVisibility: (index) {
-                                      setState(
-                                        () => _layerStack.toggleVisibility(index),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onAddLayer: () {
-                                      setState(_layerStack.addLayer);
-                                      _noteDocumentEdited();
-                                    },
-                                    onDuplicateLayer: (index) {
-                                      setState(
-                                        () => _layerStack.duplicateLayer(index),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onDeleteLayer: _deleteLayer,
-                                    onMoveLayerUp: (index) {
-                                      setState(
-                                        () => _layerStack.moveLayerUp(index),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onMoveLayerDown: (index) {
-                                      setState(
-                                        () => _layerStack.moveLayerDown(index),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onMergeDown: _mergeDownLayer,
-                                    onRenameLayer: (index, name) {
-                                      setState(
-                                        () => _layerStack.renameLayer(index, name),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onOpacityChanged: (opacity) {
-                                      setState(
-                                        () => _layerStack.setLayerOpacity(
-                                          _layerStack.activeIndex,
-                                          opacity,
+                                  SizedBox(
+                                    width: LayersPanel.width,
+                                    child: Column(
+                                      children: [
+                                        Expanded(
+                                          child: LayersPanel(
+                                            layers: _layerStack.layers,
+                                            activeIndex: _layerStack.activeIndex,
+                                            canDeleteLayer:
+                                                _layerStack.canDeleteLayer,
+                                            canMoveLayerUp:
+                                                _layerStack.canMoveLayerUp,
+                                            canMoveLayerDown:
+                                                _layerStack.canMoveLayerDown,
+                                            canMergeDown:
+                                                _layerStack.canMergeDown,
+                                            onLayerSelected: (index) {
+                                              setState(
+                                                () => _layerStack
+                                                    .setActiveLayer(index),
+                                              );
+                                            },
+                                            onToggleVisibility: (index) {
+                                              setState(
+                                                () => _layerStack
+                                                    .toggleVisibility(index),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onAddLayer: () {
+                                              setState(_layerStack.addLayer);
+                                              _noteDocumentEdited();
+                                            },
+                                            onDuplicateLayer: (index) {
+                                              setState(
+                                                () => _layerStack
+                                                    .duplicateLayer(index),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onDeleteLayer: _deleteLayer,
+                                            onMoveLayerUp: (index) {
+                                              setState(
+                                                () => _layerStack
+                                                    .moveLayerUp(index),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onMoveLayerDown: (index) {
+                                              setState(
+                                                () => _layerStack
+                                                    .moveLayerDown(index),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onMergeDown: _mergeDownLayer,
+                                            onRenameLayer: (index, name) {
+                                              setState(
+                                                () => _layerStack.renameLayer(
+                                                  index,
+                                                  name,
+                                                ),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onOpacityChanged: (opacity) {
+                                              setState(
+                                                () => _layerStack
+                                                    .setLayerOpacity(
+                                                  _layerStack.activeIndex,
+                                                  opacity,
+                                                ),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                            onBlendModeChanged: (mode) {
+                                              setState(
+                                                () => _layerStack
+                                                    .setLayerBlendMode(
+                                                  _layerStack.activeIndex,
+                                                  mode,
+                                                ),
+                                              );
+                                              _noteDocumentEdited();
+                                            },
+                                          ),
                                         ),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
-                                    onBlendModeChanged: (mode) {
-                                      setState(
-                                        () => _layerStack.setLayerBlendMode(
-                                          _layerStack.activeIndex,
-                                          mode,
+                                        HistoryPanel(
+                                          layerName: _layerStack.activeLayer.name,
+                                          actions: _layerStack
+                                              .activeHistory.timeline,
+                                          currentIndex: _layerStack
+                                              .activeHistory.currentIndex,
+                                          onGoToIndex: _goToHistoryIndex,
                                         ),
-                                      );
-                                      _noteDocumentEdited();
-                                    },
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),

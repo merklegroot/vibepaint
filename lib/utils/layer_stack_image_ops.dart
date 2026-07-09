@@ -22,7 +22,7 @@ extension LayerStackImageOperations on LayerStack {
     for (final layer in layers) {
       layer.history.clear();
     }
-    activeHistory.replaceStrokes(merged);
+    activeHistory.commitStrokes('Flatten image', merged);
     while (layers.length > 1) {
       deleteLayer(layers.length - 1);
     }
@@ -31,32 +31,50 @@ extension LayerStackImageOperations on LayerStack {
 
   void flipHorizontal(Size canvasSize) {
     final axisX = canvasSize.width / 2;
-    _transformAllStrokes((point) => flipPointHorizontally(point, axisX));
+    _transformAllStrokes(
+      (point) => flipPointHorizontally(point, axisX),
+      label: 'Flip horizontal',
+    );
   }
 
   void flipVertical(Size canvasSize) {
     final axisY = canvasSize.height / 2;
-    _transformAllStrokes((point) => flipPointVertically(point, axisY));
+    _transformAllStrokes(
+      (point) => flipPointVertically(point, axisY),
+      label: 'Flip vertical',
+    );
   }
 
   void rotate90Clockwise(Size canvasSize) {
     final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
-    _transformAllStrokes((point) => rotateAround(point, center, -pi / 2));
+    _transformAllStrokes(
+      (point) => rotateAround(point, center, -pi / 2),
+      label: 'Rotate 90° CW',
+    );
   }
 
   void rotate90CounterClockwise(Size canvasSize) {
     final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
-    _transformAllStrokes((point) => rotateAround(point, center, pi / 2));
+    _transformAllStrokes(
+      (point) => rotateAround(point, center, pi / 2),
+      label: 'Rotate 90° CCW',
+    );
   }
 
   void rotate180(Size canvasSize) {
     final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
-    _transformAllStrokes((point) => rotateAround(point, center, pi));
+    _transformAllStrokes(
+      (point) => rotateAround(point, center, pi),
+      label: 'Rotate 180°',
+    );
   }
 
   void rotateContent(Size canvasSize, double radians) {
     final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
-    _transformAllStrokes((point) => rotateAround(point, center, radians));
+    _transformAllStrokes(
+      (point) => rotateAround(point, center, radians),
+      label: 'Rotate',
+    );
   }
 
   void resizeImageContent(Size currentSize, Size newSize) {
@@ -66,6 +84,7 @@ extension LayerStackImageOperations on LayerStack {
     _transformAllStrokes(
       (point) => scaleAround(point, Offset.zero, scaleX, scaleY),
       brushSizeScale: scale,
+      label: 'Resize image',
     );
   }
 
@@ -89,7 +108,10 @@ extension LayerStackImageOperations on LayerStack {
       newSize: newSize,
       anchor: anchor,
     );
-    _transformAllStrokes((point) => point + offset);
+    _transformAllStrokes(
+      (point) => point + offset,
+      label: 'Resize canvas',
+    );
   }
 
   void cropContentToRect(Rect rect) {
@@ -99,17 +121,18 @@ extension LayerStackImageOperations on LayerStack {
     }
 
     final cropRect = Rect.fromLTWH(0, 0, normalized.width, normalized.height);
-    _transformAllStrokes((point) => point - normalized.topLeft);
+    final offset = -normalized.topLeft;
 
     for (final layer in layers) {
       final clipped = <Stroke>[];
       for (final stroke in layer.history.strokes) {
-        final result = clipStrokeToRect(stroke, cropRect);
+        final shifted = transformStroke(stroke, (point) => point + offset);
+        final result = clipStrokeToRect(shifted, cropRect);
         if (result != null) {
           clipped.add(result);
         }
       }
-      layer.history.replaceStrokes(clipped);
+      layer.history.commitStrokes('Crop image', clipped);
     }
   }
 
@@ -121,17 +144,17 @@ extension LayerStackImageOperations on LayerStack {
 
     final offset = -bounds.topLeft;
     final translatedSelection = translateSelection(selection, offset);
-    _transformAllStrokes((point) => point + offset);
 
     for (final layer in layers) {
       final clipped = <Stroke>[];
       for (final stroke in layer.history.strokes) {
-        final result = clipStrokeToSelection(stroke, translatedSelection);
+        final shifted = transformStroke(stroke, (point) => point + offset);
+        final result = clipStrokeToSelection(shifted, translatedSelection);
         if (result != null) {
           clipped.add(result);
         }
       }
-      layer.history.replaceStrokes(clipped);
+      layer.history.commitStrokes('Crop to selection', clipped);
     }
   }
 
@@ -219,9 +242,10 @@ extension LayerStackImageOperations on LayerStack {
   void _transformAllStrokes(
     Offset Function(Offset point) transformPoint, {
     double? brushSizeScale,
+    required String label,
   }) {
     for (final layer in layers) {
-      layer.history.replaceStrokes([
+      layer.history.commitStrokes(label, [
         for (final stroke in layer.history.strokes)
           transformStroke(
             stroke,

@@ -18,10 +18,12 @@ void main() {
     history.add(stroke);
     expect(history.strokes, hasLength(1));
     expect(history.canUndo, isTrue);
+    expect(history.timeline, hasLength(1));
 
     expect(history.undo(), isTrue);
     expect(history.strokes, isEmpty);
     expect(history.canRedo, isTrue);
+    expect(history.timeline, hasLength(1));
 
     expect(history.redo(), isTrue);
     expect(history.strokes, hasLength(1));
@@ -50,5 +52,46 @@ void main() {
     expect(history.strokes, isEmpty);
     expect(history.canUndo, isFalse);
     expect(history.canRedo, isFalse);
+  });
+
+  test('goToIndex jumps through timeline', () {
+    final history = StrokeHistory();
+    history.add(Stroke(color: Colors.red, brushSize: 4), label: 'First');
+    history.add(Stroke(color: Colors.green, brushSize: 4), label: 'Second');
+    history.add(Stroke(color: Colors.blue, brushSize: 4), label: 'Third');
+
+    expect(history.currentIndex, 2);
+    expect(history.strokes, hasLength(3));
+
+    history.goToIndex(0);
+    expect(history.currentIndex, 0);
+    expect(history.strokes, hasLength(1));
+    expect(history.canRedo, isTrue);
+
+    history.goToIndex(2);
+    expect(history.currentIndex, 2);
+    expect(history.strokes, hasLength(3));
+    expect(history.canRedo, isFalse);
+  });
+
+  test('preview does not record history until commit', () {
+    final history = StrokeHistory();
+    history.add(Stroke(color: Colors.red, brushSize: 4));
+
+    history.replaceStrokes([
+      Stroke(color: Colors.blue, brushSize: 4),
+    ]);
+
+    expect(history.timeline, hasLength(1));
+    expect(history.strokes.first.color, Colors.blue);
+
+    history.clearPreview();
+    expect(history.strokes.first.color, Colors.red);
+
+    history.commitStrokes('Effect', [
+      Stroke(color: Colors.green, brushSize: 4),
+    ]);
+    expect(history.timeline, hasLength(2));
+    expect(history.timeline.last.label, 'Effect');
   });
 }

@@ -1,22 +1,78 @@
+import 'package:vibepaint/models/history_action.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/utils/history_labels.dart';
 
 class StrokeHistory {
   StrokeHistory([Iterable<Stroke>? initial]) {
-    _strokes.addAll(initial ?? const []);
+    if (initial != null && initial.isNotEmpty) {
+      _applied.add(
+        HistoryAction(
+          label: 'Open image',
+          strokes: _cloneStrokes(initial),
+        ),
+      );
+    }
   }
 
-  final List<Stroke> _strokes = [];
-  final List<Stroke> _redoStack = [];
+  StrokeHistory.fromState(List<Stroke> strokes, {required String label}) {
+    if (strokes.isNotEmpty) {
+      _applied.add(
+        HistoryAction(
+          label: label,
+          strokes: _cloneStrokes(strokes),
+        ),
+      );
+    }
+  }
 
-  List<Stroke> get strokes => List<Stroke>.unmodifiable(_strokes);
+  final List<HistoryAction> _applied = [];
+  final List<HistoryAction> _redo = [];
+  List<Stroke>? _previewStrokes;
 
-  bool get canUndo => _strokes.isNotEmpty;
+  List<Stroke> get strokes =>
+      _previewStrokes ??
+      (_applied.isEmpty ? const [] : _applied.last.strokes);
 
-  bool get canRedo => _redoStack.isNotEmpty;
+  bool get canUndo => _applied.isNotEmpty;
 
-  void add(Stroke stroke) {
-    _strokes.add(stroke);
-    _redoStack.clear();
+  bool get canRedo => _redo.isNotEmpty;
+
+  int get currentIndex => _applied.length - 1;
+
+  List<HistoryAction> get appliedActions =>
+      List<HistoryAction>.unmodifiable(_applied);
+
+  List<HistoryAction> get timeline => [
+        ..._applied,
+        ..._redo.reversed,
+      ];
+
+  bool isUndone(int index) => index >= _applied.length;
+
+  void add(Stroke stroke, {String? label}) {
+    commitStrokes(
+      label ?? historyLabelForStroke(stroke),
+      [...strokes, stroke],
+    );
+  }
+
+  void commitStrokes(String label, List<Stroke> strokes) {
+    clearPreview();
+    _applied.add(
+      HistoryAction(
+        label: label,
+        strokes: _cloneStrokes(strokes),
+      ),
+    );
+    _redo.clear();
+  }
+
+  void replaceStrokes(List<Stroke> strokes) {
+    _previewStrokes = _cloneStrokes(strokes);
+  }
+
+  void clearPreview() {
+    _previewStrokes = null;
   }
 
   bool undo() {
@@ -24,7 +80,8 @@ class StrokeHistory {
       return false;
     }
 
-    _redoStack.add(_strokes.removeLast());
+    clearPreview();
+    _redo.add(_applied.removeLast());
     return true;
   }
 
@@ -33,29 +90,44 @@ class StrokeHistory {
       return false;
     }
 
-    _strokes.add(_redoStack.removeLast());
+    clearPreview();
+    _applied.add(_redo.removeLast());
     return true;
   }
 
+  void goToIndex(int index) {
+    clearPreview();
+    final target = index.clamp(-1, timeline.length - 1);
+    while (currentIndex > target) {
+      if (!undo()) {
+        break;
+      }
+    }
+    while (currentIndex < target) {
+      if (!redo()) {
+        break;
+      }
+    }
+  }
+
   void clear() {
-    _strokes.clear();
-    _redoStack.clear();
+    _applied.clear();
+    _redo.clear();
+    clearPreview();
   }
 
-  void appendAll(Iterable<Stroke> strokes) {
-    _strokes.addAll(strokes);
-    _redoStack.clear();
+  void appendAll(Iterable<Stroke> strokes, {String label = 'Merge layer'}) {
+    commitStrokes(label, [...this.strokes, ...strokes]);
   }
 
-  void removeWhere(bool Function(Stroke stroke) test) {
-    _strokes.removeWhere(test);
-    _redoStack.clear();
+  void removeWhere(bool Function(Stroke stroke) test, {String label = 'Delete'}) {
+    commitStrokes(
+      label,
+      [for (final stroke in strokes) if (!test(stroke)) stroke],
+    );
   }
 
-  void replaceStrokes(List<Stroke> strokes) {
-    _strokes
-      ..clear()
-      ..addAll(strokes);
-    _redoStack.clear();
+  List<Stroke> _cloneStrokes(Iterable<Stroke> strokes) {
+    return [for (final stroke in strokes) stroke.copyWith()];
   }
 }
