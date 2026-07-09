@@ -2930,9 +2930,9 @@ class _PaintScreenState extends State<PaintScreen>
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Grok not configured'),
+          title: const Text('AI Enhance not configured'),
           content: const Text(
-            'AI Enhance uses Grok. Open Settings to add your API key.',
+            'Choose Grok or Stable Diffusion in Settings and finish setup.',
           ),
           actions: [
             TextButton(

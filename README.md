@@ -32,7 +32,7 @@ A vibe coded paint app.
 
 ### Image
 - **Image menu** — crop to selection, auto crop, resize image, resize canvas (with anchor), flip horizontal/vertical, rotate 90° CW/CCW, rotate 180°, and flatten layers (macOS menu bar; in-window on Windows and Linux)
-- **AI Enhance** — toolbar sparkle button enhances the active layer (or selection) via **Grok** (xAI cloud). Preview before apply; undoable. Configure your API key in Settings.
+- **AI Enhance** — toolbar sparkle button enhances the active layer (or selection) via **Grok** (xAI cloud) or **Stable Diffusion** (local or remote WebUI). Preview before apply; undoable. Configure in Settings.
 
 ### Files
 - **File menu** — New, Open, Save, and Save As (macOS menu bar; in-window on Windows and Linux)
@@ -101,14 +101,22 @@ flutter build macos --release
 open build/macos/Build/Products/Release/VibePaint.app
 ```
 
-### AI Enhance (Grok)
+### AI Enhance (Grok or Stable Diffusion)
 
 1. Open **Settings** (VibePaint menu on macOS, File menu on Windows/Linux, or the gear toolbar button).
-2. Enter your [xAI API key](https://console.x.ai/), save, and test.
+2. Choose **Grok** or **Stable Diffusion**, configure, save, and test.
 3. Draw on the active layer, then click the sparkle **AI Enhance** toolbar button.
 4. Review the preview — **Apply**, **Regenerate**, or **Cancel**.
 
-Grok uses `grok-imagine-image-quality` via `POST /v1/images/edits`.
+**Grok** uses `grok-imagine-image-quality` via `POST /v1/images/edits`.
+
+**Stable Diffusion** uses AUTOMATIC1111 WebUI img2img (`POST /sdapi/v1/img2img`). Start WebUI with `--api`. For a remote GPU machine, forward port 7860 over SSH:
+
+```bash
+ssh -L 7860:localhost:7860 user@server
+```
+
+Then set the WebUI base URL to `http://127.0.0.1:7860` in Settings.
 
 Optional DMG (`create-dmg` via Homebrew for a nicer layout; otherwise `hdiutil`):
 

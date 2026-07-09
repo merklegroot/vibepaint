@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_models.dart';
 import 'package:vibepaint/services/ai_enhance/ai_enhance_settings.dart';
 
-/// Contract for an AI Enhance backend.
+/// Contract for an AI Enhance backend (Grok, Stable Diffusion, …).
 abstract class AiEnhanceProvider {
+  AiEnhanceProviderId get id;
+
   String get displayName;
 
   bool isConfigured(AiEnhanceSettings settings);

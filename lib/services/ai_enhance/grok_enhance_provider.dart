@@ -12,6 +12,9 @@ class GrokEnhanceProvider implements AiEnhanceProvider {
   final GrokClient _client;
 
   @override
+  AiEnhanceProviderId get id => AiEnhanceProviderId.grok;
+
+  @override
   String get displayName => 'Grok';
 
   @override

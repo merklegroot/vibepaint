@@ -1,11 +1,47 @@
+/// Which backend powers AI Enhance.
+enum AiEnhanceProviderId {
+  grok,
+  stableDiffusion,
+}
+
 /// Persisted AI Enhance configuration.
 class AiEnhanceSettings {
-  const AiEnhanceSettings({this.grokApiKey = ''});
+  const AiEnhanceSettings({
+    this.activeProvider = AiEnhanceProviderId.grok,
+    this.grokApiKey = '',
+    this.stableDiffusionBaseUrl = defaultStableDiffusionBaseUrl,
+  });
 
+  static const defaultStableDiffusionBaseUrl = 'http://127.0.0.1:7860';
+
+  /// img2img defaults tuned for sketch enhancement.
+  static const stableDiffusionDenoising = 0.65;
+  static const stableDiffusionCfgScale = 7.0;
+  static const stableDiffusionSteps = 20;
+  static const stableDiffusionSampler = 'Euler a';
+  static const stableDiffusionNegativePrompt =
+      'blurry, low quality, distorted, watermark, text, logo';
+
+  final AiEnhanceProviderId activeProvider;
   final String grokApiKey;
+  final String stableDiffusionBaseUrl;
 
-  AiEnhanceSettings copyWith({String? grokApiKey}) {
-    return AiEnhanceSettings(grokApiKey: grokApiKey ?? this.grokApiKey);
+  String get activeProviderLabel => switch (activeProvider) {
+    AiEnhanceProviderId.grok => 'Grok',
+    AiEnhanceProviderId.stableDiffusion => 'Stable Diffusion',
+  };
+
+  AiEnhanceSettings copyWith({
+    AiEnhanceProviderId? activeProvider,
+    String? grokApiKey,
+    String? stableDiffusionBaseUrl,
+  }) {
+    return AiEnhanceSettings(
+      activeProvider: activeProvider ?? this.activeProvider,
+      grokApiKey: grokApiKey ?? this.grokApiKey,
+      stableDiffusionBaseUrl:
+          stableDiffusionBaseUrl ?? this.stableDiffusionBaseUrl,
+    );
   }
 }
 
