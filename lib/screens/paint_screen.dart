@@ -72,7 +72,7 @@ class PaintScreen extends StatefulWidget {
   const PaintScreen({
     super.key,
     this.initialStrokes = const [],
-    this.initialColorIndex = 0,
+    this.initialColorIndex = defaultPrimaryColorIndex,
     this.initialTool = PaintTool.brush,
     this.initialShapeStyle = ShapeStyle.outline,
   });
