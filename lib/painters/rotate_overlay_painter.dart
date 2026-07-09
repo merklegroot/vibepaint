@@ -14,7 +14,9 @@ class RotateOverlayPainter extends CustomPainter {
   final double? startAngle;
   final double previewAngle;
 
-  static const _guideRadius = 48.0;
+  static const guideRadius = 48.0;
+
+  static const _guideRadius = guideRadius;
 
   @override
   void paint(Canvas canvas, Size size) {

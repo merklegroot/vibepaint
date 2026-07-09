@@ -34,6 +34,7 @@ class PaintToolbar extends StatelessWidget {
     this.aiEnhanceEnabled = true,
     this.onOpenSettings,
     this.freeRotateActive = false,
+    this.rotateToolbarLabel,
   });
 
   final double brushSize;
@@ -60,11 +61,15 @@ class PaintToolbar extends StatelessWidget {
   final bool aiEnhanceEnabled;
   final VoidCallback? onOpenSettings;
   final bool freeRotateActive;
+  final String? rotateToolbarLabel;
 
   @override
   Widget build(BuildContext context) {
-    final showBrushSize =
-        textOptions == null && gradientEndColor == null && !freeRotateActive;
+    final rotateActive = rotateToolbarLabel != null;
+    final showBrushSize = textOptions == null &&
+        gradientEndColor == null &&
+        !freeRotateActive &&
+        !rotateActive;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -72,7 +77,7 @@ class PaintToolbar extends StatelessWidget {
         color: AppColors.palettePanel,
         border: Border(
           bottom: BorderSide(
-            color: freeRotateActive
+            color: rotateActive
                 ? AppColors.statusText.withValues(alpha: 0.45)
                 : AppColors.paletteBorder,
           ),
@@ -80,7 +85,7 @@ class PaintToolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (freeRotateActive) ...[
+          if (rotateToolbarLabel != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -88,14 +93,18 @@ class PaintToolbar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: AppColors.statusText),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.rotate_right, size: 16, color: AppColors.statusText),
-                  SizedBox(width: 6),
+                  Icon(
+                    freeRotateActive ? Icons.rotate_right : Icons.rotate_90_degrees_cw,
+                    size: 16,
+                    color: AppColors.statusText,
+                  ),
+                  const SizedBox(width: 6),
                   Text(
-                    'Free Rotate',
-                    style: TextStyle(
+                    rotateToolbarLabel!,
+                    style: const TextStyle(
                       color: AppColors.statusText,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

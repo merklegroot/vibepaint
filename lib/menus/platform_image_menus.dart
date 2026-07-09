@@ -13,6 +13,7 @@ List<PlatformMenuItemGroup> buildImagePlatformMenuGroups({
   required VoidCallback onRotate90CounterClockwise,
   required VoidCallback onRotate180,
   required VoidCallback onFreeRotate,
+  required VoidCallback onRotate,
   required VoidCallback onFlatten,
 }) {
   return [
@@ -81,6 +82,10 @@ List<PlatformMenuItemGroup> buildImagePlatformMenuGroups({
         PlatformMenuItem(
           label: 'Free Rotate',
           onSelected: onFreeRotate,
+        ),
+        PlatformMenuItem(
+          label: 'Rotate...',
+          onSelected: onRotate,
         ),
       ],
     ),

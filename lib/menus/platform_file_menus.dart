@@ -24,6 +24,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onRotate90CounterClockwise,
   required VoidCallback onRotate180,
   required VoidCallback onFreeRotate,
+  required VoidCallback onRotate,
   required VoidCallback onFlatten,
   VoidCallback? onOpenSettings,
 }) {
@@ -139,6 +140,7 @@ List<PlatformMenu> buildMacosPlatformMenus({
         onRotate90CounterClockwise: onRotate90CounterClockwise,
         onRotate180: onRotate180,
         onFreeRotate: onFreeRotate,
+        onRotate: onRotate,
         onFlatten: onFlatten,
       ),
     ),
