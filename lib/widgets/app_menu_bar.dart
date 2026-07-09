@@ -38,6 +38,9 @@ class AppMenuBar extends StatelessWidget {
     required this.onLevels,
     required this.onPosterize,
     required this.onSepia,
+    required this.onGlow,
+    required this.onSharpen,
+    required this.onSoftenPortrait,
     required this.onInkSketch,
     required this.onOilPainting,
     required this.onPencilSketch,
@@ -47,6 +50,19 @@ class AppMenuBar extends StatelessWidget {
     required this.onRadialBlur,
     required this.onUnfocus,
     required this.onZoomBlur,
+    required this.onBulge,
+    required this.onFrostedGlass,
+    required this.onPixelate,
+    required this.onPolarInversion,
+    required this.onTileReflection,
+    required this.onTwist,
+    required this.onClouds,
+    required this.onJuliaFractal,
+    required this.onMandelbrotFractal,
+    required this.onEdgeDetect,
+    required this.onEmboss,
+    required this.onOutline,
+    required this.onRelief,
     required this.onDithering,
     this.onOpenSettings,
   });
@@ -82,6 +98,9 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onLevels;
   final VoidCallback onPosterize;
   final VoidCallback onSepia;
+  final VoidCallback onGlow;
+  final VoidCallback onSharpen;
+  final VoidCallback onSoftenPortrait;
   final VoidCallback onInkSketch;
   final VoidCallback onOilPainting;
   final VoidCallback onPencilSketch;
@@ -91,6 +110,19 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onRadialBlur;
   final VoidCallback onUnfocus;
   final VoidCallback onZoomBlur;
+  final VoidCallback onBulge;
+  final VoidCallback onFrostedGlass;
+  final VoidCallback onPixelate;
+  final VoidCallback onPolarInversion;
+  final VoidCallback onTileReflection;
+  final VoidCallback onTwist;
+  final VoidCallback onClouds;
+  final VoidCallback onJuliaFractal;
+  final VoidCallback onMandelbrotFractal;
+  final VoidCallback onEdgeDetect;
+  final VoidCallback onEmboss;
+  final VoidCallback onOutline;
+  final VoidCallback onRelief;
   final VoidCallback onDithering;
   final VoidCallback? onOpenSettings;
 
@@ -366,6 +398,27 @@ class AppMenuBar extends StatelessWidget {
               ),
               menuChildren: [
                 MenuItemButton(
+                  onPressed: onGlow,
+                  child: const Text('Glow...'),
+                ),
+                MenuItemButton(
+                  onPressed: onSharpen,
+                  child: const Text('Sharpen...'),
+                ),
+                MenuItemButton(
+                  onPressed: onSoftenPortrait,
+                  child: const Text('Soften Portrait...'),
+                ),
+              ],
+              child: const Text('Photo'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
                   onPressed: onInkSketch,
                   child: const Text('Ink Sketch...'),
                 ),
@@ -412,6 +465,85 @@ class AppMenuBar extends StatelessWidget {
                 ),
               ],
               child: const Text('Blurs'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onBulge,
+                  child: const Text('Bulge...'),
+                ),
+                MenuItemButton(
+                  onPressed: onFrostedGlass,
+                  child: const Text('Frosted Glass...'),
+                ),
+                MenuItemButton(
+                  onPressed: onPixelate,
+                  child: const Text('Pixelate...'),
+                ),
+                MenuItemButton(
+                  onPressed: onPolarInversion,
+                  child: const Text('Polar Inversion...'),
+                ),
+                MenuItemButton(
+                  onPressed: onTileReflection,
+                  child: const Text('Tile Reflection...'),
+                ),
+                MenuItemButton(
+                  onPressed: onTwist,
+                  child: const Text('Twist...'),
+                ),
+              ],
+              child: const Text('Distort'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onClouds,
+                  child: const Text('Clouds...'),
+                ),
+                MenuItemButton(
+                  onPressed: onJuliaFractal,
+                  child: const Text('Julia Fractal...'),
+                ),
+                MenuItemButton(
+                  onPressed: onMandelbrotFractal,
+                  child: const Text('Mandelbrot Fractal...'),
+                ),
+              ],
+              child: const Text('Render'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onEdgeDetect,
+                  child: const Text('Edge Detect...'),
+                ),
+                MenuItemButton(
+                  onPressed: onEmboss,
+                  child: const Text('Emboss...'),
+                ),
+                MenuItemButton(
+                  onPressed: onOutline,
+                  child: const Text('Outline...'),
+                ),
+                MenuItemButton(
+                  onPressed: onRelief,
+                  child: const Text('Relief...'),
+                ),
+              ],
+              child: const Text('Stylize'),
             ),
             SubmenuButton(
               style: menuStyle,

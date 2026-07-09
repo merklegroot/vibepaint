@@ -34,6 +34,10 @@ import 'package:vibepaint/utils/image_adjustments.dart';
 import 'package:vibepaint/utils/image_artistic_effects.dart';
 import 'package:vibepaint/utils/image_blur_effects.dart';
 import 'package:vibepaint/utils/image_color_effects.dart';
+import 'package:vibepaint/utils/image_distort_effects.dart';
+import 'package:vibepaint/utils/image_photo_effects.dart';
+import 'package:vibepaint/utils/image_render_effects.dart';
+import 'package:vibepaint/utils/image_stylize_effects.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_adjustments.dart';
@@ -48,6 +52,7 @@ import 'package:vibepaint/widgets/canvas_text_editor.dart';
 import 'package:vibepaint/widgets/color_palette_panel.dart';
 import 'package:vibepaint/widgets/color_picker_dialog.dart';
 import 'package:vibepaint/widgets/dithering_dialog.dart';
+import 'package:vibepaint/widgets/render_effects_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
@@ -56,6 +61,7 @@ import 'package:vibepaint/widgets/rotate_angle_dialog.dart';
 import 'package:vibepaint/widgets/save_image_dialog.dart';
 import 'package:vibepaint/widgets/text_tool_options_control.dart';
 import 'package:vibepaint/widgets/tool_toolbar.dart';
+
 class PaintScreen extends StatefulWidget {
   const PaintScreen({
     super.key,
@@ -1508,6 +1514,424 @@ class _PaintScreenState extends State<PaintScreen>
       builder: (context) => DitheringDialog(
         onSettingsChanged: preview,
       ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == null) {
+      _layerStack.restoreActiveLayerStrokes(backup);
+      setState(() {});
+      return;
+    }
+
+    await preview(result);
+    _noteDocumentEdited();
+  }
+
+  Future<void> _applySliderEffect({
+    required String title,
+    required List<AdjustmentSliderSpec> sliders,
+    required img.Image Function(img.Image source, List<double> values) apply,
+  }) async {
+    final applied = await _runAdjustmentDialog(
+      title: title,
+      sliders: sliders,
+      footer: 'Preview updates on the canvas.',
+      apply: apply,
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _glow() => _applySliderEffect(
+        title: 'Glow',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Radius',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Brightness',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Contrast',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => glowEffect(
+          source,
+          radius: values[0],
+          brightness: values[1],
+          contrast: values[2],
+        ),
+      );
+
+  Future<void> _sharpen() => _applySliderEffect(
+        title: 'Sharpen',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Amount',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => sharpenEffect(source, amount: values[0]),
+      );
+
+  Future<void> _softenPortrait() => _applySliderEffect(
+        title: 'Soften Portrait',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Softness',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Lighting',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Warmth',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => softenPortraitEffect(
+          source,
+          softness: values[0],
+          lighting: values[1],
+          warmth: values[2],
+        ),
+      );
+
+  Future<void> _bulge() => _applySliderEffect(
+        title: 'Bulge',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Amount',
+            min: 0,
+            max: 100,
+            initial: 60,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => bulgeEffect(source, amount: values[0]),
+      );
+
+  Future<void> _frostedGlass() => _applySliderEffect(
+        title: 'Frosted Glass',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Amount',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) =>
+            frostedGlassEffect(source, amount: values[0]),
+      );
+
+  Future<void> _pixelate() => _applySliderEffect(
+        title: 'Pixelate',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Cell size',
+            min: 2,
+            max: 64,
+            initial: 12,
+            divisions: 62,
+          ),
+        ],
+        apply: (source, values) => pixelateEffect(source, cellSize: values[0]),
+      );
+
+  Future<void> _polarInversion() => _applySliderEffect(
+        title: 'Polar Inversion',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Amount',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) =>
+            polarInversionEffect(source, amount: values[0]),
+      );
+
+  Future<void> _tileReflection() => _applySliderEffect(
+        title: 'Tile Reflection',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Rotation',
+            min: 0,
+            max: 360,
+            initial: 0,
+            divisions: 360,
+            suffix: '°',
+          ),
+          AdjustmentSliderSpec(
+            label: 'Tile size',
+            min: 4,
+            max: 80,
+            initial: 20,
+            divisions: 76,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Intensity',
+            min: 0,
+            max: 100,
+            initial: 60,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => tileReflectionEffect(
+          source,
+          rotation: values[0],
+          tileSize: values[1],
+          intensity: values[2],
+        ),
+      );
+
+  Future<void> _twist() => _applySliderEffect(
+        title: 'Twist',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Amount',
+            min: -100,
+            max: 100,
+            initial: 30,
+            divisions: 200,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Antialias',
+            min: 0,
+            max: 100,
+            initial: 70,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => twistEffect(
+          source,
+          amount: values[0],
+          antialias: values[1],
+        ),
+      );
+
+  Future<void> _juliaFractal() => _applySliderEffect(
+        title: 'Julia Fractal',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Factor',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Quality',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Zoom',
+            min: 0,
+            max: 100,
+            initial: 50,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => juliaFractalEffect(
+          source,
+          factor: values[0],
+          quality: values[1],
+          zoom: values[2],
+          primaryColor: _primaryColor,
+          secondaryColor: _gradientEndColor,
+        ),
+      );
+
+  Future<void> _edgeDetect() => _applySliderEffect(
+        title: 'Edge Detect',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Angle',
+            min: 0,
+            max: 360,
+            initial: 0,
+            divisions: 360,
+            suffix: '°',
+          ),
+        ],
+        apply: (source, values) =>
+            edgeDetectEffect(source, angle: values[0]),
+      );
+
+  Future<void> _emboss() => _applySliderEffect(
+        title: 'Emboss',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Angle',
+            min: 0,
+            max: 360,
+            initial: 45,
+            divisions: 360,
+            suffix: '°',
+          ),
+        ],
+        apply: (source, values) => embossEffect(source, angle: values[0]),
+      );
+
+  Future<void> _outline() => _applySliderEffect(
+        title: 'Outline',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Thickness',
+            min: 1,
+            max: 8,
+            initial: 2,
+            divisions: 7,
+          ),
+          AdjustmentSliderSpec(
+            label: 'Intensity',
+            min: 0,
+            max: 100,
+            initial: 70,
+            divisions: 100,
+          ),
+        ],
+        apply: (source, values) => outlineEffect(
+          source,
+          thickness: values[0],
+          intensity: values[1],
+        ),
+      );
+
+  Future<void> _relief() => _applySliderEffect(
+        title: 'Relief',
+        sliders: const [
+          AdjustmentSliderSpec(
+            label: 'Angle',
+            min: 0,
+            max: 360,
+            initial: 45,
+            divisions: 360,
+            suffix: '°',
+          ),
+        ],
+        apply: (source, values) => reliefEffect(source, angle: values[0]),
+      );
+
+  Future<void> _clouds() async {
+    if (!_ensureActiveLayerAdjustable()) {
+      return;
+    }
+
+    final source = await _layerStack.captureActiveLayerRaster(_documentSize);
+    if (source == null || !mounted) {
+      return;
+    }
+
+    final backup = _layerStack.backupActiveLayerStrokes();
+
+    Future<void> preview(CloudsSettings settings) async {
+      final result = cloudsEffect(
+        source,
+        scale: settings.scale,
+        power: settings.power,
+        seed: settings.seed,
+        primaryColor: _primaryColor,
+        secondaryColor: _gradientEndColor,
+      );
+      await _layerStack.replaceActiveLayerWithRaster(
+        size: _documentSize,
+        raster: result,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    }
+
+    final result = await showDialog<CloudsSettings>(
+      context: context,
+      builder: (context) => CloudsDialog(onSettingsChanged: preview),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == null) {
+      _layerStack.restoreActiveLayerStrokes(backup);
+      setState(() {});
+      return;
+    }
+
+    await preview(result);
+    _noteDocumentEdited();
+  }
+
+  Future<void> _mandelbrotFractal() async {
+    if (!_ensureActiveLayerAdjustable()) {
+      return;
+    }
+
+    final source = await _layerStack.captureActiveLayerRaster(_documentSize);
+    if (source == null || !mounted) {
+      return;
+    }
+
+    final backup = _layerStack.backupActiveLayerStrokes();
+
+    Future<void> preview(MandelbrotSettings settings) async {
+      final result = mandelbrotFractalEffect(
+        source,
+        factor: settings.factor,
+        quality: settings.quality,
+        zoom: settings.zoom,
+        primaryColor: _primaryColor,
+        secondaryColor: _gradientEndColor,
+        invert: settings.invert,
+      );
+      await _layerStack.replaceActiveLayerWithRaster(
+        size: _documentSize,
+        raster: result,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    }
+
+    final result = await showDialog<MandelbrotSettings>(
+      context: context,
+      builder: (context) => MandelbrotDialog(onSettingsChanged: preview),
     );
 
     if (!mounted) {
@@ -3073,6 +3497,9 @@ class _PaintScreenState extends State<PaintScreen>
                               onLevels: _levels,
                               onPosterize: _posterize,
                               onSepia: _sepia,
+                              onGlow: _glow,
+                              onSharpen: _sharpen,
+                              onSoftenPortrait: _softenPortrait,
                               onInkSketch: _inkSketch,
                               onOilPainting: _oilPainting,
                               onPencilSketch: _pencilSketch,
@@ -3082,6 +3509,19 @@ class _PaintScreenState extends State<PaintScreen>
                               onRadialBlur: _radialBlur,
                               onUnfocus: _unfocusBlur,
                               onZoomBlur: _zoomBlur,
+                              onBulge: _bulge,
+                              onFrostedGlass: _frostedGlass,
+                              onPixelate: _pixelate,
+                              onPolarInversion: _polarInversion,
+                              onTileReflection: _tileReflection,
+                              onTwist: _twist,
+                              onClouds: _clouds,
+                              onJuliaFractal: _juliaFractal,
+                              onMandelbrotFractal: _mandelbrotFractal,
+                              onEdgeDetect: _edgeDetect,
+                              onEmboss: _emboss,
+                              onOutline: _outline,
+                              onRelief: _relief,
                               onDithering: _dithering,
                             ),
                             PaintToolbar(
@@ -3486,6 +3926,9 @@ class _PaintScreenState extends State<PaintScreen>
           onLevels: _levels,
           onPosterize: _posterize,
           onSepia: _sepia,
+          onGlow: _glow,
+          onSharpen: _sharpen,
+          onSoftenPortrait: _softenPortrait,
           onInkSketch: _inkSketch,
           onOilPainting: _oilPainting,
           onPencilSketch: _pencilSketch,
@@ -3495,6 +3938,19 @@ class _PaintScreenState extends State<PaintScreen>
           onRadialBlur: _radialBlur,
           onUnfocus: _unfocusBlur,
           onZoomBlur: _zoomBlur,
+          onBulge: _bulge,
+          onFrostedGlass: _frostedGlass,
+          onPixelate: _pixelate,
+          onPolarInversion: _polarInversion,
+          onTileReflection: _tileReflection,
+          onTwist: _twist,
+          onClouds: _clouds,
+          onJuliaFractal: _juliaFractal,
+          onMandelbrotFractal: _mandelbrotFractal,
+          onEdgeDetect: _edgeDetect,
+          onEmboss: _emboss,
+          onOutline: _outline,
+          onRelief: _relief,
           onDithering: _dithering,
         ),
         child: body,
