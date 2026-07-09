@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibepaint/menus/edit_menu_widgets.dart';
 import 'package:vibepaint/menus/menu_shortcuts.dart';
 import 'package:vibepaint/theme/app_colors.dart';
 
@@ -12,11 +13,31 @@ class AppMenuBar extends StatelessWidget {
     required this.onOpen,
     required this.onSave,
     required this.onSaveAs,
+    required this.onUndo,
+    required this.onRedo,
+    required this.canUndo,
+    required this.canRedo,
+    required this.onCut,
+    required this.onCopy,
+    required this.onCopyMerged,
+    required this.onPaste,
+    required this.onPasteIntoNewLayer,
+    required this.onPasteIntoNewImage,
+    required this.canCutCopy,
+    required this.canPaste,
     required this.onSelectAll,
     required this.onDeselect,
+    required this.canDeselect,
+    required this.onEraseSelection,
+    required this.onFillSelection,
     required this.onInvertSelection,
+    required this.onOffsetSelection,
     required this.onDeleteSelection,
     required this.hasSelection,
+    required this.onPickPrimaryColor,
+    required this.onPickSecondaryColor,
+    required this.onSwapColors,
+    required this.onResetColors,
     required this.onCropToSelection,
     required this.onAutoCrop,
     required this.onResizeImage,
@@ -72,11 +93,31 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onSave;
   final VoidCallback onSaveAs;
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
+  final bool canUndo;
+  final bool canRedo;
+  final VoidCallback onCut;
+  final VoidCallback onCopy;
+  final VoidCallback onCopyMerged;
+  final VoidCallback onPaste;
+  final VoidCallback onPasteIntoNewLayer;
+  final VoidCallback onPasteIntoNewImage;
+  final bool canCutCopy;
+  final bool canPaste;
   final VoidCallback onSelectAll;
   final VoidCallback onDeselect;
+  final bool canDeselect;
+  final VoidCallback onEraseSelection;
+  final VoidCallback onFillSelection;
   final VoidCallback onInvertSelection;
+  final VoidCallback onOffsetSelection;
   final VoidCallback onDeleteSelection;
   final bool hasSelection;
+  final VoidCallback onPickPrimaryColor;
+  final VoidCallback onPickSecondaryColor;
+  final VoidCallback onSwapColors;
+  final VoidCallback onResetColors;
   final VoidCallback? onCropToSelection;
   final VoidCallback onAutoCrop;
   final VoidCallback onResizeImage;
@@ -203,32 +244,32 @@ class AppMenuBar extends StatelessWidget {
           menuStyle: const MenuStyle(
             backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
           ),
-          menuChildren: [
-            MenuItemButton(
-              onPressed: onSelectAll,
-              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyA),
-              child: const Text('Select All'),
-            ),
-            MenuItemButton(
-              onPressed: hasSelection ? onDeselect : null,
-              shortcut: platformMenuShortcut(LogicalKeyboardKey.keyD),
-              child: const Text('Deselect'),
-            ),
-            MenuItemButton(
-              onPressed: hasSelection ? onInvertSelection : null,
-              shortcut: platformMenuShortcut(
-                LogicalKeyboardKey.keyI,
-                shift: true,
-                control: true,
-              ),
-              child: const Text('Invert Selection'),
-            ),
-            MenuItemButton(
-              onPressed: hasSelection ? onDeleteSelection : null,
-              shortcut: const SingleActivator(LogicalKeyboardKey.delete),
-              child: const Text('Delete Selection'),
-            ),
-          ],
+          menuChildren: buildInWindowEditMenuChildren(
+            onUndo: onUndo,
+            onRedo: onRedo,
+            canUndo: canUndo,
+            canRedo: canRedo,
+            onCut: onCut,
+            onCopy: onCopy,
+            onCopyMerged: onCopyMerged,
+            onPaste: onPaste,
+            onPasteIntoNewLayer: onPasteIntoNewLayer,
+            onPasteIntoNewImage: onPasteIntoNewImage,
+            canCutCopy: canCutCopy,
+            canPaste: canPaste,
+            onSelectAll: onSelectAll,
+            onDeselect: onDeselect,
+            canDeselect: canDeselect,
+            onEraseSelection: onEraseSelection,
+            onFillSelection: onFillSelection,
+            onInvertSelection: onInvertSelection,
+            onOffsetSelection: onOffsetSelection,
+            hasSelection: hasSelection,
+            onPickPrimaryColor: onPickPrimaryColor,
+            onPickSecondaryColor: onPickSecondaryColor,
+            onSwapColors: onSwapColors,
+            onResetColors: onResetColors,
+          ),
           child: const Text('Edit'),
         ),
         SubmenuButton(

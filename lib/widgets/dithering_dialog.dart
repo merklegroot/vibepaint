@@ -17,10 +17,7 @@ class DitheringSettings {
 }
 
 class DitheringDialog extends StatefulWidget {
-  const DitheringDialog({
-    super.key,
-    required this.onSettingsChanged,
-  });
+  const DitheringDialog({super.key, required this.onSettingsChanged});
 
   final ValueChanged<DitheringSettings> onSettingsChanged;
 
@@ -48,10 +45,10 @@ class _DitheringDialogState extends State<DitheringDialog> {
   }
 
   DitheringSettings get _settings => DitheringSettings(
-        colorLevels: _colorLevels,
-        kernel: _kernel,
-        serpentine: _serpentine,
-      );
+    colorLevels: _colorLevels,
+    kernel: _kernel,
+    serpentine: _serpentine,
+  );
 
   void _notifyChanged() {
     widget.onSettingsChanged(_settings);
@@ -126,9 +123,7 @@ class _DitheringDialogState extends State<DitheringDialog> {
                       color: AppColors.statusText,
                       fontSize: 13,
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
@@ -138,16 +133,13 @@ class _DitheringDialogState extends State<DitheringDialog> {
                       filled: true,
                       fillColor: AppColors.workspace,
                       border: OutlineInputBorder(
-                        borderSide:
-                            BorderSide(color: AppColors.paletteBorder),
+                        borderSide: BorderSide(color: AppColors.paletteBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderSide:
-                            BorderSide(color: AppColors.paletteBorder),
+                        borderSide: BorderSide(color: AppColors.paletteBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide:
-                            BorderSide(color: AppColors.statusText),
+                        borderSide: BorderSide(color: AppColors.statusText),
                       ),
                     ),
                     onSubmitted: (_) => _applyLevelsInput(),
@@ -164,7 +156,7 @@ class _DitheringDialogState extends State<DitheringDialog> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<img.DitherKernel>(
-              value: _kernel,
+              initialValue: _kernel,
               dropdownColor: AppColors.workspace,
               style: const TextStyle(color: AppColors.statusText),
               decoration: InputDecoration(
@@ -232,10 +224,7 @@ class _DitheringDialogState extends State<DitheringDialog> {
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({
-    required this.label,
-    required this.onPressed,
-  });
+  const _StepButton({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;
@@ -253,10 +242,7 @@ class _StepButton extends StatelessWidget {
           side: const BorderSide(color: AppColors.paletteBorder),
           backgroundColor: AppColors.workspace,
         ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 18, height: 1),
-        ),
+        child: Text(label, style: const TextStyle(fontSize: 18, height: 1)),
       ),
     );
   }

@@ -23,6 +23,7 @@ import 'package:vibepaint/widgets/adjustment_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_preview_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_progress_dialog.dart';
 import 'package:vibepaint/widgets/ai_enhance_settings_dialog.dart';
+import 'package:vibepaint/utils/canvas_clipboard.dart';
 import 'package:vibepaint/utils/canvas_file_dialogs.dart';
 import 'package:vibepaint/utils/canvas_geometry.dart';
 import 'package:vibepaint/utils/canvas_image_io.dart';
@@ -40,6 +41,7 @@ import 'package:vibepaint/utils/image_render_effects.dart';
 import 'package:vibepaint/utils/image_stylize_effects.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
+import 'package:vibepaint/utils/selection_clipboard_ops.dart';
 import 'package:vibepaint/utils/layer_stack_adjustments.dart';
 import 'package:vibepaint/utils/layer_stack_image_ops.dart';
 import 'package:vibepaint/utils/native_window_title.dart';
@@ -56,6 +58,7 @@ import 'package:vibepaint/widgets/dithering_dialog.dart';
 import 'package:vibepaint/widgets/render_effects_dialog.dart';
 import 'package:vibepaint/widgets/layers_panel.dart';
 import 'package:vibepaint/widgets/new_image_dialog.dart';
+import 'package:vibepaint/widgets/offset_selection_dialog.dart';
 import 'package:vibepaint/widgets/paint_toolbar.dart';
 import 'package:vibepaint/widgets/resize_dimensions_dialog.dart';
 import 'package:vibepaint/widgets/rotate_angle_dialog.dart';
@@ -550,6 +553,16 @@ class _PaintScreenState extends State<PaintScreen>
 
   CanvasSelection? get _activeSelectionOverlay =>
       _selectionDraft ?? _selection;
+
+  bool get _hasSelection =>
+      _selection != null && !_selection!.isEmpty;
+
+  bool get _canClipboardCopy => _hasSelection;
+
+  bool get _canClipboardPaste => CanvasClipboard.hasData;
+
+  bool get _canDeselect =>
+      _selection != null || _selectionDraft != null;
 
   void _selectAll() {
     if (_documentSize == Size.zero) {
@@ -1965,6 +1978,131 @@ class _PaintScreenState extends State<PaintScreen>
     _noteDocumentEdited();
   }
 
+  Future<void> _copySelection({required bool merged}) async {
+    if (!_hasSelection || _selection == null) {
+      return;
+    }
+
+    await copySelectionToClipboard(
+      documentSize: _documentSize,
+      layerStack: _layerStack,
+      selection: _selection!,
+      merged: merged,
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _cutSelection() async {
+    await _copySelection(merged: false);
+    _deleteSelection();
+  }
+
+  Future<void> _pasteClipboard({
+    required bool intoNewLayer,
+    required bool intoNewImage,
+  }) async {
+    final data = CanvasClipboard.data;
+    if (data == null) {
+      return;
+    }
+
+    if (intoNewImage) {
+      final stroke = await pasteClipboardAsStroke(
+        documentSize: data.size,
+        pasteOrigin: Offset.zero,
+      );
+      if (stroke == null || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _layerStack.clear();
+        _layerStack.setBackgroundColor(defaultCanvasBackground);
+        _documentSize = data.size;
+        _currentStroke = null;
+        _lastPanPosition = null;
+        _textDraft = null;
+        _selection = null;
+        _selectionDraft = null;
+        _layerStack.activeHistory.add(stroke, label: 'Paste');
+        _resetViewport();
+      });
+      _resetDocumentTracking();
+      _noteDocumentEdited();
+      return;
+    }
+
+    if (_documentSize == Size.zero) {
+      return;
+    }
+
+    final origin = intoNewLayer
+        ? nextPasteOrigin(data)
+        : (_selection?.bounds.topLeft ?? nextPasteOrigin(data));
+    final stroke = await pasteClipboardAsStroke(
+      documentSize: _documentSize,
+      pasteOrigin: origin,
+    );
+    if (stroke == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      if (intoNewLayer) {
+        _layerStack.addLayer();
+      }
+      _layerStack.activeHistory.add(stroke, label: 'Paste');
+      _selection = CanvasSelection.fromRect(
+        SelectionShape.rectangle,
+        stroke.rasterBounds ?? Rect.fromLTWH(origin.dx, origin.dy, 1, 1),
+      );
+    });
+    _noteDocumentEdited();
+  }
+
+  Future<void> _fillSelection() async {
+    if (!_hasSelection || _selection == null) {
+      return;
+    }
+
+    final stroke = await buildSelectionFillStroke(
+      documentSize: _documentSize,
+      selection: _selection!,
+      fillColor: _primaryColor,
+    );
+    if (stroke == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _layerStack.activeHistory.add(stroke, label: 'Fill selection');
+    });
+    _noteDocumentEdited();
+  }
+
+  Future<void> _offsetSelection() async {
+    if (_selection == null) {
+      return;
+    }
+
+    final offset = await showDialog<Offset>(
+      context: context,
+      builder: (context) => const OffsetSelectionDialog(),
+    );
+    if (offset == null || !mounted || offset == Offset.zero) {
+      return;
+    }
+
+    setState(() {
+      _selection = translateSelection(_selection!, offset);
+    });
+    _noteDocumentEdited();
+  }
+
+  void _eraseSelection() => _deleteSelection();
+
   void _beginResizeSelection(SelectionResizeHandle handle) {
     _resizingSelection = true;
     _resizeHandle = handle;
@@ -3322,7 +3460,7 @@ class _PaintScreenState extends State<PaintScreen>
             const SingleActivator(LogicalKeyboardKey.keyR): () {
               setState(() => _activeTool = PaintTool.rectangle);
             },
-            const SingleActivator(LogicalKeyboardKey.keyC): () {
+            const SingleActivator(LogicalKeyboardKey.keyO): () {
               setState(() => _activeTool = PaintTool.ellipse);
             },
             const SingleActivator(LogicalKeyboardKey.keyE): () {
@@ -3397,24 +3535,72 @@ class _PaintScreenState extends State<PaintScreen>
                 _selectAll,
             const SingleActivator(LogicalKeyboardKey.keyA, control: true):
                 _selectAll,
-            const SingleActivator(LogicalKeyboardKey.keyD, meta: true):
-                _deselect,
-            const SingleActivator(LogicalKeyboardKey.keyD, control: true):
-                _deselect,
             const SingleActivator(
-              LogicalKeyboardKey.keyI,
-              control: true,
-              shift: true,
-            ): _invertSelection,
-            const SingleActivator(
-              LogicalKeyboardKey.keyI,
+              LogicalKeyboardKey.keyA,
               meta: true,
               shift: true,
-            ): _invertSelection,
+            ): _deselect,
+            const SingleActivator(
+              LogicalKeyboardKey.keyA,
+              control: true,
+              shift: true,
+            ): _deselect,
+            const SingleActivator(LogicalKeyboardKey.keyI, meta: true):
+                _invertSelection,
+            const SingleActivator(LogicalKeyboardKey.keyI, control: true):
+                _invertSelection,
             const SingleActivator(LogicalKeyboardKey.delete):
-                _deleteSelection,
+                _eraseSelection,
             const SingleActivator(LogicalKeyboardKey.backspace):
-                _deleteSelection,
+                _eraseSelection,
+            SingleActivator(
+              LogicalKeyboardKey.keyC,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): () => _copySelection(merged: false),
+            SingleActivator(
+              LogicalKeyboardKey.keyC,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): () => _copySelection(merged: true),
+            SingleActivator(
+              LogicalKeyboardKey.keyX,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): _cutSelection,
+            SingleActivator(
+              LogicalKeyboardKey.keyV,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+            ): () => _pasteClipboard(
+              intoNewLayer: false,
+              intoNewImage: false,
+            ),
+            SingleActivator(
+              LogicalKeyboardKey.keyV,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): () => _pasteClipboard(
+              intoNewLayer: true,
+              intoNewImage: false,
+            ),
+            SingleActivator(
+              LogicalKeyboardKey.keyV,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              alt: true,
+            ): () => _pasteClipboard(
+              intoNewLayer: false,
+              intoNewImage: true,
+            ),
+            SingleActivator(
+              LogicalKeyboardKey.keyO,
+              meta: defaultTargetPlatform == TargetPlatform.macOS,
+              control: defaultTargetPlatform != TargetPlatform.macOS,
+              shift: true,
+            ): _offsetSelection,
             SingleActivator(
               LogicalKeyboardKey.keyX,
               meta: defaultTargetPlatform == TargetPlatform.macOS,
@@ -3500,11 +3686,44 @@ class _PaintScreenState extends State<PaintScreen>
                               onSaveAs: () => _saveCanvasAs(),
                               onOpenSettings:
                                   !kIsWeb ? _openAiEnhanceSettings : null,
+                              onUndo: _undo,
+                              onRedo: _redo,
+                              canUndo: _layerStack.canUndo,
+                              canRedo: _layerStack.canRedo,
+                              onCut: _cutSelection,
+                              onCopy: () => _copySelection(merged: false),
+                              onCopyMerged: () => _copySelection(merged: true),
+                              onPaste: () => _pasteClipboard(
+                                intoNewLayer: false,
+                                intoNewImage: false,
+                              ),
+                              onPasteIntoNewLayer: () => _pasteClipboard(
+                                intoNewLayer: true,
+                                intoNewImage: false,
+                              ),
+                              onPasteIntoNewImage: () => _pasteClipboard(
+                                intoNewLayer: false,
+                                intoNewImage: true,
+                              ),
+                              canCutCopy: _canClipboardCopy,
+                              canPaste: _canClipboardPaste,
                               onSelectAll: _selectAll,
                               onDeselect: _deselect,
+                              canDeselect: _canDeselect,
+                              onEraseSelection: _eraseSelection,
+                              onFillSelection: _fillSelection,
                               onInvertSelection: _invertSelection,
+                              onOffsetSelection: _offsetSelection,
                               onDeleteSelection: _deleteSelection,
-                              hasSelection: _selection != null,
+                              hasSelection: _hasSelection,
+                              onPickPrimaryColor: () => _openColorPicker(
+                                ColorWellTarget.primary,
+                              ),
+                              onPickSecondaryColor: () => _openColorPicker(
+                                ColorWellTarget.canvasBackground,
+                              ),
+                              onSwapColors: _swapColors,
+                              onResetColors: _resetColors,
                               onCropToSelection:
                                   _canCropToSelection ? _cropToSelection : null,
                               onAutoCrop: _autoCrop,
@@ -3960,11 +4179,44 @@ class _PaintScreenState extends State<PaintScreen>
           onSave: _saveCanvas,
           onSaveAs: _saveCanvasAs,
           onOpenSettings: !kIsWeb ? _openAiEnhanceSettings : null,
+          onUndo: _undo,
+          onRedo: _redo,
+          canUndo: _layerStack.canUndo,
+          canRedo: _layerStack.canRedo,
+          onCut: _cutSelection,
+          onCopy: () => _copySelection(merged: false),
+          onCopyMerged: () => _copySelection(merged: true),
+          onPaste: () => _pasteClipboard(
+            intoNewLayer: false,
+            intoNewImage: false,
+          ),
+          onPasteIntoNewLayer: () => _pasteClipboard(
+            intoNewLayer: true,
+            intoNewImage: false,
+          ),
+          onPasteIntoNewImage: () => _pasteClipboard(
+            intoNewLayer: false,
+            intoNewImage: true,
+          ),
+          canCutCopy: _canClipboardCopy,
+          canPaste: _canClipboardPaste,
           onSelectAll: _selectAll,
           onDeselect: _deselect,
+          canDeselect: _canDeselect,
+          onEraseSelection: _eraseSelection,
+          onFillSelection: _fillSelection,
           onInvertSelection: _invertSelection,
+          onOffsetSelection: _offsetSelection,
           onDeleteSelection: _deleteSelection,
-          hasSelection: _selection != null,
+          hasSelection: _hasSelection,
+          onPickPrimaryColor: () => _openColorPicker(
+            ColorWellTarget.primary,
+          ),
+          onPickSecondaryColor: () => _openColorPicker(
+            ColorWellTarget.canvasBackground,
+          ),
+          onSwapColors: _swapColors,
+          onResetColors: _resetColors,
           onCropToSelection:
               _canCropToSelection ? _cropToSelection : null,
           onAutoCrop: _autoCrop,
