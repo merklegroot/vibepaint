@@ -7,8 +7,8 @@ enum ColorWellTarget {
   canvasBackground,
 }
 
-/// Default primary (foreground) color index — black.
-const defaultPrimaryColorIndex = 0;
+/// Default primary (foreground) color index — black (bottom row, first column).
+const defaultPrimaryColorIndex = AppColors.presetColorColumns;
 
 /// Default canvas background for a new document.
 const defaultCanvasBackground = Colors.white;

@@ -59,15 +59,36 @@ class ColorPalettePanel extends StatelessWidget {
             onReset: onResetColors,
           ),
           const SizedBox(width: 16),
-          for (var i = 0; i < AppColors.presetColors.length; i++) ...[
-            if (i > 0) const SizedBox(width: gap),
-            _Swatch(
-              color: AppColors.presetColors[i],
-              size: swatchSize,
-              selected: _isPresetSelected(i),
-              onTap: () => _handlePresetTap(i),
-            ),
-          ],
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var row = 0; row < AppColors.presetColorRows; row++)
+                Padding(
+                  padding: EdgeInsets.only(top: row > 0 ? gap : 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var col = 0;
+                          col < AppColors.presetColorColumns;
+                          col++) ...[
+                        if (col > 0) const SizedBox(width: gap),
+                        _Swatch(
+                          color: AppColors.presetColors[
+                              row * AppColors.presetColorColumns + col],
+                          size: swatchSize,
+                          selected: _isPresetSelected(
+                            row * AppColors.presetColorColumns + col,
+                          ),
+                          onTap: () => _handlePresetTap(
+                            row * AppColors.presetColorColumns + col,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
           if (colorTarget == ColorWellTarget.canvasBackground) ...[
             const SizedBox(width: gap),
             _Swatch(

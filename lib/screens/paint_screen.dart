@@ -177,7 +177,7 @@ class _PaintScreenState extends State<PaintScreen>
     super.initState();
     _layerStack = LayerStack(initialStrokes: widget.initialStrokes);
     _primaryColor = AppColors.presetColors[widget.initialColorIndex];
-    _gradientEndColor = AppColors.presetColors[1];
+    _gradientEndColor = AppColors.presetColors[0];
     _activeTool = widget.initialTool;
     _shapeStyle = widget.initialShapeStyle;
     if (widget.initialStrokes.isNotEmpty) {

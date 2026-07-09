@@ -21,7 +21,7 @@ class _NewImageDialogState extends State<NewImageDialog> {
         style: TextStyle(color: AppColors.statusText),
       ),
       content: SizedBox(
-        width: 360,
+        width: 460,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -36,27 +36,45 @@ class _NewImageDialogState extends State<NewImageDialog> {
               style: TextStyle(color: AppColors.paletteLabel, fontSize: 13),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var i = 0; i < AppColors.presetColors.length; i++)
-                  _BackgroundSwatch(
-                    color: AppColors.presetColors[i],
-                    selected: _backgroundColor.toARGB32() ==
-                        AppColors.presetColors[i].toARGB32(),
-                    onTap: () => setState(
-                      () => _backgroundColor = AppColors.presetColors[i],
+                for (var row = 0; row < AppColors.presetColorRows; row++)
+                  Padding(
+                    padding: EdgeInsets.only(top: row > 0 ? 4 : 0),
+                    child: Wrap(
+                      spacing: 4,
+                      children: [
+                        for (var col = 0;
+                            col < AppColors.presetColorColumns;
+                            col++)
+                          _BackgroundSwatch(
+                            color: AppColors.presetColors[
+                                row * AppColors.presetColorColumns + col],
+                            selected: _backgroundColor.toARGB32() ==
+                                AppColors.presetColors[
+                                        row * AppColors.presetColorColumns + col]
+                                    .toARGB32(),
+                            onTap: () => setState(
+                              () => _backgroundColor = AppColors.presetColors[
+                                  row * AppColors.presetColorColumns + col],
+                            ),
+                          ),
+                        if (row == AppColors.presetColorRows - 1)
+                          _BackgroundSwatch(
+                            color: transparentCanvasBackground,
+                            selected:
+                                isTransparentCanvasBackground(_backgroundColor),
+                            checkerboard: true,
+                            onTap: () => setState(
+                              () => _backgroundColor =
+                                  transparentCanvasBackground,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                _BackgroundSwatch(
-                  color: transparentCanvasBackground,
-                  selected: isTransparentCanvasBackground(_backgroundColor),
-                  checkerboard: true,
-                  onTap: () => setState(
-                    () => _backgroundColor = transparentCanvasBackground,
-                  ),
-                ),
               ],
             ),
           ],

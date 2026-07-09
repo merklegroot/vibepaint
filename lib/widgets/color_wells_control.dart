@@ -198,7 +198,7 @@ class _ResetColorsButton extends StatelessWidget {
                 child: Container(
                   width: 10,
                   height: 10,
-                  color: AppColors.presetColors.first,
+                  color: AppColors.presetColors[defaultPrimaryColorIndex],
                 ),
               ),
             ],
