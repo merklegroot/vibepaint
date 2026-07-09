@@ -1,0 +1,28 @@
+app-id: com.merklegroot.vibepaint
+runtime: org.freedesktop.Platform
+runtime-version: "23.08"
+sdk: org.freedesktop.Sdk
+command: vibepaint
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=home
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+  - --filesystem=xdg-pictures
+modules:
+  - name: vibepaint
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 vibepaint /app/bin/vibepaint
+      - cp -a lib /app/
+      - cp -a data /app/
+      - install -Dm644 com.merklegroot.vibepaint.desktop /app/share/applications/com.merklegroot.vibepaint.desktop
+      - install -Dm644 icons/hicolor/256x256/apps/com.merklegroot.vibepaint.png /app/share/icons/hicolor/256x256/apps/com.merklegroot.vibepaint.png
+      - install -Dm644 icons/hicolor/128x128/apps/com.merklegroot.vibepaint.png /app/share/icons/hicolor/128x128/apps/com.merklegroot.vibepaint.png
+    sources:
+      - type: dir
+        path: bundle

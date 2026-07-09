@@ -1,0 +1,5 @@
+#!/bin/sh
+# System launcher for packaged installs (/opt/vibepaint).
+INSTALL_DIR="/opt/vibepaint"
+cd "${INSTALL_DIR}" || exit 1
+exec ./vibepaint "$@"

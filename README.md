@@ -118,6 +118,17 @@ scripts/macos/package_dmg.sh \
   VibePaint-local-macos.dmg
 ```
 
+Package Linux release artifacts locally (after `flutter build linux --release`):
+
+```bash
+scripts/linux/package_release.sh \
+  --bundle build/linux/x64/release/bundle \
+  --version 1.0.3 \
+  --output-dir .
+```
+
+Requires `flatpak-builder` for the Flatpak bundle; `.deb`, `.rpm`, AppImage, and tarball are always produced.
+
 ## Releases
 
 CI runs on every push and pull request to `master`.
@@ -141,7 +152,21 @@ git push origin v0.1.0
 | --- | --- |
 | macOS | `VibePaint-<version>-macos.dmg` (drag into Applications) and `VibePaint-<version>-macos.app.zip` |
 | Windows | `VibePaint-<version>-win-x64-setup.exe` (installer) or `VibePaint-<version>-win-x64.zip` (portable) |
-| Linux | `VibePaint-<version>-linux-x64.tar.gz` |
+| Linux | `VibePaint-<version>-linux-x64.AppImage`, `.deb`, `.rpm`, `.flatpak`, and `.tar.gz` |
+
+### Install (Linux)
+
+Download artifacts from [Releases](https://github.com/merklegroot/vibepaint/releases).
+
+| Format | Best for | Install |
+| --- | --- | --- |
+| **AppImage** | Any distro, no install | `chmod +x VibePaint-*-linux-x64.AppImage && ./VibePaint-*-linux-x64.AppImage` |
+| **.deb** | Debian, Ubuntu, Mint, Pop!\_OS | `sudo apt install ./VibePaint-*-linux-x64.deb` |
+| **.rpm** | Fedora, RHEL, openSUSE | `sudo dnf install ./VibePaint-*-linux-x64.rpm` |
+| **Flatpak** | Sandboxed install on any distro with Flatpak | `flatpak install --user ./VibePaint-*-linux-x64.flatpak` |
+| **.tar.gz** | Portable / manual | Extract, then run `bundle/vibepaint` from the extracted folder |
+
+`.deb` and `.rpm` packages install to `/opt/vibepaint` and add a **VibePaint** entry to your application menu.
 
 No Apple Developer account is required. macOS builds are unsigned; users open once via **right-click → Open**. Windows builds are unsigned; on first launch use **More info → Run anyway** if SmartScreen appears.
 

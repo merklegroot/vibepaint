@@ -1,0 +1,29 @@
+# nfpm config for .deb and .rpm packages.
+# Run from repo root: nfpm package --config linux/nfpm.yaml --packager deb --target dist/
+name: vibepaint
+arch: amd64
+platform: linux
+version: "${VERSION}"
+section: graphics
+priority: optional
+maintainer: "Merkle Groot <https://github.com/merklegroot/vibepaint>"
+vendor: Merkle Groot
+homepage: https://github.com/merklegroot/vibepaint
+license: MIT
+description: A vibe coded paint app.
+contents:
+  - src: ${BUNDLE_DIR}/*
+    dst: /opt/vibepaint
+  - src: linux/launcher/vibepaint
+    dst: /usr/bin/vibepaint
+    file_info:
+      mode: 0755
+  - src: linux/com.merklegroot.vibepaint.desktop
+    dst: /usr/share/applications/com.merklegroot.vibepaint.desktop
+    file_info:
+      mode: 0644
+  - src: linux/icons/hicolor
+    dst: /usr/share/icons/hicolor
+scripts:
+  postinstall: linux/deb/postinst
+  postremove: linux/deb/postrm
