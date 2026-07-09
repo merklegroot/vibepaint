@@ -32,6 +32,7 @@ import 'package:vibepaint/utils/document_title.dart';
 import 'package:vibepaint/utils/flood_fill.dart';
 import 'package:vibepaint/utils/image_adjustments.dart';
 import 'package:vibepaint/utils/image_artistic_effects.dart';
+import 'package:vibepaint/utils/image_blur_effects.dart';
 import 'package:vibepaint/utils/image_transforms.dart';
 import 'package:vibepaint/utils/layer_fill_ops.dart';
 import 'package:vibepaint/utils/layer_stack_adjustments.dart';
@@ -1321,6 +1322,151 @@ class _PaintScreenState extends State<PaintScreen>
       ],
       footer: 'Preview updates on the canvas.',
       apply: (source, values) => pencilSketch(source, amount: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _fragmentBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Fragment',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Fragment size',
+          min: 4,
+          max: 64,
+          initial: 16,
+          divisions: 60,
+        ),
+        AdjustmentSliderSpec(
+          label: 'Distance',
+          min: 0,
+          max: 40,
+          initial: 12,
+          divisions: 40,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => fragmentEffect(
+        source,
+        fragmentSize: values[0],
+        distance: values[1],
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _gaussianBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Gaussian Blur',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Radius',
+          min: 0,
+          max: 40,
+          initial: 8,
+          divisions: 40,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) =>
+          gaussianBlurEffect(source, radius: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _motionBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Motion Blur',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Angle',
+          min: 0,
+          max: 360,
+          initial: 0,
+          divisions: 360,
+          suffix: '°',
+        ),
+        AdjustmentSliderSpec(
+          label: 'Distance',
+          min: 0,
+          max: 60,
+          initial: 20,
+          divisions: 60,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => motionBlurEffect(
+        source,
+        angle: values[0],
+        distance: values[1],
+      ),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _radialBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Radial Blur',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 50,
+          divisions: 100,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) =>
+          radialBlurEffect(source, amount: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _unfocusBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Unfocus',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 50,
+          divisions: 100,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => unfocusEffect(source, amount: values[0]),
+    );
+    if (applied) {
+      _noteDocumentEdited();
+    }
+  }
+
+  Future<void> _zoomBlur() async {
+    final applied = await _runAdjustmentDialog(
+      title: 'Zoom Blur',
+      sliders: const [
+        AdjustmentSliderSpec(
+          label: 'Amount',
+          min: 0,
+          max: 100,
+          initial: 50,
+          divisions: 100,
+        ),
+      ],
+      footer: 'Preview updates on the canvas.',
+      apply: (source, values) => zoomBlurEffect(source, amount: values[0]),
     );
     if (applied) {
       _noteDocumentEdited();
@@ -2879,6 +3025,12 @@ class _PaintScreenState extends State<PaintScreen>
                               onInkSketch: _inkSketch,
                               onOilPainting: _oilPainting,
                               onPencilSketch: _pencilSketch,
+                              onFragment: _fragmentBlur,
+                              onGaussianBlur: _gaussianBlur,
+                              onMotionBlur: _motionBlur,
+                              onRadialBlur: _radialBlur,
+                              onUnfocus: _unfocusBlur,
+                              onZoomBlur: _zoomBlur,
                             ),
                             PaintToolbar(
                               brushSize: _brushSize,
@@ -3285,6 +3437,12 @@ class _PaintScreenState extends State<PaintScreen>
           onInkSketch: _inkSketch,
           onOilPainting: _oilPainting,
           onPencilSketch: _pencilSketch,
+          onFragment: _fragmentBlur,
+          onGaussianBlur: _gaussianBlur,
+          onMotionBlur: _motionBlur,
+          onRadialBlur: _radialBlur,
+          onUnfocus: _unfocusBlur,
+          onZoomBlur: _zoomBlur,
         ),
         child: body,
       );

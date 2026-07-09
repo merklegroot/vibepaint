@@ -41,6 +41,12 @@ class AppMenuBar extends StatelessWidget {
     required this.onInkSketch,
     required this.onOilPainting,
     required this.onPencilSketch,
+    required this.onFragment,
+    required this.onGaussianBlur,
+    required this.onMotionBlur,
+    required this.onRadialBlur,
+    required this.onUnfocus,
+    required this.onZoomBlur,
     this.onOpenSettings,
   });
 
@@ -78,6 +84,12 @@ class AppMenuBar extends StatelessWidget {
   final VoidCallback onInkSketch;
   final VoidCallback onOilPainting;
   final VoidCallback onPencilSketch;
+  final VoidCallback onFragment;
+  final VoidCallback onGaussianBlur;
+  final VoidCallback onMotionBlur;
+  final VoidCallback onRadialBlur;
+  final VoidCallback onUnfocus;
+  final VoidCallback onZoomBlur;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -365,6 +377,39 @@ class AppMenuBar extends StatelessWidget {
                 ),
               ],
               child: const Text('Artistic'),
+            ),
+            SubmenuButton(
+              style: menuStyle,
+              menuStyle: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(AppColors.palettePanel),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: onFragment,
+                  child: const Text('Fragment...'),
+                ),
+                MenuItemButton(
+                  onPressed: onGaussianBlur,
+                  child: const Text('Gaussian Blur...'),
+                ),
+                MenuItemButton(
+                  onPressed: onMotionBlur,
+                  child: const Text('Motion Blur...'),
+                ),
+                MenuItemButton(
+                  onPressed: onRadialBlur,
+                  child: const Text('Radial Blur...'),
+                ),
+                MenuItemButton(
+                  onPressed: onUnfocus,
+                  child: const Text('Unfocus...'),
+                ),
+                MenuItemButton(
+                  onPressed: onZoomBlur,
+                  child: const Text('Zoom Blur...'),
+                ),
+              ],
+              child: const Text('Blurs'),
             ),
           ],
           child: const Text('Effects'),

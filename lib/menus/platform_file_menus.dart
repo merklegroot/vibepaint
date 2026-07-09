@@ -40,6 +40,12 @@ List<PlatformMenu> buildMacosPlatformMenus({
   required VoidCallback onInkSketch,
   required VoidCallback onOilPainting,
   required VoidCallback onPencilSketch,
+  required VoidCallback onFragment,
+  required VoidCallback onGaussianBlur,
+  required VoidCallback onMotionBlur,
+  required VoidCallback onRadialBlur,
+  required VoidCallback onUnfocus,
+  required VoidCallback onZoomBlur,
   VoidCallback? onOpenSettings,
 }) {
   final appMenuGroups = <PlatformMenuItem>[
@@ -178,6 +184,12 @@ List<PlatformMenu> buildMacosPlatformMenus({
         onInkSketch: onInkSketch,
         onOilPainting: onOilPainting,
         onPencilSketch: onPencilSketch,
+        onFragment: onFragment,
+        onGaussianBlur: onGaussianBlur,
+        onMotionBlur: onMotionBlur,
+        onRadialBlur: onRadialBlur,
+        onUnfocus: onUnfocus,
+        onZoomBlur: onZoomBlur,
       ),
     ),
   ];
