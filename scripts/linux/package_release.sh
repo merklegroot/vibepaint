@@ -90,10 +90,11 @@ ensure_nfpm() {
     return
   fi
 
-  local nfpm_version="2.41.3"
+  local nfpm_version="2.47.0"
+  local tarball="nfpm_${nfpm_version}_Linux_x86_64.tar.gz"
   echo "==> Downloading nfpm ${nfpm_version}"
   curl -fsSL \
-    "https://github.com/goreleaser/nfpm/releases/download/v${nfpm_version}/nfpm_${nfpm_version}_linux_amd64.tar.gz" \
+    "https://github.com/goreleaser/nfpm/releases/download/v${nfpm_version}/${tarball}" \
     | tar -xz -C "$WORK" nfpm
   chmod +x "$WORK/nfpm"
   export PATH="$WORK:$PATH"
