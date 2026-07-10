@@ -237,6 +237,14 @@ build_flatpak() {
     fi
   }
 
+  run_flatpak_builder() {
+    if [[ -n "${CI:-}" ]] && command -v sudo >/dev/null 2>&1; then
+      sudo flatpak-builder "$@"
+    else
+      flatpak-builder "$@"
+    fi
+  }
+
   echo "==> Flatpak"
   local flatpak_root="$WORK/flatpak"
   local repo="$WORK/flatpak-repo"
@@ -258,7 +266,7 @@ build_flatpak() {
       https://flathub.org/repo/flathub.flatpakrepo
   fi
 
-  run_flatpak builder \
+  run_flatpak_builder \
     --repo="$repo" \
     --force-clean \
     --install-deps-from=flathub \
