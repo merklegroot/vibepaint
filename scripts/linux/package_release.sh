@@ -269,7 +269,7 @@ build_flatpak() {
     "$build_dir" \
     "$flatpak_root/com.merklegroot.vibepaint.yml"
 
-  flatpak build-bundle "${flatpak_user_args[@]}" "$repo" "$FLATPAK" com.merklegroot.vibepaint
+  flatpak build-bundle "$repo" "$FLATPAK" com.merklegroot.vibepaint
   ls -lh "$FLATPAK"
 }
 
