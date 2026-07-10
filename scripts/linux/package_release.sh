@@ -100,30 +100,46 @@ ensure_nfpm() {
   export PATH="$WORK:$PATH"
 }
 
+render_nfpm_config() {
+  local template="$1"
+  local output="$2"
+  local bundle_dir="$3"
+  local bundle_dir_abs
+  bundle_dir_abs="$(cd "$bundle_dir" && pwd)"
+
+  sed \
+    -e "s|@BUNDLE_DIR@|${bundle_dir_abs}|g" \
+    -e "s|@VERSION@|${VERSION}|g" \
+    "$template" > "$output"
+}
+
 build_deb_and_rpm() {
   ensure_nfpm
 
   local pkg_root="$WORK/pkg-root"
+  local nfpm_config="$WORK/nfpm.yaml"
+  local nfpm_arch_config="$WORK/nfpm-arch.yaml"
   mkdir -p "$pkg_root"
   cp -a "$BUNDLE_DIR"/. "$pkg_root/"
 
+  render_nfpm_config "$ROOT/linux/nfpm.yaml" "$nfpm_config" "$pkg_root"
+  render_nfpm_config "$ROOT/linux/nfpm-arch.yaml" "$nfpm_arch_config" "$pkg_root"
+
   echo "==> Debian package"
-  export BUNDLE_DIR="$pkg_root"
-  export VERSION
   nfpm pkg \
-    --config "$ROOT/linux/nfpm.yaml" \
+    --config "$nfpm_config" \
     --packager deb \
     --target "$DEB"
 
   echo "==> RPM package"
   nfpm pkg \
-    --config "$ROOT/linux/nfpm.yaml" \
+    --config "$nfpm_config" \
     --packager rpm \
     --target "$RPM"
 
   echo "==> Arch Linux package"
   nfpm pkg \
-    --config "$ROOT/linux/nfpm-arch.yaml" \
+    --config "$nfpm_arch_config" \
     --packager archlinux \
     --target "$ARCH_PKG"
 

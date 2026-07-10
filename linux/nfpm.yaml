@@ -3,7 +3,7 @@
 name: vibepaint
 arch: amd64
 platform: linux
-version: "${VERSION}"
+version: "@VERSION@"
 section: graphics
 priority: optional
 maintainer: "Merkle Groot <https://github.com/merklegroot/vibepaint>"
@@ -12,10 +12,9 @@ homepage: https://github.com/merklegroot/vibepaint
 license: MIT
 description: A vibe coded paint app.
 contents:
-  - src: ${BUNDLE_DIR}/
+  - src: "@BUNDLE_DIR@/"
     dst: /opt/vibepaint/
     type: tree
-    expand: true
   - src: linux/launcher/vibepaint
     dst: /usr/bin/vibepaint
     file_info:
