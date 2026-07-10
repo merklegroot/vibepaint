@@ -14,11 +14,16 @@ license: MIT
 apps:
   vibepaint:
     command: bin/vibepaint-launch
-    extensions: [gnome]
     plugs:
       - network
       - home
       - removable-media
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - audio-playback
     desktop: com.merklegroot.vibepaint.desktop
 
 parts:
@@ -26,6 +31,17 @@ parts:
     plugin: nil
     stage-packages:
       - libsecret-1-0
+      - libgtk-3-0
+      - libglib2.0-0
+      - libgdk-pixbuf-2.0-0
+      - libpango-1.0-0
+      - libcairo2
+      - libatk1.0-0
+      - libatk-bridge2.0-0
+      - libcups2
+      - libdrm2
+      - libgbm1
+      - libxkbcommon0
     override-build: |
       set -eu
       mkdir -p "$CRAFT_PART_INSTALL/opt/vibepaint"

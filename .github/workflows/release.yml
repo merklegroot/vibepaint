@@ -185,18 +185,9 @@ jobs:
         with:
           name: VibePaint-${{ matrix.artifact }}
           path: |
-            VibePaint-${{ needs.prepare.outputs.version }}-macos.dmg
-            VibePaint-${{ needs.prepare.outputs.version }}-macos.app.zip
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.tar.gz
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.AppImage
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.deb
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.rpm
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.pkg.tar.zst
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64-aur.tar.gz
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.flatpak
-            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.snap
-            VibePaint-${{ needs.prepare.outputs.version }}-win-x64.zip
-            VibePaint-${{ needs.prepare.outputs.version }}-win-x64-setup.exe
+            VibePaint-${{ needs.prepare.outputs.version }}-macos.*
+            VibePaint-${{ needs.prepare.outputs.version }}-linux-x64.*
+            VibePaint-${{ needs.prepare.outputs.version }}-win-x64.*
           if-no-files-found: error
 
   release:

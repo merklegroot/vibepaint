@@ -69,7 +69,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/vibepaint-linux-pkg.XXXXXX")"
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
-trap 'rm -rf "$WORK"' EXIT
+
+cleanup_work() {
+  if [[ -n "${CI:-}" ]] && command -v sudo >/dev/null 2>&1; then
+    sudo rm -rf "$WORK" 2>/dev/null || rm -rf "$WORK" 2>/dev/null || true
+  else
+    rm -rf "$WORK"
+  fi
+}
+trap cleanup_work EXIT
 
 PREFIX="VibePaint-${VERSION}-linux-x64"
 TARBALL="${OUTPUT_DIR}/${PREFIX}.tar.gz"
@@ -229,27 +237,15 @@ build_flatpak() {
     return
   fi
 
-  run_flatpak() {
-    if [[ -n "${CI:-}" ]] && command -v sudo >/dev/null 2>&1; then
-      sudo flatpak "$@"
-    else
-      flatpak "$@"
-    fi
-  }
-
-  run_flatpak_builder() {
-    if [[ -n "${CI:-}" ]] && command -v sudo >/dev/null 2>&1; then
-      sudo flatpak-builder "$@"
-    else
-      flatpak-builder "$@"
-    fi
-  }
-
   echo "==> Flatpak"
   local flatpak_root="$WORK/flatpak"
   local repo="$WORK/flatpak-repo"
   local build_dir="$WORK/flatpak-app"
   local bundle_stage="$flatpak_root/bundle"
+  local flatpak_user_args=()
+  if [[ -n "${CI:-}" ]]; then
+    flatpak_user_args=(--user)
+  fi
 
   mkdir -p "$bundle_stage/icons/hicolor/256x256/apps" \
     "$bundle_stage/icons/hicolor/128x128/apps"
@@ -261,19 +257,19 @@ build_flatpak() {
     "$bundle_stage/icons/hicolor/128x128/apps/"
   cp "$ROOT/linux/flatpak/com.merklegroot.vibepaint.yml" "$flatpak_root/"
 
-  if ! run_flatpak remote-list | grep -q flathub; then
-    run_flatpak remote-add --if-not-exists flathub \
+  if ! flatpak remote-list "${flatpak_user_args[@]}" | grep -q flathub; then
+    flatpak remote-add --if-not-exists "${flatpak_user_args[@]}" flathub \
       https://flathub.org/repo/flathub.flatpakrepo
   fi
 
-  run_flatpak_builder \
+  flatpak-builder "${flatpak_user_args[@]}" \
     --repo="$repo" \
     --force-clean \
     --install-deps-from=flathub \
     "$build_dir" \
     "$flatpak_root/com.merklegroot.vibepaint.yml"
 
-  run_flatpak build-bundle "$repo" "$FLATPAK" com.merklegroot.vibepaint
+  flatpak build-bundle "${flatpak_user_args[@]}" "$repo" "$FLATPAK" com.merklegroot.vibepaint
   ls -lh "$FLATPAK"
 }
 
@@ -295,12 +291,15 @@ build_snap() {
   sed "s/VERSION_PLACEHOLDER/${VERSION}/g" "$ROOT/linux/snap/snapcraft.yaml" \
     >"$snap_root/snapcraft.yaml"
 
-  (cd "$snap_root" && snapcraft pack --destructive-mode)
+  if ! (cd "$snap_root" && SNAPCRAFT_BUILD_ENVIRONMENT=host snapcraft pack --destructive-mode); then
+    echo "warning: snapcraft failed; skipping Snap package" >&2
+    return
+  fi
 
   built_snap="$(find "$snap_root" -maxdepth 1 -name '*.snap' -print -quit)"
   if [[ -z "$built_snap" ]]; then
-    echo "error: snapcraft did not produce a .snap file" >&2
-    exit 1
+    echo "warning: snapcraft did not produce a .snap file; skipping Snap package" >&2
+    return
   fi
 
   mv "$built_snap" "$SNAP"
