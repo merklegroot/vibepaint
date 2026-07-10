@@ -12,14 +12,10 @@ class BrushQuickSliders extends StatelessWidget {
     required this.primaryColor,
     required this.activePreset,
     required this.libraryOpen,
-    required this.canUndo,
-    required this.canRedo,
     required this.onBrushSizeChanged,
     required this.onBrushOpacityChanged,
     required this.onPrimaryColorTap,
     required this.onBrushLibraryTap,
-    required this.onUndo,
-    required this.onRedo,
   });
 
   final double brushSize;
@@ -27,14 +23,10 @@ class BrushQuickSliders extends StatelessWidget {
   final Color primaryColor;
   final StudioBrushPresetId activePreset;
   final bool libraryOpen;
-  final bool canUndo;
-  final bool canRedo;
   final ValueChanged<double> onBrushSizeChanged;
   final ValueChanged<double> onBrushOpacityChanged;
   final VoidCallback onPrimaryColorTap;
   final VoidCallback onBrushLibraryTap;
-  final VoidCallback onUndo;
-  final VoidCallback onRedo;
 
   static const double width = 52;
 
@@ -93,20 +85,6 @@ class BrushQuickSliders extends StatelessWidget {
               value: brushOpacity.clamp(0.05, 1),
               tooltip: 'Brush opacity',
               onChanged: onBrushOpacityChanged,
-            ),
-            const SizedBox(height: 12),
-            _QuickActionButton(
-              icon: Icons.undo,
-              tooltip: 'Undo',
-              enabled: canUndo,
-              onPressed: onUndo,
-            ),
-            const SizedBox(height: 6),
-            _QuickActionButton(
-              icon: Icons.redo,
-              tooltip: 'Redo',
-              enabled: canRedo,
-              onPressed: onRedo,
             ),
           ],
         ),
@@ -293,38 +271,6 @@ class _ColorSwatchButton extends StatelessWidget {
               border: Border.all(color: AppColors.statusText, width: 1.5),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        onPressed: enabled ? onPressed : null,
-        icon: Icon(icon, size: 20),
-        color: AppColors.statusText,
-        disabledColor: AppColors.paletteBorder,
-        style: IconButton.styleFrom(
-          minimumSize: const Size(34, 34),
-          padding: EdgeInsets.zero,
-          backgroundColor: AppColors.workspace,
         ),
       ),
     );

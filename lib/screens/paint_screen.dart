@@ -4255,10 +4255,6 @@ class _PaintScreenState extends State<PaintScreen>
                                                               _activeStudioBrushPreset,
                                                           libraryOpen:
                                                               _showStudioBrushLibrary,
-                                                          canUndo: _layerStack
-                                                              .canUndo,
-                                                          canRedo: _layerStack
-                                                              .canRedo,
                                                           onBrushSizeChanged:
                                                               (size) {
                                                             setState(
@@ -4290,8 +4286,6 @@ class _PaintScreenState extends State<PaintScreen>
                                                                       !_showStudioBrushLibrary,
                                                             );
                                                           },
-                                                          onUndo: _undo,
-                                                          onRedo: _redo,
                                                         ),
                                                         if (_showStudioBrushLibrary) ...[
                                                           const SizedBox(
