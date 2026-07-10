@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:vibepaint/models/stroke.dart';
 import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
 
@@ -36,6 +37,38 @@ Offset _scatterOffset(Offset point, int pass, double amount, double radius) {
   final angle = (seed - seed.floor()) * math.pi * 2;
   final distance = amount * radius * (0.45 + (pass % 3) * 0.18);
   return Offset(math.cos(angle), math.sin(angle)) * distance;
+}
+
+void paintStudioBrushStrokeRange(
+  Canvas canvas,
+  Stroke stroke, {
+  required int startIndex,
+  required int endIndex,
+}) {
+  if (stroke.points.isEmpty || startIndex >= endIndex) {
+    return;
+  }
+
+  final settings = studioBrushSettingsForId(stroke.studioBrushPreset);
+  final baseAlpha =
+      (stroke.color.a * stroke.brushOpacity).clamp(0.0, 1.0).toDouble();
+  final blendMode = stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
+  final clampedStart = startIndex.clamp(0, stroke.points.length);
+  final clampedEnd = endIndex.clamp(clampedStart, stroke.points.length);
+
+  for (var i = clampedStart; i < clampedEnd; i++) {
+    final pressure = i < stroke.pressures.length ? stroke.pressures[i] : 1.0;
+    paintStudioBrushStamp(
+      canvas,
+      point: stroke.points[i],
+      pressure: pressure,
+      brushSize: stroke.brushSize,
+      color: stroke.color,
+      baseAlpha: baseAlpha,
+      settings: settings,
+      blendMode: blendMode,
+    );
+  }
 }
 
 void paintStudioBrushStamp(

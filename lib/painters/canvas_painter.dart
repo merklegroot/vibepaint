@@ -6,8 +6,6 @@ import 'package:vibepaint/models/paint_layer.dart';
 import 'package:vibepaint/models/shape_style.dart';
 import 'package:vibepaint/models/stroke.dart' show Stroke, StrokeShape;
 import 'package:vibepaint/theme/color_wells.dart';
-import 'package:vibepaint/models/studio_brush_preset.dart';
-import 'package:vibepaint/utils/studio_brush.dart';
 import 'package:vibepaint/utils/studio_brush_renderer.dart';
 
 class CanvasPainter extends CustomPainter {
@@ -15,6 +13,7 @@ class CanvasPainter extends CustomPainter {
     required this.layers,
     required this.activeLayerIndex,
     this.currentStroke,
+    this.studioStrokePreview,
     this.backgroundImage,
     this.backgroundColor = defaultCanvasBackground,
     this.previewRotation = 0,
@@ -23,6 +22,7 @@ class CanvasPainter extends CustomPainter {
   final List<PaintLayer> layers;
   final int activeLayerIndex;
   final Stroke? currentStroke;
+  final ui.Image? studioStrokePreview;
   final ui.Image? backgroundImage;
   final Color backgroundColor;
   final double previewRotation;
@@ -33,6 +33,7 @@ class CanvasPainter extends CustomPainter {
     required List<PaintLayer> layers,
     required int activeLayerIndex,
     Stroke? currentStroke,
+    ui.Image? studioStrokePreview,
     ui.Image? backgroundImage,
     Color backgroundColor = defaultCanvasBackground,
     double previewRotation = 0,
@@ -60,6 +61,8 @@ class CanvasPainter extends CustomPainter {
         bounds: bounds,
         layer: layers[i],
         currentStroke: i == activeLayerIndex ? currentStroke : null,
+        studioStrokePreview:
+            i == activeLayerIndex ? studioStrokePreview : null,
       );
     }
 
@@ -127,6 +130,7 @@ class CanvasPainter extends CustomPainter {
     required Rect bounds,
     required PaintLayer layer,
     Stroke? currentStroke,
+    ui.Image? studioStrokePreview,
   }) {
     if (!layer.visible) {
       return;
@@ -144,7 +148,11 @@ class CanvasPainter extends CustomPainter {
     }
 
     if (currentStroke != null) {
-      paintStroke(canvas, currentStroke, canvasBounds: bounds);
+      if (studioStrokePreview != null && currentStroke.isStudioBrush) {
+        canvas.drawImage(studioStrokePreview, Offset.zero, Paint());
+      } else {
+        paintStroke(canvas, currentStroke, canvasBounds: bounds);
+      }
     }
 
     canvas.restore();
@@ -289,63 +297,12 @@ class CanvasPainter extends CustomPainter {
   }
 
   static void _paintStudioBrushStroke(Canvas canvas, Stroke stroke) {
-    if (stroke.points.isEmpty) {
-      return;
-    }
-
-    final settings = studioBrushSettingsForId(stroke.studioBrushPreset);
-    final baseAlpha =
-        (stroke.color.a * stroke.brushOpacity).clamp(0.0, 1.0).toDouble();
-    final blendMode =
-        stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
-
-    void stampAt(Offset point, double pressure) {
-      paintStudioBrushStamp(
-        canvas,
-        point: point,
-        pressure: pressure,
-        brushSize: stroke.brushSize,
-        color: stroke.color,
-        baseAlpha: baseAlpha,
-        settings: settings,
-        blendMode: blendMode,
-      );
-    }
-
-    if (stroke.points.length == 1) {
-      final pressure =
-          stroke.pressures.isNotEmpty ? stroke.pressures.first : 1.0;
-      stampAt(stroke.points.first, pressure);
-      return;
-    }
-
-    final maxStep = stroke.brushSize * settings.spacingFactor;
-    for (var i = 0; i < stroke.points.length; i++) {
-      final pressure =
-          i < stroke.pressures.length ? stroke.pressures[i] : 1.0;
-      stampAt(stroke.points[i], pressure);
-
-      if (i == stroke.points.length - 1) {
-        continue;
-      }
-
-      final from = stroke.points[i];
-      final to = stroke.points[i + 1];
-      final nextPressure =
-          i + 1 < stroke.pressures.length ? stroke.pressures[i + 1] : pressure;
-      final steps = studioBrushSegmentPoints(
-        from: from,
-        to: to,
-        maxStep: maxStep,
-      );
-
-      for (var j = 0; j < steps.length; j++) {
-        final t = steps.length == 1 ? 1 : (j + 1) / steps.length;
-        final interpolatedPressure =
-            pressure + (nextPressure - pressure) * t;
-        stampAt(steps[j], interpolatedPressure);
-      }
-    }
+    paintStudioBrushStrokeRange(
+      canvas,
+      stroke,
+      startIndex: 0,
+      endIndex: stroke.points.length,
+    );
   }
 
   static void _paintPencilStroke(
@@ -397,6 +354,7 @@ class CanvasPainter extends CustomPainter {
       layers: layers,
       activeLayerIndex: activeLayerIndex,
       currentStroke: currentStroke,
+      studioStrokePreview: studioStrokePreview,
       backgroundImage: backgroundImage,
       backgroundColor: backgroundColor,
       previewRotation: previewRotation,
@@ -448,6 +406,10 @@ class CanvasPainter extends CustomPainter {
       return false;
     }
     if (oldCurrent == null || newCurrent == null) {
+      return true;
+    }
+
+    if (oldDelegate.studioStrokePreview != studioStrokePreview) {
       return true;
     }
 

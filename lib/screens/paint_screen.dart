@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,6 +51,7 @@ import 'package:vibepaint/utils/selection_cursors.dart';
 import 'package:vibepaint/utils/selection_geometry.dart';
 import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
+import 'package:vibepaint/utils/studio_stroke_preview.dart';
 import 'package:vibepaint/utils/selection_handles.dart';
 import 'package:vibepaint/widgets/app_menu_bar.dart';
 import 'package:vibepaint/widgets/brush_quick_sliders.dart';
@@ -145,6 +147,8 @@ class _PaintScreenState extends State<PaintScreen>
   double _rotatePreviewAngle = 0;
   double? _rotateStartAngle;
   Offset? _rotateDragPosition;
+  final StudioStrokePreview _studioStrokePreview = StudioStrokePreview();
+  bool _studioStrokeRepaintScheduled = false;
 
   bool get _rotatePreviewActive => _freeRotateActive || _angleRotateActive;
 
@@ -273,6 +277,7 @@ class _PaintScreenState extends State<PaintScreen>
   @override
   void dispose() {
     _clearEyedropperCache();
+    _studioStrokePreview.dispose();
     _marchingAntsController.dispose();
     _layerStack.dispose();
     super.dispose();
@@ -289,9 +294,52 @@ class _PaintScreenState extends State<PaintScreen>
   StudioBrushSettings get _studioBrushSettings =>
       studioBrushPresetById(_activeStudioBrushPreset).settings;
 
-  double get _freehandStrokeStep => _isStudioBrush
-      ? _brushSize * _studioBrushSettings.spacingFactor
-      : _brushSize / 2;
+  double get _freehandStrokeStep {
+    if (_isStudioBrush) {
+      return math.max(
+        _brushSize * _studioBrushSettings.spacingFactor,
+        1.0,
+      );
+    }
+    return _brushSize / 2;
+  }
+
+  void _clearStudioStrokePreview() {
+    _studioStrokePreview.clear();
+  }
+
+  void _syncStudioStrokePreview() {
+    final stroke = _currentStroke;
+    if (stroke == null ||
+        !stroke.isStudioBrush ||
+        _documentSize == Size.zero) {
+      _clearStudioStrokePreview();
+      return;
+    }
+    _studioStrokePreview.appendPoints(stroke, _documentSize);
+  }
+
+  void _scheduleStudioStrokeRepaint() {
+    if (_studioStrokeRepaintScheduled) {
+      return;
+    }
+    _studioStrokeRepaintScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _studioStrokeRepaintScheduled = false;
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _notifyStrokeChanged() {
+    if (_isStudioBrush) {
+      _syncStudioStrokePreview();
+      _scheduleStudioStrokeRepaint();
+    } else {
+      setState(() {});
+    }
+  }
 
   void _resetStudioPressureSampling() {
     _lastStudioPressureTime = null;
@@ -382,14 +430,9 @@ class _PaintScreenState extends State<PaintScreen>
             brushSize: _brushSize,
             settings: _studioBrushSettings,
           )
-        : List<double>.filled(newPoints.length, pressure);
-    _currentStroke = stroke.copyWith(
-      points: [...stroke.points, ...newPoints],
-      pressures: [
-        ...stroke.pressures,
-        ...pressures,
-      ],
-    );
+        : List<double>.filled(newPoints.length, pressure, growable: true);
+    stroke.points.addAll(newPoints);
+    stroke.pressures.addAll(pressures);
   }
 
   Stroke _newFreehandStroke({
@@ -399,8 +442,8 @@ class _PaintScreenState extends State<PaintScreen>
     return Stroke(
       color: _primaryColor,
       brushSize: _brushSize,
-      points: points,
-      pressures: List<double>.filled(points.length, pressure),
+      points: List<Offset>.from(points),
+      pressures: List<double>.filled(points.length, pressure, growable: true),
       isEraser: _isErasing,
       isPencil: _isPencil,
       isStudioBrush: _isStudioBrush,
@@ -2884,6 +2927,7 @@ class _PaintScreenState extends State<PaintScreen>
     }
 
     if (_isStudioBrush) {
+      _clearStudioStrokePreview();
       _lastStudioPressurePosition = position;
       _studioStrokeStartPosition = position;
     } else {
@@ -2896,6 +2940,10 @@ class _PaintScreenState extends State<PaintScreen>
         pressure: pressure,
       );
     });
+    if (_isStudioBrush) {
+      _syncStudioStrokePreview();
+      _scheduleStudioStrokeRepaint();
+    }
   }
 
   void _commitCurrentStroke() {
@@ -2906,6 +2954,7 @@ class _PaintScreenState extends State<PaintScreen>
 
     _layerStack.activeHistory.add(_currentStroke!);
     _currentStroke = null;
+    _clearStudioStrokePreview();
     _studioSmoothPoint = null;
     _resetStudioPressureSampling();
     _noteDocumentEdited();
@@ -2962,6 +3011,7 @@ class _PaintScreenState extends State<PaintScreen>
       _textDraft = null;
       _resetViewport();
     });
+    _clearStudioStrokePreview();
     _resetDocumentTracking();
   }
 
@@ -3536,12 +3586,10 @@ class _PaintScreenState extends State<PaintScreen>
         maxStep: _freehandStrokeStep,
       );
 
-      setState(() {
-        if (exitPoints.isNotEmpty) {
-          _appendFreehandPoints(exitPoints, pressure);
-        }
-        _commitCurrentStroke();
-      });
+      if (exitPoints.isNotEmpty) {
+        _appendFreehandPoints(exitPoints, pressure);
+      }
+      setState(_commitCurrentStroke);
       _lastPanPosition = position;
       return;
     }
@@ -3557,12 +3605,19 @@ class _PaintScreenState extends State<PaintScreen>
             )
           : [position];
 
+      if (_isStudioBrush) {
+        _clearStudioStrokePreview();
+      }
       setState(() {
         _currentStroke = _newFreehandStroke(
           points: points,
           pressure: pressure,
         );
       });
+      if (_isStudioBrush) {
+        _syncStudioStrokePreview();
+        _scheduleStudioStrokeRepaint();
+      }
       _lastPanPosition = position;
       return;
     }
@@ -3580,9 +3635,8 @@ class _PaintScreenState extends State<PaintScreen>
       return;
     }
 
-    setState(() {
-      _appendFreehandPoints(newPoints, pressure);
-    });
+    _appendFreehandPoints(newPoints, pressure);
+    _notifyStrokeChanged();
     _lastPanPosition = position;
   }
 
@@ -3645,6 +3699,7 @@ class _PaintScreenState extends State<PaintScreen>
     _lastPanPosition = null;
     if (_currentStroke == null || _currentStroke!.isEmpty) {
       _currentStroke = null;
+      _clearStudioStrokePreview();
       return;
     }
 
@@ -4198,6 +4253,9 @@ class _PaintScreenState extends State<PaintScreen>
                                                                   .activeIndex,
                                                           currentStroke:
                                                               _currentStroke,
+                                                          studioStrokePreview:
+                                                              _studioStrokePreview
+                                                                  .image,
                                                           backgroundImage:
                                                               _layerStack
                                                                   .backgroundImage,
