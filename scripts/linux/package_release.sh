@@ -108,19 +108,21 @@ build_deb_and_rpm() {
   cp -a "$BUNDLE_DIR"/. "$pkg_root/"
 
   echo "==> Debian package"
-  BUNDLE_DIR="$pkg_root" VERSION="$VERSION" nfpm pkg \
+  export BUNDLE_DIR="$pkg_root"
+  export VERSION
+  nfpm pkg \
     --config "$ROOT/linux/nfpm.yaml" \
     --packager deb \
     --target "$DEB"
 
   echo "==> RPM package"
-  BUNDLE_DIR="$pkg_root" VERSION="$VERSION" nfpm pkg \
+  nfpm pkg \
     --config "$ROOT/linux/nfpm.yaml" \
     --packager rpm \
     --target "$RPM"
 
   echo "==> Arch Linux package"
-  BUNDLE_DIR="$pkg_root" VERSION="$VERSION" nfpm pkg \
+  nfpm pkg \
     --config "$ROOT/linux/nfpm-arch.yaml" \
     --packager archlinux \
     --target "$ARCH_PKG"
