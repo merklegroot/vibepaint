@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vibepaint/models/studio_brush_preset.dart';
 import 'package:vibepaint/utils/studio_brush.dart';
 
 void main() {
@@ -21,6 +22,19 @@ void main() {
     expect(eased.dx, lessThan(100));
   });
 
+  test('studioBrushFilterSpeed smooths raw speed changes', () {
+    const filtered = 100.0;
+    final next = studioBrushFilterSpeed(
+      rawSpeedPxPerSec: 0,
+      filteredSpeedPxPerSec: filtered,
+      dtSeconds: 0.016,
+      slowness: 0.05,
+    );
+
+    expect(next, lessThan(filtered));
+    expect(next, greaterThan(0));
+  });
+
   test('studioBrushPressureFromVelocity tapers fast strokes', () {
     final slow = studioBrushPressureFromVelocity(40, 12);
     final fast = studioBrushPressureFromVelocity(800, 12);
@@ -29,28 +43,107 @@ void main() {
     expect(fast, lessThan(0.75));
   });
 
-  test('studioBrushPressureRamped stays soft until the pointer moves', () {
-    final resting = studioBrushPressureRamped(
-      pressure: 0.8,
-      travelFromStart: 0,
-      brushSize: 12,
-    );
-    final moving = studioBrushPressureRamped(
-      pressure: 0.8,
-      travelFromStart: 12 * studioBrushStartRampFactor,
-      brushSize: 12,
-    );
+  test('studioBrushPressureFromVelocity is thicker at rest than at speed', () {
+    final stopped = studioBrushPressureFromVelocity(0, 12);
+    final moving = studioBrushPressureFromVelocity(300, 12);
 
-    expect(resting, studioBrushInitialTouchPressure);
-    expect(moving, 0.8);
+    expect(stopped, greaterThan(moving));
   });
 
-  test('studioBrushPressureFromVelocity eases off at a full stop', () {
-    final stopped = studioBrushPressureFromVelocity(0, 12);
-    final slowDrift = studioBrushPressureFromVelocity(30, 12);
+  test('log speed mapping compresses near-zero speeds', () {
+    const settings = StudioBrushSettings.smoothMarker;
+    final stopped = studioBrushPressureFromVelocity(0, 12, settings: settings);
+    final crawl = studioBrushPressureFromVelocity(8, 12, settings: settings);
 
-    expect(stopped, lessThan(slowDrift));
-    expect(stopped, lessThan(0.65));
+    expect(stopped, settings.velocityRestPressure);
+    expect(crawl - stopped, lessThanOrEqualTo(0.08));
+  });
+
+  test('studioBrushPressureFromVelocity tapers down gradually when fast', () {
+    const settings = StudioBrushSettings.smoothMarker;
+    const brushSize = 12.0;
+    final reference = brushSize * 8;
+    final slow = studioBrushPressureFromVelocity(
+      reference * 0.2,
+      brushSize,
+      settings: settings,
+    );
+    final medium = studioBrushPressureFromVelocity(
+      reference * 1.0,
+      brushSize,
+      settings: settings,
+    );
+    final veryFast = studioBrushPressureFromVelocity(
+      reference * 3,
+      brushSize,
+      settings: settings,
+    );
+
+    expect(medium, lessThan(slow));
+    expect(veryFast, lessThan(medium));
+    expect(veryFast, closeTo(settings.velocityMinPressure, 0.001));
+  });
+
+  test('studioBrushTaperSizeMultiplier fades stroke tips', () {
+    const settings = StudioBrushSettings.smoothMarker;
+    const brushSize = 12.0;
+
+    expect(
+      studioBrushTaperSizeMultiplier(
+        distanceFromStart: 0,
+        distanceFromEnd: 40,
+        brushSize: brushSize,
+        settings: settings,
+      ),
+      lessThan(0.5),
+    );
+    expect(
+      studioBrushTaperSizeMultiplier(
+        distanceFromStart: brushSize * settings.startTaperLengthFactor,
+        distanceFromEnd: brushSize * settings.endTaperLengthFactor,
+        brushSize: brushSize,
+        settings: settings,
+      ),
+      1,
+    );
+  });
+
+  test('live stroke phase skips end taper', () {
+    const settings = StudioBrushSettings.smoothMarker;
+    const brushSize = 12.0;
+
+    final committed = studioBrushTaperSizeMultiplier(
+      distanceFromStart: 40,
+      distanceFromEnd: 0,
+      brushSize: brushSize,
+      settings: settings,
+      phase: StudioBrushStrokePhase.committed,
+    );
+    final live = studioBrushTaperSizeMultiplier(
+      distanceFromStart: 40,
+      distanceFromEnd: 0,
+      brushSize: brushSize,
+      settings: settings,
+      phase: StudioBrushStrokePhase.live,
+    );
+
+    expect(committed, lessThan(0.5));
+    expect(live, 1);
+  });
+
+  test('live stroke phase still applies start taper', () {
+    const settings = StudioBrushSettings.smoothMarker;
+    const brushSize = 12.0;
+
+    final live = studioBrushTaperSizeMultiplier(
+      distanceFromStart: 0,
+      distanceFromEnd: 40,
+      brushSize: brushSize,
+      settings: settings,
+      phase: StudioBrushStrokePhase.live,
+    );
+
+    expect(live, lessThan(0.5));
   });
 
   test('studioBrushPressuresForPoints tapers long interpolated steps', () {

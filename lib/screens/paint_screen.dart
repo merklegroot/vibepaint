@@ -99,7 +99,7 @@ class _PaintScreenState extends State<PaintScreen>
   Offset? _studioSmoothPoint;
   Duration? _lastStudioPressureTime;
   Offset? _lastStudioPressurePosition;
-  Offset? _studioStrokeStartPosition;
+  double _studioFilteredSpeed = 0;
   late Color _primaryColor;
   late Color _gradientEndColor;
   double _brushSize = 6;
@@ -327,6 +327,7 @@ class _PaintScreenState extends State<PaintScreen>
     SchedulerBinding.instance.scheduleFrameCallback((_) {
       _studioStrokeRepaintScheduled = false;
       if (mounted) {
+        _syncStudioStrokePreview();
         setState(() {});
       }
     });
@@ -334,7 +335,6 @@ class _PaintScreenState extends State<PaintScreen>
 
   void _notifyStrokeChanged() {
     if (_isStudioBrush) {
-      _syncStudioStrokePreview();
       _scheduleStudioStrokeRepaint();
     } else {
       setState(() {});
@@ -344,21 +344,7 @@ class _PaintScreenState extends State<PaintScreen>
   void _resetStudioPressureSampling() {
     _lastStudioPressureTime = null;
     _lastStudioPressurePosition = null;
-    _studioStrokeStartPosition = null;
-  }
-
-  double _applyStudioStartRamp(double pressure, Offset position) {
-    final start = _studioStrokeStartPosition;
-    if (start == null) {
-      return pressure;
-    }
-
-    return studioBrushPressureRamped(
-      pressure: pressure,
-      travelFromStart: (position - start).distance,
-      brushSize: _brushSize,
-      settings: _studioBrushSettings,
-    );
+    _studioFilteredSpeed = 0;
   }
 
   double _strokePressure(PointerEvent event, Offset position) {
@@ -378,24 +364,34 @@ class _PaintScreenState extends State<PaintScreen>
       if (dtSeconds > 0) {
         final distance = (position - _lastStudioPressurePosition!).distance;
         final velocity = distance / dtSeconds;
+        _studioFilteredSpeed = studioBrushFilterSpeed(
+          rawSpeedPxPerSec: velocity,
+          filteredSpeedPxPerSec: _studioFilteredSpeed,
+          dtSeconds: dtSeconds,
+          slowness: _studioBrushSettings.speedSlowness,
+        );
         _lastStudioPressureTime = timestamp;
         _lastStudioPressurePosition = position;
-        return _applyStudioStartRamp(
-          studioBrushPressureFromVelocity(
-            velocity,
-            _brushSize,
-            settings: _studioBrushSettings,
-          ),
-          position,
+        return studioBrushPressureFromVelocity(
+          _studioFilteredSpeed,
+          _brushSize,
+          settings: _studioBrushSettings,
         );
       }
     }
 
     _lastStudioPressureTime = timestamp;
     _lastStudioPressurePosition = position;
-    return _applyStudioStartRamp(
-      _studioBrushSettings.initialTouchPressure,
-      position,
+    _studioFilteredSpeed = studioBrushFilterSpeed(
+      rawSpeedPxPerSec: 0,
+      filteredSpeedPxPerSec: _studioFilteredSpeed,
+      dtSeconds: 1 / 60,
+      slowness: _studioBrushSettings.speedSlowness,
+    );
+    return studioBrushPressureFromVelocity(
+      _studioFilteredSpeed,
+      _brushSize,
+      settings: _studioBrushSettings,
     );
   }
 
@@ -2651,6 +2647,7 @@ class _PaintScreenState extends State<PaintScreen>
       _currentStroke = null;
       _lastPanPosition = null;
       _studioSmoothPoint = null;
+      _clearStudioStrokePreview();
       _resetStudioPressureSampling();
       _selectionDraft = null;
       _lassoPoints = null;
@@ -2929,7 +2926,6 @@ class _PaintScreenState extends State<PaintScreen>
     if (_isStudioBrush) {
       _clearStudioStrokePreview();
       _lastStudioPressurePosition = position;
-      _studioStrokeStartPosition = position;
     } else {
       _resetStudioPressureSampling();
     }
@@ -2941,7 +2937,6 @@ class _PaintScreenState extends State<PaintScreen>
       );
     });
     if (_isStudioBrush) {
-      _syncStudioStrokePreview();
       _scheduleStudioStrokeRepaint();
     }
   }
@@ -3615,7 +3610,20 @@ class _PaintScreenState extends State<PaintScreen>
         );
       });
       if (_isStudioBrush) {
-        _syncStudioStrokePreview();
+        if (points.length > 1) {
+          final stroke = _currentStroke!;
+          stroke.pressures
+            ..clear()
+            ..addAll(
+              studioBrushPressuresForPoints(
+                previousPoint: from,
+                points: points,
+                endPressure: pressure,
+                brushSize: _brushSize,
+                settings: _studioBrushSettings,
+              ),
+            );
+        }
         _scheduleStudioStrokeRepaint();
       }
       _lastPanPosition = position;

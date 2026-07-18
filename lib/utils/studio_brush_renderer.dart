@@ -44,6 +44,7 @@ void paintStudioBrushStrokeRange(
   Stroke stroke, {
   required int startIndex,
   required int endIndex,
+  StudioBrushStrokePhase phase = StudioBrushStrokePhase.committed,
 }) {
   if (stroke.points.isEmpty || startIndex >= endIndex) {
     return;
@@ -55,16 +56,35 @@ void paintStudioBrushStrokeRange(
   final blendMode = stroke.isEraser ? BlendMode.clear : BlendMode.srcOver;
   final clampedStart = startIndex.clamp(0, stroke.points.length);
   final clampedEnd = endIndex.clamp(clampedStart, stroke.points.length);
+  final arcLengths = studioBrushArcLengths(stroke.points);
+  final totalLength = arcLengths.isEmpty ? 0.0 : arcLengths.last;
 
   for (var i = clampedStart; i < clampedEnd; i++) {
-    final pressure = i < stroke.pressures.length ? stroke.pressures[i] : 1.0;
+    final velocityPressure =
+        i < stroke.pressures.length ? stroke.pressures[i] : 1.0;
+    final distanceFromStart = arcLengths[i];
+    final distanceFromEnd = totalLength - distanceFromStart;
+    final sizeMul = studioBrushTaperSizeMultiplier(
+      distanceFromStart: distanceFromStart,
+      distanceFromEnd: distanceFromEnd,
+      brushSize: stroke.brushSize,
+      settings: settings,
+      phase: phase,
+    );
+    final opacityMul = studioBrushTaperOpacityMultiplier(
+      distanceFromStart: distanceFromStart,
+      distanceFromEnd: distanceFromEnd,
+      brushSize: stroke.brushSize,
+      settings: settings,
+      phase: phase,
+    );
     paintStudioBrushStamp(
       canvas,
       point: stroke.points[i],
-      pressure: pressure,
+      pressure: (velocityPressure * sizeMul).clamp(0.04, 1.0),
       brushSize: stroke.brushSize,
       color: stroke.color,
-      baseAlpha: baseAlpha,
+      baseAlpha: baseAlpha * opacityMul,
       settings: settings,
       blendMode: blendMode,
     );

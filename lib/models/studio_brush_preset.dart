@@ -22,10 +22,13 @@ class StudioBrushSettings {
     required this.blurFactor,
     required this.coreRadiusFactor,
     required this.coreAlphaFactor,
-    required this.velocityPeakAt,
+    required this.speedSlowness,
     required this.velocityRestPressure,
-    required this.velocityPeakPressure,
     required this.velocityMinPressure,
+    required this.startTaperLengthFactor,
+    required this.endTaperLengthFactor,
+    required this.taperTipSize,
+    required this.taperTipOpacity,
     this.scatterAmount = 0,
     this.scatterPasses = 1,
   });
@@ -41,10 +44,13 @@ class StudioBrushSettings {
   final double blurFactor;
   final double coreRadiusFactor;
   final double coreAlphaFactor;
-  final double velocityPeakAt;
+  final double speedSlowness;
   final double velocityRestPressure;
-  final double velocityPeakPressure;
   final double velocityMinPressure;
+  final double startTaperLengthFactor;
+  final double endTaperLengthFactor;
+  final double taperTipSize;
+  final double taperTipOpacity;
   final double scatterAmount;
   final int scatterPasses;
 
@@ -60,10 +66,13 @@ class StudioBrushSettings {
     blurFactor: 0.45,
     coreRadiusFactor: 0.55,
     coreAlphaFactor: 0.65,
-    velocityPeakAt: 0.32,
-    velocityRestPressure: 0.48,
-    velocityPeakPressure: 0.8,
+    speedSlowness: 0.05,
+    velocityRestPressure: 0.58,
     velocityMinPressure: 0.08,
+    startTaperLengthFactor: 1.6,
+    endTaperLengthFactor: 1.3,
+    taperTipSize: 0.12,
+    taperTipOpacity: 0.35,
   );
 
   static const softAirbrush = StudioBrushSettings(
@@ -78,10 +87,13 @@ class StudioBrushSettings {
     blurFactor: 0.72,
     coreRadiusFactor: 0.28,
     coreAlphaFactor: 0.4,
-    velocityPeakAt: 0.38,
-    velocityRestPressure: 0.42,
-    velocityPeakPressure: 0.72,
+    speedSlowness: 0.07,
+    velocityRestPressure: 0.52,
     velocityMinPressure: 0.12,
+    startTaperLengthFactor: 1.4,
+    endTaperLengthFactor: 1.2,
+    taperTipSize: 0.18,
+    taperTipOpacity: 0.45,
   );
 
   static const taperedInk = StudioBrushSettings(
@@ -96,10 +108,13 @@ class StudioBrushSettings {
     blurFactor: 0.32,
     coreRadiusFactor: 0.42,
     coreAlphaFactor: 0.75,
-    velocityPeakAt: 0.24,
-    velocityRestPressure: 0.38,
-    velocityPeakPressure: 0.82,
+    speedSlowness: 0.04,
+    velocityRestPressure: 0.54,
     velocityMinPressure: 0.04,
+    startTaperLengthFactor: 2.2,
+    endTaperLengthFactor: 2.0,
+    taperTipSize: 0.04,
+    taperTipOpacity: 0.15,
   );
 
   static const dryMarker = StudioBrushSettings(
@@ -114,10 +129,13 @@ class StudioBrushSettings {
     blurFactor: 0.22,
     coreRadiusFactor: 0.72,
     coreAlphaFactor: 0.55,
-    velocityPeakAt: 0.4,
-    velocityRestPressure: 0.55,
-    velocityPeakPressure: 0.78,
+    speedSlowness: 0.06,
+    velocityRestPressure: 0.6,
     velocityMinPressure: 0.18,
+    startTaperLengthFactor: 1.2,
+    endTaperLengthFactor: 1.0,
+    taperTipSize: 0.2,
+    taperTipOpacity: 0.5,
     scatterAmount: 0.38,
     scatterPasses: 3,
   );
@@ -134,10 +152,13 @@ class StudioBrushSettings {
     blurFactor: 0.52,
     coreRadiusFactor: 0.78,
     coreAlphaFactor: 0.58,
-    velocityPeakAt: 0.36,
-    velocityRestPressure: 0.58,
-    velocityPeakPressure: 0.76,
+    speedSlowness: 0.065,
+    velocityRestPressure: 0.62,
     velocityMinPressure: 0.14,
+    startTaperLengthFactor: 1.3,
+    endTaperLengthFactor: 1.1,
+    taperTipSize: 0.16,
+    taperTipOpacity: 0.4,
     scatterAmount: 0.16,
     scatterPasses: 2,
   );

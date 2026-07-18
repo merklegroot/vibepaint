@@ -18,46 +18,144 @@ const studioBrushInitialTouchPressure = 0.26;
 /// pressure to velocity-based pressure.
 const studioBrushStartRampFactor = 0.16;
 
-/// Maps pointer speed (document px / second) to synthetic brush pressure.
+/// Log-offset for speed mapping (libmypaint SPEED1 gamma). Compresses the
+/// low end so near-zero speed does not dominate thickness.
+const studioBrushSpeedGamma = 1.0;
+
+/// Normalized speed ceiling used when mapping log-speed to pressure.
+const studioBrushSpeedNormalizedMax = 3.0;
+
+double _studioBrushSmoothstep(double t) {
+  final x = t.clamp(0.0, 1.0);
+  return x * x * (3 - 2 * x);
+}
+
+/// Exponential low-pass filter for pointer speed (libmypaint NORM_SPEED1_SLOW).
+double studioBrushFilterSpeed({
+  required double rawSpeedPxPerSec,
+  required double filteredSpeedPxPerSec,
+  required double dtSeconds,
+  required double slowness,
+}) {
+  if (dtSeconds <= 0) {
+    return filteredSpeedPxPerSec;
+  }
+
+  final tau = slowness.clamp(0.002, 1.0);
+  final alpha = 1.0 - math.exp(-dtSeconds / tau);
+  return filteredSpeedPxPerSec +
+      (rawSpeedPxPerSec - filteredSpeedPxPerSec) * alpha;
+}
+
+/// Maps filtered speed to brush pressure using log compression plus a smooth
+/// inverse curve: slow/stopped = thicker, fast = thinner.
 double studioBrushPressureFromVelocity(
-  double velocityPxPerSec,
+  double filteredSpeedPxPerSec,
   double brushSize, {
   StudioBrushSettings settings = StudioBrushSettings.smoothMarker,
 }) {
   final reference = brushSize * 8;
   if (reference <= 0) {
+    return settings.velocityRestPressure;
+  }
+
+  final normalized =
+      (filteredSpeedPxPerSec / reference).clamp(0.0, studioBrushSpeedNormalizedMax);
+  final logInput = math.log(studioBrushSpeedGamma + normalized);
+  final logAtZero = math.log(studioBrushSpeedGamma);
+  final logAtMax = math.log(studioBrushSpeedGamma + studioBrushSpeedNormalizedMax);
+  final span = logAtMax - logAtZero;
+  final t = span <= 0
+      ? 0.0
+      : ((logInput - logAtZero) / span).clamp(0.0, 1.0);
+
+  return settings.velocityRestPressure +
+      (settings.velocityMinPressure - settings.velocityRestPressure) *
+          _studioBrushSmoothstep(t);
+}
+
+/// Cumulative arc length at each stroke point (first point is 0).
+List<double> studioBrushArcLengths(List<Offset> points) {
+  if (points.isEmpty) {
+    return const [];
+  }
+
+  final lengths = <double>[0];
+  for (var i = 1; i < points.length; i++) {
+    lengths.add(
+      lengths.last + (points[i] - points[i - 1]).distance,
+    );
+  }
+  return lengths;
+}
+
+/// Whether stroke-length taper includes the trailing end fade.
+enum StudioBrushStrokePhase {
+  /// In-progress stroke on canvas: start taper + velocity only.
+  live,
+
+  /// Finished stroke in layer history: full start and end taper.
+  committed,
+}
+
+/// Procreate-style size taper from stroke start and end (touch taper).
+double studioBrushTaperSizeMultiplier({
+  required double distanceFromStart,
+  required double distanceFromEnd,
+  required double brushSize,
+  StudioBrushSettings settings = StudioBrushSettings.smoothMarker,
+  StudioBrushStrokePhase phase = StudioBrushStrokePhase.committed,
+}) {
+  final tip = settings.taperTipSize.clamp(0.0, 1.0);
+  if (tip >= 1) {
     return 1;
   }
 
-  final normalized = (velocityPxPerSec / reference).clamp(0.0, 3.0);
-  if (normalized <= settings.velocityPeakAt) {
-    return settings.velocityRestPressure +
-        (settings.velocityPeakPressure - settings.velocityRestPressure) *
-            (normalized / settings.velocityPeakAt);
+  final startLen = brushSize * settings.startTaperLengthFactor;
+  final endLen = brushSize * settings.endTaperLengthFactor;
+  var multiplier = 1.0;
+
+  if (startLen > 0) {
+    final t = (distanceFromStart / startLen).clamp(0.0, 1.0);
+    multiplier *= tip + (1 - tip) * _studioBrushSmoothstep(t);
   }
 
-  final t = (normalized - settings.velocityPeakAt) /
-      (3.0 - settings.velocityPeakAt);
-  return settings.velocityPeakPressure +
-      (settings.velocityMinPressure - settings.velocityPeakPressure) * t;
+  if (endLen > 0 && phase == StudioBrushStrokePhase.committed) {
+    final t = (distanceFromEnd / endLen).clamp(0.0, 1.0);
+    multiplier *= tip + (1 - tip) * _studioBrushSmoothstep(t);
+  }
+
+  return multiplier.clamp(tip, 1.0);
 }
 
-/// Ease from a soft initial touch into velocity-based pressure once the
-/// pointer has moved far enough from the stroke start.
-double studioBrushPressureRamped({
-  required double pressure,
-  required double travelFromStart,
+/// Opacity taper at stroke tips (Procreate taper opacity).
+double studioBrushTaperOpacityMultiplier({
+  required double distanceFromStart,
+  required double distanceFromEnd,
   required double brushSize,
   StudioBrushSettings settings = StudioBrushSettings.smoothMarker,
+  StudioBrushStrokePhase phase = StudioBrushStrokePhase.committed,
 }) {
-  final rampDistance = brushSize * settings.startRampFactor;
-  if (rampDistance <= 0) {
-    return pressure;
+  final tip = settings.taperTipOpacity.clamp(0.0, 1.0);
+  if (tip >= 1) {
+    return 1;
   }
 
-  final moveT = (travelFromStart / rampDistance).clamp(0.0, 1.0);
-  return settings.initialTouchPressure +
-      (pressure - settings.initialTouchPressure) * moveT;
+  final startLen = brushSize * settings.startTaperLengthFactor;
+  final endLen = brushSize * settings.endTaperLengthFactor;
+  var multiplier = 1.0;
+
+  if (startLen > 0) {
+    final t = (distanceFromStart / startLen).clamp(0.0, 1.0);
+    multiplier *= tip + (1 - tip) * _studioBrushSmoothstep(t);
+  }
+
+  if (endLen > 0 && phase == StudioBrushStrokePhase.committed) {
+    final t = (distanceFromEnd / endLen).clamp(0.0, 1.0);
+    multiplier *= tip + (1 - tip) * _studioBrushSmoothstep(t);
+  }
+
+  return multiplier.clamp(tip, 1.0);
 }
 
 bool pointerHasStylusPressure(PointerDeviceKind kind) {

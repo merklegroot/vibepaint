@@ -2,10 +2,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:vibepaint/models/stroke.dart';
+import 'package:vibepaint/utils/studio_brush.dart';
 import 'package:vibepaint/utils/studio_brush_renderer.dart';
 
 /// Incrementally rasterizes an in-progress studio brush stroke so live
-/// drawing does not replay every stamp on each repaint.
+/// drawing does not replay every stamp on each [CustomPainter.paint] call.
 class StudioStrokePreview {
   ui.Image? image;
   int rasterizedPointCount = 0;
@@ -18,6 +19,8 @@ class StudioStrokePreview {
 
   void dispose() => clear();
 
+  /// Appends only new stamp points. Uses [StudioBrushStrokePhase.live] so end
+  /// taper is deferred until commit (Procreate Tip Animation off).
   void appendPoints(Stroke stroke, Size documentSize) {
     final start = rasterizedPointCount;
     final end = stroke.points.length;
@@ -49,6 +52,7 @@ class StudioStrokePreview {
       stroke,
       startIndex: start,
       endIndex: end,
+      phase: StudioBrushStrokePhase.live,
     );
 
     final picture = recorder.endRecording();
